@@ -23,14 +23,13 @@ One-screen save-state for Charlotte's development continuity.
 
 - **blockers**: None.
 
-- **next_action**: Resolve broodforge-side removal of the crawler (lives only on
-  `claude/html-web-crawler-sd0i4p`; pushing the removal there needs explicit
-  permission as it is outside this session's `festive-cerf` branch scope). See
-  SESSION_HANDOFF.md.
+- **next_action**: Operator to delete the `claude/html-web-crawler-sd0i4p` branch
+  in broodforge via the GitHub UI — this session is blocked from it (branch-write
+  policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Authored the `rhiz-memory/` instance (intent,
-  objectives, decisions) and committed the migrated crawler to
-  `claude/festive-cerf-7loovw`.
+- **last_completed_step**: Committed + pushed the migrated crawler and its
+  `rhiz-memory/` instance to `claude/festive-cerf-7loovw`. Attempted the
+  broodforge branch deletion; blocked by the session branch-write policy (403).
 
 - **resume_instructions**:
   1. Read `rhiz-memory/state/SESSION_HANDOFF.md` for full context.

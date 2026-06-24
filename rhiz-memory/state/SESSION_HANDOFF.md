@@ -5,9 +5,12 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
 
 ---
 
-- **status**: Migration into this repository **complete**. One follow-up is
-  pending an operator decision (removing the crawler from broodforge — see
-  next_action). Updated 2026-06-24.
+- **status**: Charlotte migration **complete and pushed**
+  (`claude/festive-cerf-7loovw`). Broodforge removal **decided** (delete the
+  `claude/html-web-crawler-sd0i4p` branch) but **blocked from this session** —
+  the git relay denies writes/deletes to any branch other than the designated
+  `festive-cerf` (HTTP 403, a policy denial), and the GitHub MCP server exposes
+  no delete-branch tool. The branch must be deleted by the operator. Updated 2026-06-24.
 
 - **objective**: Lift the web-crawler tool out of `broodforge` (where it lived
   under `tools/` with no code coupling to the rest of the tree) and stand it up
@@ -38,14 +41,16 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] Added `.gitignore`, `README.md`, `package.json`
   - [x] Verified: `node crawl.js --help`, `node crawl-render.js --help`, `node --check local-cors-proxy.js`
   - [x] Authored `rhiz-memory/` instance (intent, objectives, decisions)
-  - [ ] Remove crawler from broodforge (pending operator decision — see next_action)
+  - [~] Remove crawler from broodforge — operator chose *delete the branch*;
+    blocked from this session (branch-write policy 403 + no delete-branch tool).
+    Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.
 
-- **next_action**: Decide how to remove the crawler from broodforge. It lives
-  only on `claude/html-web-crawler-sd0i4p`, never on `main`/`festive-cerf`, and
-  this session is scoped to push only to `claude/festive-cerf-7loovw`. Options:
-  (a) push the handoff's §5 removal commit to `claude/html-web-crawler-sd0i4p`
-  (needs explicit permission — different branch); (b) leave broodforge as-is
-  since mainline never carried the crawler, and delete/abandon that branch.
+- **next_action**: Operator to delete the `claude/html-web-crawler-sd0i4p`
+  branch in broodforge (GitHub → Branches → delete). This session cannot: the
+  git relay returns 403 on writes/deletes to any branch other than the
+  designated `claude/festive-cerf-7loovw`, and no delete-branch API tool is
+  exposed. No PR depends on the branch and the crawler is safely in charlotte,
+  so the deletion is safe.
 
 - **active_risks**: None to the tool. The only open item is the broodforge-side
   cleanup decision above.

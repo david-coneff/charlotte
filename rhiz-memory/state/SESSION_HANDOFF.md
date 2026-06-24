@@ -10,7 +10,11 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   `claude/html-web-crawler-sd0i4p` branch) but **blocked from this session** —
   the git relay denies writes/deletes to any branch other than the designated
   `festive-cerf` (HTTP 403, a policy denial), and the GitHub MCP server exposes
-  no delete-branch tool. The branch must be deleted by the operator. Updated 2026-06-24.
+  no delete-branch tool. The branch must be deleted by the operator.
+  **Update 2026-06-24:** crawler **report features** added — selectable
+  broken-link export to the allowlist (checkbox column + Export/Copy on the
+  Errors tabs), a **Runtime** headline stat, and **Charlotte** branding with a
+  🕸️ favicon — committed and pushed. (AD-007)
 
 - **objective**: Lift the web-crawler tool out of `broodforge` (where it lived
   under `tools/` with no code coupling to the rest of the tree) and stand it up
@@ -33,6 +37,11 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
     optionalDependency, `bin` entries `crawl`/`crawl-render`), `README.md`, and
     the crawler's `.gitignore` output-pattern block. (AD-004)
   - Adopted the Rhizome memory convention in this repo (`rhiz-memory/`). (AD-005)
+  - Report enhancements (AD-007): checkbox-select broken links on the two Errors
+    tabs → **Export to allowlist…** / **Copy** (emits the same `url # reason —
+    found on: src` lines; round-trip verified to move links to Suppressed); a
+    **Runtime** headline stat; Charlotte branding (title/header + 🕸️ favicon);
+    `broodforge*` localStorage keys and default UA renamed to `charlotte*`.
 
 - **milestone_checklist**:
   - [x] Located the crawler + migration handoff on broodforge `claude/html-web-crawler-sd0i4p`
@@ -41,6 +50,9 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] Added `.gitignore`, `README.md`, `package.json`
   - [x] Verified: `node crawl.js --help`, `node crawl-render.js --help`, `node --check local-cors-proxy.js`
   - [x] Authored `rhiz-memory/` instance (intent, objectives, decisions)
+  - [x] Report: selectable broken-link → allowlist export on the Errors tabs (checkbox + Export/Copy)
+  - [x] Report: Runtime headline stat; Charlotte branding + 🕸️ favicon; `broodforge*`→`charlotte*` keys/UA
+  - [x] Verified features against a local fixture (export round-trips to Suppressed)
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

@@ -127,7 +127,7 @@
     </div>
     <div class="row">
       <label class="f" for="userAgent">User-Agent</label>
-      <input class="t" type="text" id="userAgent" value="broodforge-crawler/1.0 (+local)" onkeyup="updatePreview()">
+      <input class="t" type="text" id="userAgent" value="charlotte-crawler/1.0 (+local)" onkeyup="updatePreview()">
     </div>
     <div class="row">
       <label class="f" for="seen">Dedup index</label>
@@ -266,7 +266,7 @@ function buildArgs() {
   // In browser mode, the default UA box means "use the built-in browser UA" — so
   // only pass --user-agent when it's non-empty AND not the unchanged default.
   var uaVal = val("userAgent");
-  if (uaVal !== "" && !($("browser").checked && uaVal === "broodforge-crawler/1.0 (+local)")) a.push("--user-agent " + q(uaVal));
+  if (uaVal !== "" && !($("browser").checked && uaVal === "charlotte-crawler/1.0 (+local)")) a.push("--user-agent " + q(uaVal));
   if ($("seen").value !== "memory") a.push("--seen " + $("seen").value);
   if (val("allowlist") !== "")   a.push("--allowlist " + q(val("allowlist")));
   if (val("out") !== "")         a.push("--out " + q(val("out")));

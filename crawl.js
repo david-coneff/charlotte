@@ -51,6 +51,8 @@ const REF_PREVIEW = 3;             // referrers shown inline in the external/out
 const REF_CAP = 500;              // max referrers listed in a broken-link's nested table
 const RENDER_CAP = 5000;           // max rows rendered per report table (full data stays in --json/--log)
 const TITLE_CAP = 300;             // max title chars retained per page
+const BRAND = "Charlotte";         // report branding — the project / repo name
+const BRAND_ICON = "🕸️";           // spiderweb glyph: favicon + report header
 
 // ----------------------------- CLI parsing -----------------------------
 function parseArgs(argv) {
@@ -84,7 +86,7 @@ function parseArgs(argv) {
     includeSubdomains: false,
     checkExternal: false,
     browser: false,                  // send a desktop-browser UA + Accept headers
-    userAgent: "broodforge-crawler/1.0 (+local)",
+    userAgent: "charlotte-crawler/1.0 (+local)",
     userAgentSet: false,             // did --user-agent override the default?
     allowlist: "crawl-allowlist.txt",
     suggest: "crawl-allowlist.suggested.txt",
@@ -886,6 +888,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     crawlDelay,
     crawled: 0,
     startedAt: new Date().toISOString(),
+    startedMs: Date.now(),
   };
 
   // Partitioned progress log — the durable trail: if the process is killed, the
@@ -1194,6 +1197,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
   logLine(`# crawl done ${new Date().toISOString()} crawled=${state.crawled} pages=${state.pages.length} external=${state.external.size} errors=${state.errors.length}`);
   logger.finalize(!sharedLogger);   // shared logger is finalized once by the caller
   seen.close();
+  state.finishedMs = Date.now();   // freeze crawl runtime for the final report
   return state;
 }
 
@@ -1232,6 +1236,20 @@ function buildReport(state, cfg, allow, partial) {
   // apart from confirmed-dead links so they aren't mistaken for them. Deduped.
   const blockedSeen = {};
   const blocked = (state.blocked || []).filter((b) => { if (blockedSeen[b.url]) return false; blockedSeen[b.url] = 1; return true; });
+
+  // Crawl runtime — frozen at completion (state.finishedMs) for the final report;
+  // counts up from the start while a partial report is still being written.
+  const startedMs = state.startedMs || Date.parse(state.startedAt) || Date.now();
+  const elapsedMs = Math.max(0, (state.finishedMs || Date.now()) - startedMs);
+  const fmtDur = (ms) => {
+    const s = Math.round(ms / 1000);
+    if (s < 60) return s + "s";
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return h ? `${h}h ${m}m ${sec}s` : `${m}m ${sec}s`;
+  };
+  // Selectable broken-link export (checkbox column + "export to allowlist") is a
+  // final-report feature: partial reports auto-refresh, which would clear ticks.
+  const showPick = !partial;
 
   const stat = (n, label, cls) => `<div class="stat ${cls || ""}"><div class="n">${n}</div><div class="l">${esc(label)}</div></div>`;
   const link = (u) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>`;
@@ -1278,6 +1296,16 @@ function buildReport(state, cfg, allow, partial) {
   const errRows = (arr) => arr.slice(0, RENDER_CAP).map((e) => `<tr><td>${link(e.url)}</td><td><span class="pill err">${esc(e.reason)}</span></td><td class="muted">${refCell(e.url, e.source)}</td></tr>`).join("");
   // Blocked rows: a neutral "uncertain" pill + the kind (internal/external).
   const blockedRows = (arr) => arr.slice(0, RENDER_CAP).map((e) => `<tr><td>${link(e.url)}</td><td><span class="pill skip">${esc(e.reason)}</span></td><td>${esc(e.kind || "internal")}</td><td class="muted">${refCell(e.url, e.source)}</td></tr>`).join("");
+  // Error rows WITH a leading checkbox — only on the two "Errors" tabs. Each box
+  // carries the data to render an allowlist line (url + reason + a representative
+  // referrer), so a selection can be exported as an allowlist appendage.
+  const pickRows = (arr) => arr.slice(0, RENDER_CAP).map((e) => {
+    const src = refsOf(e.url)[0] || e.source || "(start)";
+    return `<tr><td><input type="checkbox" class="pickbox" data-url="${esc(e.url)}" data-reason="${esc(e.reason)}" data-source="${esc(src)}"></td><td>${link(e.url)}</td><td><span class="pill err">${esc(e.reason)}</span></td><td class="muted">${refCell(e.url, e.source)}</td></tr>`;
+  }).join("");
+  // Toolbar above an Errors table: a live count + copy/export actions (disabled
+  // until something is ticked). The select-all lives in the table header cell.
+  const exportBar = (scope) => `<div class="exportbar"><span class="selcount" data-scope="${scope}">0 selected</span><span class="grow"></span><button type="button" class="btn copybtn" data-scope="${scope}" disabled>⧉ Copy lines</button><button type="button" class="btn exportbtn" data-scope="${scope}" disabled>⬇ Export to allowlist…</button></div>`;
 
   // Out-of-scope (same domain, outside the chosen subsection) — only shown when scoped.
   const scoped = !!state.pathPrefix;
@@ -1311,7 +1339,8 @@ function buildReport(state, cfg, allow, partial) {
 
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${partial ? "[crawling] " : ""}Crawl report — ${esc(state.startHost)}</title>
+<title>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} · Crawl report — ${esc(state.startHost)}</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%95%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <style>
  :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340}
  *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
@@ -1332,6 +1361,15 @@ function buildReport(state, cfg, allow, partial) {
  .muted{color:var(--muted)}h2{font-size:15px;margin:0 0 12px}details summary{cursor:pointer;font-weight:600;padding:6px 0}
  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:#06121f;border-color:var(--accent)}
  .hidden{display:none}code{background:var(--panel2);padding:1px 5px;border-radius:4px}
+ /* Errors tables with a leading checkbox column: keep the box narrow, URL wide. */
+ .haspick th:first-child,.haspick td:first-child{min-width:34px;width:34px;text-align:center}
+ .haspick th:nth-child(2),.haspick td:nth-child(2){min-width:360px}
+ .haspick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
+ .exportbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}.exportbar .grow{flex:1}
+ .selcount{color:var(--muted);font-size:12px}
+ .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
+ .btn.exportbtn:not(:disabled){background:var(--accent);color:#06121f;border-color:var(--accent);font-weight:600}
+ .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}.toast.show{opacity:1}
  /* No-flash tab restore: a head script sets html.tab-NAME before first paint so
     the correct tab/panel renders immediately, not the default then a swap. */
  html[class*="tab-"] .panel{display:none}
@@ -1341,9 +1379,9 @@ function buildReport(state, cfg, allow, partial) {
  .subtable{width:100%;border-collapse:collapse}.subtable td{padding:4px 8px;border-bottom:1px solid var(--border)}
  details summary{color:var(--accent)}
 </style>
-<script>(function(){try{var n=(location.hash||'').substring(1);if(!n){try{n=localStorage.getItem('broodforgeTab')||'';}catch(e){}}if(n)document.documentElement.className='tab-'+n;}catch(e){}})();</script>
+<script>(function(){try{var n=(location.hash||'').substring(1);if(!n){try{n=localStorage.getItem('charlotteTab')||'';}catch(e){}}if(n)document.documentElement.className='tab-'+n;}catch(e){}})();</script>
 </head><body>
-<header><h1>${partial ? "[crawling] " : ""}Crawl report — ${esc(state.startHost)}</h1>
+<header><h1>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} <span class="muted" style="font-weight:400">· Crawl report</span> — ${esc(state.startHost)}</h1>
 <p>${esc(cfg.startUrl)} · ${esc(state.startedAt)}<br>${esc(cfgLine)}</p>${banner}</header>
 <main>
  <div class="card"><div class="stats">
@@ -1355,6 +1393,7 @@ function buildReport(state, cfg, allow, partial) {
   ${stat(blocked.length, "Blocked · uncertain", blocked.length ? "warn" : "")}
   ${stat(suppressed.length, "Suppressed", "")}
   ${partial ? stat(state.queue.length, "Queued", "") : stat(state.crawled, "Requests", "")}
+  ${stat(fmtDur(elapsedMs), partial ? "Runtime · so far" : "Runtime", "")}
  </div></div>
  <div class="card">
   <div class="tabs">
@@ -1369,8 +1408,8 @@ function buildReport(state, cfg, allow, partial) {
   <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
   <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
-  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p><div class="tablewrap"><table><thead><tr><th>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
-  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p><div class="tablewrap"><table><thead><tr><th>External URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
+  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th>External URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeExt) : errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
   <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${capNote(blocked.length)}<div class="tablewrap"><table><thead><tr><th>URL</th><th>Why uncertain</th><th>Kind</th><th>Found on</th></tr></thead><tbody>${blockedRows(blocked)}</tbody></table></div>` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-suppressed">${suppressed.length ? `<p class="muted">Hidden from Errors via <code>${esc(cfg.allowlist)}</code>.</p><div class="tablewrap"><table><thead><tr><th>URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${errRows(suppressed)}</tbody></table></div>` : `<p class="muted">Nothing suppressed.</p>`}</div>
  </div>
@@ -1379,7 +1418,7 @@ function buildReport(state, cfg, allow, partial) {
 <script>
 (function(){
   var PARTIAL = ${partial ? "true" : "false"};
-  var TKEY='broodforgeTab';
+  var TKEY='charlotteTab';
   var tabs=document.querySelectorAll('.tab');
   function L(){ try{ return window.localStorage; }catch(e){ return null; } }
 
@@ -1404,22 +1443,22 @@ function buildReport(state, cfg, allow, partial) {
     var panel=panelOf(tw), pid=panel?panel.id:'p', idx=0;
     var sibs=panel?panel.querySelectorAll('.tablewrap'):[tw];
     for(var k=0;k<sibs.length;k++){ if(sibs[k]===tw){ idx=k; break; } }
-    return 'broodforgeTW_'+pid+'_'+idx;
+    return 'charlotteTW_'+pid+'_'+idx;
   }
   function saveState(){
     var s=L(); if(!s) return;
     try{
-      s.setItem('broodforgeWinY', String(window.pageYOffset||document.documentElement.scrollTop||0));
+      s.setItem('charlotteWinY', String(window.pageYOffset||document.documentElement.scrollTop||0));
       var tw=allTW(); for(var i=0;i<tw.length;i++) s.setItem(twKey(tw[i]), String(tw[i].scrollTop));
-      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++) s.setItem('broodforgeD_'+j, d[j].open?'1':'0');
+      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++) s.setItem('charlotteD_'+j, d[j].open?'1':'0');
     }catch(e){}
   }
   function restoreState(){
     var s=L(); if(!s) return;
     try{
-      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++){ var dv=s.getItem('broodforgeD_'+j); if(dv!==null) d[j].open=(dv==='1'); }
+      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++){ var dv=s.getItem('charlotteD_'+j); if(dv!==null) d[j].open=(dv==='1'); }
       var tw=allTW(); for(var i=0;i<tw.length;i++){ var v=s.getItem(twKey(tw[i])); if(v!==null) tw[i].scrollTop=parseInt(v,10)||0; }
-      var wy=s.getItem('broodforgeWinY'); if(wy!==null) window.scrollTo(0, parseInt(wy,10)||0);
+      var wy=s.getItem('charlotteWinY'); if(wy!==null) window.scrollTo(0, parseInt(wy,10)||0);
     }catch(e){}
   }
 
@@ -1454,6 +1493,74 @@ function buildReport(state, cfg, allow, partial) {
     }
     setTimeout(tick, 5000);
   }
+})();
+</script>
+<script>
+/* Broken-link selection → allowlist appendage (final report only). Each ticked
+   row on the two Errors tabs becomes an allowlist line; Export downloads them as
+   a file to append to the allowlist, Copy puts them on the clipboard. */
+(function(){
+  var ALLOWLIST = ${JSON.stringify(cfg.allowlist)};
+  var HOST = ${JSON.stringify(state.startHost)};
+  var BRAND = ${JSON.stringify(BRAND)};
+  var SCOPES = ['errint','errext'];
+  function panel(scope){ return document.getElementById('panel-'+scope); }
+  function boxes(scope){ var p=panel(scope); return p? p.querySelectorAll('.pickbox') : []; }
+  function picked(scope){ var b=boxes(scope), o=[]; for(var i=0;i<b.length;i++){ if(b[i].checked) o.push(b[i]); } return o; }
+  function bar(scope){ var p=panel(scope); return p? p.querySelector('.exportbar') : null; }
+  function dlName(){ var b=ALLOWLIST.split('/').pop().replace(/\\.[^.]*$/,''); return (b||'crawl-allowlist')+'.append.txt'; }
+  function refresh(scope){
+    var all=boxes(scope), n=picked(scope).length, b=bar(scope); if(!b) return;
+    var c=b.querySelector('.selcount'); if(c){ c.textContent=n+' selected'; }
+    var btns=b.querySelectorAll('.btn'); for(var i=0;i<btns.length;i++){ btns[i].disabled=(n===0); }
+    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
+    if(pa){ pa.checked=(n>0&&n===all.length); pa.indeterminate=(n>0&&n<all.length); }
+  }
+  function text(scope){
+    var sel=picked(scope), out=[];
+    out.push('# '+BRAND+' — allowlist appendage from crawl of '+HOST);
+    out.push('# generated '+new Date().toISOString()+' — '+sel.length+' link(s)');
+    out.push('# append to '+ALLOWLIST+' to suppress these in future scans, e.g.:');
+    out.push('#   cat '+dlName()+' >> '+ALLOWLIST);
+    out.push('#   ( *=wildcard   #=comment   blank lines ignored )');
+    out.push('#');
+    for(var i=0;i<sel.length;i++){
+      out.push(sel[i].getAttribute('data-url')+'   # '+sel[i].getAttribute('data-reason')+' — found on: '+sel[i].getAttribute('data-source'));
+    }
+    return out.join('\\n')+'\\n';
+  }
+  function toast(msg){
+    var t=document.getElementById('cw-toast');
+    if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); }
+    t.textContent=msg; t.className='toast show';
+    setTimeout(function(){ t.className='toast'; }, 2400);
+  }
+  function doExport(scope){
+    var txt=text(scope), name=dlName(), n=picked(scope).length;
+    try{
+      var blob=new Blob([txt],{type:'text/plain;charset=utf-8'}), url=URL.createObjectURL(blob);
+      var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
+      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
+      toast('Exported '+n+' link(s) → '+name);
+    }catch(e){ toast('Export failed'); }
+  }
+  function doCopy(scope){
+    var txt=text(scope), n=picked(scope).length;
+    function ok(){ toast('Copied '+n+' line(s) to clipboard'); }
+    function legacy(){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); var good=false; try{ good=document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); good?ok():toast('Copy failed — use Export'); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok,legacy); } else { legacy(); }
+  }
+  function wire(scope){
+    var all=boxes(scope); if(!all.length) return;
+    for(var i=0;i<all.length;i++){ all[i].addEventListener('change', function(){ refresh(scope); }); }
+    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
+    if(pa){ pa.addEventListener('change', function(){ var b=boxes(scope); for(var k=0;k<b.length;k++){ b[k].checked=pa.checked; } refresh(scope); }); }
+    var b=bar(scope); if(b){ var ex=b.querySelector('.exportbtn'), cp=b.querySelector('.copybtn');
+      if(ex){ ex.addEventListener('click', function(){ doExport(scope); }); }
+      if(cp){ cp.addEventListener('click', function(){ doCopy(scope); }); } }
+    refresh(scope);
+  }
+  for(var i=0;i<SCOPES.length;i++){ wire(SCOPES[i]); }
 })();
 </script>
 </body></html>`;

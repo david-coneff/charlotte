@@ -70,3 +70,28 @@ the exact blobs (verified by SHA-256 against the source branch) guarantees the
 tool "runs identically in the new repo," which is the migration's stated bottom
 line. Executable bits were preserved/added for the three files that carry a
 shebang (`crawl.js`, `crawl-render.js`, `local-cors-proxy.js`).
+
+## AD-007: Report enhancements — branding, runtime, and selectable allowlist export
+**Date:** 2026-06-24
+**Decision:** Enhance the generated `crawl-report.html`: (a) brand it **Charlotte**
+(title + header + a 🕸️ SVG favicon); (b) show the crawl **Runtime** among the
+headline stats; (c) give the two **Errors** tabs (internal + external) a per-row
+checkbox plus an **Export to allowlist…** / **Copy lines** toolbar.
+**Rationale / how it meets the goal:**
+- *Branding* — a standalone tool should identify itself. The report now carries
+  the repo's name and a spiderweb favicon (the "Charlotte's web" motif), and the
+  leftover `broodforge*` localStorage keys and `broodforge-crawler/1.0` default
+  User-Agent were renamed to `charlotte*` / `charlotte-crawler/1.0`.
+- *Runtime* — added `state.startedMs` (at init) and `state.finishedMs` (frozen at
+  crawl completion). The stat shows the frozen duration on the final report and
+  counts up from the start on partial (live) reports.
+- *Selectable allowlist export* — the checkbox column emits the **same** annotated
+  line as the suggested-file path (`url   # reason — found on: src`), so a ticked
+  selection downloads as `crawl-allowlist.append.txt` (or copies to the clipboard)
+  ready to append to the allowlist. Gated to the final report (partial reports
+  auto-refresh, which would clear ticks) and confined to the Errors tabs.
+**Implementation note:** all report JS stays dependency-free and self-contained
+(Blob download + `execCommand` clipboard fallback). Verified end-to-end against a
+local fixture: the embedded scripts syntax-check, the favicon decodes to valid
+SVG, and an exported selection fed back via `--allowlist` moves those links from
+Errors to **Suppressed** on the next scan.

@@ -1,4 +1,4 @@
-# Domain Crawler
+# 🕸️ Charlotte — Domain Crawler
 
 Tools for mapping a single website: every internal link, plus a record of the
 first-tier external links it points to. Pick the one that fits how you want to
@@ -78,7 +78,7 @@ node crawl.js https://example.com/ --json results.json
 | `--include-subdomains` | off | Count subdomains of the start host as internal. |
 | `--check-external` | off | Verify each external link resolves: a HEAD, then a GET if HEAD is inconclusive (many servers mishandle HEAD or block bots at it). |
 | `--browser` | off | Send a desktop-Chrome `User-Agent` plus the `Accept`/`Accept-Language` headers a browser sends. Sites that serve a 403/blank to unknown clients then verify correctly. Honest identity — no cookie/JS/fingerprint spoofing. |
-| `--user-agent STR` | `broodforge-crawler/1.0 (+local)` | Custom `User-Agent` header. Overrides `--browser`'s UA (browser headers are still sent). |
+| `--user-agent STR` | `charlotte-crawler/1.0 (+local)` | Custom `User-Agent` header. Overrides `--browser`'s UA (browser headers are still sent). |
 | `--allowlist FILE` | `crawl-allowlist.txt` | Patterns whose broken links are suppressed (see below). |
 | `--suggest FILE` | `crawl-allowlist.suggested.txt` | Where new broken links are written for review. |
 | `--out FILE` | `crawl-report.html` | Output report. |
@@ -379,6 +379,18 @@ tabbed sections:
 - **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them.
 - **Suppressed** — broken links hidden via the allowlist, kept separately so you can still audit them.
 
+Across the top sits a row of **headline numbers** — internal pages, external
+links, errors (internal/external), blocked, suppressed, requests, and the crawl
+**Runtime**. The report is branded **Charlotte** with a 🕸️ favicon (visible on
+the browser tab).
+
+On the two **Errors** tabs every row has a **checkbox**. Tick the broken links
+you want to stop seeing, then **Export to allowlist…** (downloads a ready-to-append
+file) or **Copy lines** (to the clipboard). Both emit allowlist-format lines for
+exactly the links you picked — append them to your allowlist and those links move
+to **Suppressed** on the next scan. See
+[Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports).
+
 Every broken link lists **all** the pages that link to it (each a clickable
 "found on" referrer); when there's more than one, they're shown in a collapsible
 table inside the row, so you can fix every reference. The full referrer lists are
@@ -425,6 +437,13 @@ The loop:
    ```
 
 4. **Re-run.** Allowlisted links now appear under **Suppressed**, not **Errors**.
+
+**Shortcut — straight from the report.** On the **Errors · internal** and
+**Errors · external** tabs, tick the links you want silenced and click **Export to
+allowlist…** (or **Copy lines**). You get the same annotated allowlist lines as the
+suggested file, but only for the links you chose — append the downloaded
+`crawl-allowlist.append.txt` to `crawl-allowlist.txt` and re-run. Handy when only a
+handful of the flagged links should be suppressed.
 
 **Pattern syntax** (in `crawl-allowlist.txt`):
 

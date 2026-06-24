@@ -27,13 +27,14 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Extracted the report/output layer out of `crawl.js` into a
-  sibling **`report.js`** (2026-06-24, AD-009) — `buildReport`, `writeOutputs`,
-  `buildIndexReport`, `writeCombinedJson` + render caps / branding / `esc`; `crawl.js`
-  1,861→1,301 lines and `require`s the writers back. Verified the regenerated report is
-  **byte-for-byte identical** to pre-split, and multi-site + `--help` still work. Prior
-  work: the fix tracker (AD-008), report features (AD-007: allowlist export, runtime,
-  branding), and the migration (AD-001…AD-006). All committed and pushed; broodforge
+- **last_completed_step**: GUI now loads **multiple default Start URLs** from an
+  optional `crawl-gui-domains.txt` beside `crawl-gui.hta` (2026-06-24, AD-010 — one URL
+  per line; each becomes a row; parsing verified; `.example` template ships). Before
+  that: extracted the report/output layer out of `crawl.js` into a sibling
+  **`report.js`** (AD-009) — `buildReport`/`writeOutputs`/`buildIndexReport`/
+  `writeCombinedJson` + caps/branding/`esc`; `crawl.js` 1,861→1,301 lines, report output
+  **byte-for-byte identical** to pre-split. Earlier: fix tracker (AD-008), report
+  features (AD-007), migration (AD-001…AD-006). All committed and pushed; broodforge
   branch deletion remains an operator action (session is 403-blocked from it).
 
 - **resume_instructions**:

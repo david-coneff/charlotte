@@ -145,3 +145,18 @@ noted in `CRAWLER.md` (crawl.js + GUI requirements) and the README.
 identical** to the pre-split output (modulo timestamps/runtime/runId); the
 embed → export → render checks still pass; and `--help` plus a multi-site run (index +
 per-site reports + combined JSON) work.
+
+## AD-010: GUI default Start URLs via crawl-gui-domains.txt
+**Date:** 2026-06-24
+**Decision:** On open, `crawl-gui.hta` pre-fills its Start-URL rows from an optional
+**`crawl-gui-domains.txt`** beside it — one URL per line (`#` comments and blank lines
+ignored; an inline ` # comment` trimmed; a `#fragment` in the URL kept). **Each line
+becomes its own row, so multiple defaults load**; an absent/empty file falls back to
+the original single blank row. A `crawl-gui-domains.txt.example` template ships.
+**Rationale:** lets a recurring multi-site scan open ready-to-run without retyping the
+URLs each time. Reuses the GUI's existing `readFile()` + `addUrlRow()` (no new
+dependency), and the line parser mirrors the crawler's allowlist comment convention
+for consistency.
+**Verification:** the GUI's JScript block parses, and a multi-line sample yields N
+rows with inline comments trimmed and URL fragments preserved; empty/comment-only
+files yield 0 rows (→ the blank-row fallback).

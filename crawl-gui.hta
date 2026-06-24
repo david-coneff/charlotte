@@ -84,7 +84,7 @@
     <div class="row">
       <label class="f">&nbsp;</label>
       <button class="sec" type="button" onclick="addUrlRow('')">+ Add another site</button>
-      <span class="hint">each site is crawled sequentially with the same settings below</span>
+      <span class="hint">each site is crawled sequentially with the same settings below · defaults load from crawl-gui-domains.txt</span>
     </div>
     <div class="row">
       <label class="f" for="scope">Crawl scope</label>
@@ -318,6 +318,28 @@ function getUrls() {
     if (v !== "" && v !== "https://" && v !== "http://") urls.push(v);
   }
   return urls;
+}
+
+// ---- default Start URLs: pre-fill rows from an optional crawl-gui-domains.txt
+//      next to this file (one URL per line; blank lines and lines starting with
+//      # are ignored; an inline " # comment" after a URL is trimmed). Falls back
+//      to a single empty row when the file is absent or empty. ----
+function seedUrls() {
+  var seeded = 0;
+  try {
+    var txt = readFile(scriptDir + "\\crawl-gui-domains.txt");
+    if (txt !== "") {
+      var lines = txt.split(/\r\n|\r|\n/);
+      for (var i = 0; i < lines.length; i++) {
+        var line = trim(lines[i]);
+        if (line === "" || line.charAt(0) === "#") continue;
+        var c = line.indexOf(" #");                 // strip an inline " # comment"
+        if (c >= 0) line = trim(line.substring(0, c));
+        if (line !== "") { addUrlRow(line); seeded++; }
+      }
+    }
+  } catch (e) {}
+  if (seeded === 0) addUrlRow("https://");           // keep the original single blank row
 }
 
 // Enable/disable dependent fields: "no limit" greys out the depth box, and the
@@ -664,7 +686,7 @@ window.onerror = function (msg, url, line) {
 
 // ---- boot ----
 initPaths();
-addUrlRow("https://");   // seed one Start URL row
+seedUrls();              // pre-fill Start URL rows from crawl-gui-domains.txt (else one blank row)
 toggleInputs();
 updatePreview();
 </script>

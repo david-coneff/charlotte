@@ -495,6 +495,25 @@ install** beyond Node.js.
 - `crawl.js` **and `report.js`** in the **same folder** as `crawl-gui.hta`
   (`crawl.js` is auto-detected and `require`s `report.js`).
 
+### Default start URLs (optional)
+
+To have the GUI open with sites already filled in, put a **`crawl-gui-domains.txt`**
+next to `crawl-gui.hta` — **one URL per line**. Every line becomes its own Start-URL
+row, so you can preload **as many domains as you like** (they're crawled sequentially
+with the same settings). Blank lines and lines starting with `#` are ignored, and an
+inline ` # comment` after a URL is trimmed:
+
+```
+# Sites I scan regularly
+https://example.com/
+https://docs.example.com/
+https://blog.example.com/   # quarterly check
+```
+
+With no such file, the GUI opens with one empty row as before. A ready-to-edit
+**`crawl-gui-domains.txt.example`** ships alongside — rename it (drop `.example`) and
+fill in your sites.
+
 ### Use it
 
 1. Double-click `crawl-gui.hta`.

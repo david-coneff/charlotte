@@ -65,6 +65,7 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] Verified features against a local fixture (export round-trips to Suppressed)
   - [x] Per-referrer fix checkboxes + standalone editable fix-tracker export (notes per row); verified report→export→render
   - [x] Extracted the report/output layer into `report.js` (AD-009); `crawl.js` 1,861→1,301 lines, report output byte-identical, multi-site + `--help` verified
+  - [x] GUI loads multiple default Start URLs from `crawl-gui-domains.txt` (AD-010); parsing verified
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

@@ -1,0 +1,17 @@
+# crawl-gui-domains.txt — default Start URLs for crawl-gui.hta
+#
+# Rename this file to "crawl-gui-domains.txt" (drop the .example) and keep it
+# next to crawl-gui.hta. When the GUI opens, every non-comment line below becomes
+# a Start-URL row — so you can preload as many sites as you want. They're crawled
+# sequentially with the same settings.
+#
+# Rules:
+#   - one URL per line
+#   - blank lines and lines starting with #  are ignored
+#   - an inline " # comment" after a URL is trimmed (a #fragment in the URL is kept)
+#
+# Uncomment / replace the examples below with your own sites:
+#
+# https://example.com/
+# https://docs.example.com/
+# https://blog.example.com/   # quarterly check

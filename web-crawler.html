@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Self-Contained Domain Crawler</title>
+<!--
+  web-crawler.html — A single, self-encapsulated HTML page that crawls one
+  domain for all of its internal links, records (but does not follow) any
+  links pointing to outside domains, and renders a report inside this page.
+
+  HOW IT WORKS / LIMITATIONS
+  ==========================
+  This runs entirely in your browser using fetch() + DOMParser. The browser's
+  same-origin policy (CORS) governs what it can read:
+
+    * Pages on the SAME ORIGIN as where this file is served are readable.
+      => Best results: host this file on the domain you want to map, then
+         enter a start URL on that same domain.
+
+    * Pages on a DIFFERENT origin cannot be read directly. To crawl an
+      arbitrary domain (or to run from file://), supply a CORS proxy URL
+      template below (e.g. https://corsproxy.io/?url={url}). The proxy
+      fetches the page server-side and adds CORS headers so JS can read it.
+
+    * EXTERNAL links found on crawled pages are only RECORDED, never fetched,
+      so they never hit CORS — exactly matching the "one tier only" spec.
+
+  Nothing here is sent anywhere except (a) the pages you crawl and (b) the
+  CORS proxy if you configure one. No external libraries, no build step.
+-->
+<style>
+  :root {
+    --bg: #0f1115; --panel: #1a1e26; --panel2: #222834; --fg: #e6e9ef;
+    --muted: #9aa4b2; --accent: #5db0ff; --good: #4ade80; --bad: #f87171;
+    --warn: #fbbf24; --border: #2c3340;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font: 14px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    background: var(--bg); color: var(--fg);
+  }
+  header { padding: 20px 24px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  header h1 { margin: 0 0 4px; font-size: 18px; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 20px; }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+  input, select {
+    width: 100%; padding: 9px 10px; background: var(--panel2); color: var(--fg);
+    border: 1px solid var(--border); border-radius: 7px; font: inherit;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; }
+  .btns { display: flex; gap: 10px; margin-top: 16px; }
+  button {
+    padding: 10px 18px; border: 0; border-radius: 7px; font: inherit; font-weight: 600;
+    cursor: pointer; background: var(--accent); color: #06121f;
+  }
+  button.secondary { background: var(--panel2); color: var(--fg); border: 1px solid var(--border); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .stats { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .stat { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+  .stat .n { font-size: 26px; font-weight: 700; }
+  .stat .l { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .stat.good .n { color: var(--good); } .stat.bad .n { color: var(--bad); } .stat.warn .n { color: var(--warn); }
+  progress { width: 100%; height: 10px; }
+  .log {
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; background: #0b0d11;
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px; max-height: 220px;
+    overflow: auto; white-space: pre-wrap; color: var(--muted);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; position: sticky; top: 0; background: var(--panel); }
+  td a { color: var(--accent); text-decoration: none; word-break: break-all; }
+  td a:hover { text-decoration: underline; }
+  .tablewrap { max-height: 460px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .pill.ok { background: rgba(74,222,128,.15); color: var(--good); }
+  .pill.err { background: rgba(248,113,113,.15); color: var(--bad); }
+  .pill.skip { background: rgba(251,191,36,.15); color: var(--warn); }
+  .muted { color: var(--muted); }
+  h2 { font-size: 15px; margin: 0 0 12px; }
+  .count { color: var(--muted); font-weight: 400; font-size: 13px; }
+  details summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
+  .hidden { display: none; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .tab { padding: 7px 14px; border-radius: 7px; background: var(--panel2); border: 1px solid var(--border); cursor: pointer; font-size: 13px; }
+  .tab.active { background: var(--accent); color: #06121f; border-color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Self-Contained Domain Crawler</h1>
+  <p>Crawls one domain's internal links, records first-tier external links, and reports here — all in this single page.</p>
+</header>
+
+<main>
+  <!-- ============ CONFIG ============ -->
+  <div class="card">
+    <div class="grid">
+      <div>
+        <label for="startUrl">Start URL</label>
+        <input id="startUrl" type="url" placeholder="https://example.com/" />
+      </div>
+      <div>
+        <label for="maxPages">Max pages to crawl</label>
+        <input id="maxPages" type="number" min="1" value="100" />
+      </div>
+      <div>
+        <label for="maxDepth">Max depth (0 = start only)</label>
+        <input id="maxDepth" type="number" min="0" value="3" />
+      </div>
+      <div>
+        <label for="concurrency">Concurrent requests</label>
+        <input id="concurrency" type="number" min="1" max="12" value="4" />
+      </div>
+      <div>
+        <label for="delay">Delay between requests (ms)</label>
+        <input id="delay" type="number" min="0" value="150" />
+      </div>
+      <div>
+        <label for="proxy">CORS proxy template (optional, use {url})</label>
+        <input id="proxy" type="text" value="http://127.0.0.1:8080/?url={url}" placeholder="http://127.0.0.1:8080/?url={url}" />
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <label style="margin:0"><input type="checkbox" id="includeSubdomains" style="width:auto"> Treat subdomains as internal</label>
+      <label style="margin:0"><input type="checkbox" id="checkExternal" style="width:auto"> Verify external links are reachable (needs proxy / no-cors)</label>
+    </div>
+    <div class="btns">
+      <button id="startBtn">Start crawl</button>
+      <button id="stopBtn" class="secondary" disabled>Stop</button>
+      <button id="exportBtn" class="secondary" disabled>Export JSON</button>
+    </div>
+  </div>
+
+  <!-- ============ LOCAL CORS PROXY ============ -->
+  <div class="card">
+    <h2>Local CORS proxy <span class="count">— required when opening this file via file://</span></h2>
+    <p class="muted" style="margin-top:0">
+      A <code>file://</code> page can't open a network socket, so it can't host its own proxy.
+      This page <em>carries</em> the proxy instead: download it, run it with Node, and point the
+      proxy field above at it. It binds to <code>127.0.0.1</code> only and needs no <code>npm install</code>.
+    </p>
+    <ol class="muted" style="margin:0 0 12px; padding-left:20px">
+      <li>Click <strong>Download proxy</strong> (saves <code>local-cors-proxy.js</code>).</li>
+      <li>In a terminal: <code>node local-cors-proxy.js</code></li>
+      <li>Leave the proxy field set to <code>http://127.0.0.1:8080/?url={url}</code> and start the crawl.</li>
+    </ol>
+    <div class="btns" style="margin-top:0">
+      <button id="dlProxyBtn" class="secondary">Download proxy</button>
+      <button id="copyProxyBtn" class="secondary">Copy source</button>
+    </div>
+    <details style="margin-top:12px">
+      <summary>View proxy source</summary>
+      <pre class="log" id="proxyView" style="max-height:320px; margin-top:10px"></pre>
+    </details>
+  </div>
+
+  <!-- Embedded proxy source (type="text/plain" => carried as data, never executed). -->
+  <script type="text/plain" id="proxySource">#!/usr/bin/env node
+/*
+ * local-cors-proxy.js — zero-dependency localhost CORS proxy for web-crawler.html
+ *
+ * A file:// page can't open a listening socket, so the crawler can't host its
+ * own proxy — but this tiny Node server fills that gap with no npm install.
+ * It fetches a target URL server-side and re-emits the response with permissive
+ * CORS headers, so JavaScript on a file:// page (origin "null") can read it.
+ *
+ * SECURITY: binds to 127.0.0.1 only — never exposed to your network. It will
+ * proxy any http/https URL you ask for, so don't run it on a shared machine
+ * where others can reach your loopback, and stop it when you're done.
+ *
+ * Usage:
+ *   node local-cors-proxy.js              # listens on 127.0.0.1:8080
+ *   PORT=9000 node local-cors-proxy.js    # custom port
+ *   node local-cors-proxy.js 9000         # custom port (arg)
+ *
+ * In the crawler's "CORS proxy template" field, enter:
+ *   http://127.0.0.1:8080/?url={url}
+ */
+"use strict";
+const http = require("http");
+const https = require("https");
+const { URL } = require("url");
+
+const PORT = Number(process.env.PORT || process.argv[2] || 8080);
+const HOST = "127.0.0.1";
+const MAX_REDIRECTS = 5;
+const TIMEOUT_MS = 20000;
+
+function cors(res) {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,HEAD,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "*");
+}
+
+function fail(res, code, msg) {
+  cors(res);
+  res.writeHead(code, { "Content-Type": "text/plain" });
+  res.end(msg);
+}
+
+function fetchUpstream(target, method, res, redirects) {
+  let u;
+  try { u = new URL(target); } catch { return fail(res, 400, "Bad target URL: " + target); }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return fail(res, 400, "Only http/https supported");
+
+  const lib = u.protocol === "https:" ? https : http;
+  const upReq = lib.request(
+    u,
+    { method, headers: { "User-Agent": "local-cors-proxy", "Accept": "text/html,application/xhtml+xml,*/*" } },
+    (up) => {
+      const code = up.statusCode || 502;
+      // Follow redirects ourselves (Node's http does not).
+      if ([301, 302, 303, 307, 308].includes(code) && up.headers.location && redirects < MAX_REDIRECTS) {
+        up.resume(); // drain
+        const next = new URL(up.headers.location, u).href;
+        return fetchUpstream(next, method, res, redirects + 1);
+      }
+      cors(res);
+      const headers = {};
+      if (up.headers["content-type"]) headers["Content-Type"] = up.headers["content-type"];
+      res.writeHead(code, headers);
+      up.pipe(res);
+    }
+  );
+  upReq.setTimeout(TIMEOUT_MS, () => { upReq.destroy(); fail(res, 504, "Upstream timeout"); });
+  upReq.on("error", (e) => fail(res, 502, "Upstream error: " + e.message));
+  upReq.end();
+}
+
+const server = http.createServer((req, res) => {
+  if (req.method === "OPTIONS") { cors(res); res.writeHead(204); return res.end(); }
+
+  const reqUrl = new URL(req.url, `http://${HOST}:${PORT}`);
+  // Two accepted styles: /?url=<encoded>  OR  /<full-url>
+  let target = reqUrl.searchParams.get("url");
+  if (!target) {
+    const path = decodeURIComponent(req.url.replace(/^\//, ""));
+    if (/^https?:\/\//i.test(path)) target = path;
+  }
+  if (!target) return fail(res, 400, "Usage: /?url=<encoded-url>  or  /<full-url>");
+
+  fetchUpstream(target, req.method === "HEAD" ? "HEAD" : "GET", res, 0);
+});
+
+server.listen(PORT, HOST, () => {
+  console.log(`local-cors-proxy listening on http://${HOST}:${PORT}`);
+  console.log(`Crawler proxy template:  http://${HOST}:${PORT}/?url={url}`);
+  console.log("Press Ctrl+C to stop.");
+});
+</script>
+
+  <!-- ============ PROGRESS ============ -->
+  <div class="card" id="progressCard" style="display:none">
+    <div class="stats" id="stats"></div>
+    <div style="margin:14px 0 8px"><progress id="bar" value="0" max="1"></progress></div>
+    <div class="log" id="log"></div>
+  </div>
+
+  <!-- ============ REPORT ============ -->
+  <div class="card" id="reportCard" style="display:none">
+    <div class="tabs">
+      <div class="tab active" data-tab="internal">Internal pages <span class="count" id="cInternal"></span></div>
+      <div class="tab" data-tab="external">External links <span class="count" id="cExternal"></span></div>
+      <div class="tab" data-tab="broken">Errors / broken <span class="count" id="cBroken"></span></div>
+    </div>
+    <div id="tab-internal"></div>
+    <div id="tab-external" class="hidden"></div>
+    <div id="tab-broken" class="hidden"></div>
+  </div>
+</main>
+
+<script>
+"use strict";
+(function () {
+  // ---------- DOM helpers ----------
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, attrs = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "class") n.className = v;
+      else if (k === "html") n.innerHTML = v;
+      else n.setAttribute(k, v);
+    }
+    for (const kid of kids) n.append(kid?.nodeType ? kid : document.createTextNode(kid ?? ""));
+    return n;
+  };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  // ---------- Crawl state ----------
+  let state = null;
+  let stopping = false;
+
+  function freshState(cfg) {
+    return {
+      cfg,
+      startHost: new URL(cfg.startUrl).hostname,
+      queue: [{ url: cfg.startUrl, depth: 0 }],
+      seen: new Set([normalize(cfg.startUrl)]),   // internal URLs queued/visited
+      pages: [],                                   // crawled internal pages (report rows)
+      external: new Map(),                         // extURL -> { url, host, sources:Set, status }
+      errors: [],                                  // { url, error }
+      crawled: 0,
+      startedAt: Date.now(),
+    };
+  }
+
+  // ---------- URL utilities ----------
+  // Strip fragments and trailing-slash noise so we don't crawl the same page twice.
+  function normalize(u) {
+    try {
+      const x = new URL(u);
+      x.hash = "";
+      let s = x.href;
+      if (s.endsWith("/") && x.pathname !== "/") s = s.slice(0, -1);
+      return s;
+    } catch { return u; }
+  }
+
+  function sameDomain(host, startHost, includeSub) {
+    if (host === startHost) return true;
+    if (includeSub) {
+      // foo.example.com is internal to example.com (and vice-versa via registrable-ish suffix match)
+      return host.endsWith("." + startHost) || startHost.endsWith("." + host);
+    }
+    return false;
+  }
+
+  function isCrawlable(proto) { return proto === "http:" || proto === "https:"; }
+
+  // ---------- Fetching ----------
+  function proxied(url, proxyTpl) {
+    if (!proxyTpl) return url;
+    return proxyTpl.includes("{url}")
+      ? proxyTpl.replace("{url}", encodeURIComponent(url))
+      : proxyTpl + encodeURIComponent(url);
+  }
+
+  async function fetchText(url, cfg) {
+    const target = proxied(url, cfg.proxy);
+    const res = await fetch(target, { redirect: "follow", headers: { "Accept": "text/html,*/*" } });
+    const ct = res.headers.get("content-type") || "";
+    const status = res.status;
+    if (!res.ok) throw new Error("HTTP " + status);
+    // Only parse HTML-ish responses; binary/asset URLs get skipped gracefully.
+    if (ct && !/html|xml|text\//i.test(ct)) return { html: null, status, contentType: ct };
+    return { html: await res.text(), status, contentType: ct };
+  }
+
+  // Optional: confirm an external link is reachable without reading it (no-cors -> opaque).
+  async function checkExternal(url, cfg) {
+    try {
+      if (cfg.proxy) {
+        const r = await fetch(proxied(url, cfg.proxy), { method: "GET", redirect: "follow" });
+        return r.ok ? "ok" : "err";
+      }
+      await fetch(url, { method: "HEAD", mode: "no-cors" }); // opaque: success == didn't network-error
+      return "ok";
+    } catch { return "err"; }
+  }
+
+  // ---------- Link extraction ----------
+  function extractLinks(html, baseUrl) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const out = [];
+    for (const a of doc.querySelectorAll("a[href]")) {
+      const raw = a.getAttribute("href");
+      if (!raw) continue;
+      const t = raw.trim();
+      if (!t || t.startsWith("#") || /^(javascript:|mailto:|tel:|data:)/i.test(t)) continue;
+      try { out.push(new URL(t, baseUrl)); } catch { /* malformed href */ }
+    }
+    const title = (doc.querySelector("title")?.textContent || "").trim();
+    return { links: out, title };
+  }
+
+  // ---------- Logging / stats ----------
+  function log(msg, kind) {
+    const line = el("div", {}, msg);
+    if (kind === "err") line.style.color = "var(--bad)";
+    if (kind === "ok") line.style.color = "var(--good)";
+    $("log").append(line);
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+
+  function renderStats() {
+    const s = state;
+    const stats = [
+      ["Crawled", s.crawled, ""],
+      ["Queued", s.queue.length, ""],
+      ["Internal pages", s.pages.length, "good"],
+      ["External links", s.external.size, "warn"],
+      ["Errors", s.errors.length, s.errors.length ? "bad" : ""],
+    ];
+    $("stats").innerHTML = "";
+    for (const [l, n, cls] of stats) {
+      $("stats").append(el("div", { class: "stat " + cls }, el("div", { class: "n" }, String(n)), el("div", { class: "l" }, l)));
+    }
+    const total = s.crawled + s.queue.length || 1;
+    $("bar").max = total; $("bar").value = s.crawled;
+  }
+
+  // ---------- Main crawl loop (depth-aware, bounded concurrency) ----------
+  async function crawl(cfg) {
+    state = freshState(cfg);
+    stopping = false;
+    $("progressCard").style.display = "";
+    $("reportCard").style.display = "none";
+    $("log").innerHTML = "";
+    log("Crawling " + cfg.startUrl + " (host: " + state.startHost + ")");
+    if (!cfg.proxy && new URL(cfg.startUrl).origin !== location.origin && location.protocol !== "file:") {
+      log("Note: start URL is a different origin than this page. Without a CORS proxy, fetches will likely be blocked.", "err");
+    }
+
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+    // Worker pulls from the shared queue until empty / limits hit / stopped.
+    async function worker() {
+      while (!stopping) {
+        if (state.crawled >= cfg.maxPages) return;
+        const job = state.queue.shift();
+        if (!job) return;
+        await visit(job);
+        renderStats();
+        if (cfg.delay) await sleep(cfg.delay);
+      }
+    }
+
+    async function visit(job) {
+      state.crawled++;
+      let result;
+      try {
+        result = await fetchText(job.url, cfg);
+      } catch (e) {
+        state.errors.push({ url: job.url, error: String(e.message || e) });
+        log("✗ " + job.url + " — " + e.message, "err");
+        return;
+      }
+      if (!result.html) {
+        log("· skipped (non-HTML: " + (result.contentType || "?") + ") " + job.url);
+        return;
+      }
+      const { links, title } = extractLinks(result.html, job.url);
+      let internalFound = 0, externalFound = 0;
+      for (const link of links) {
+        if (!isCrawlable(link.protocol)) continue;
+        if (sameDomain(link.hostname, state.startHost, cfg.includeSubdomains)) {
+          const norm = normalize(link.href);
+          internalFound++;
+          if (!state.seen.has(norm) && job.depth < cfg.maxDepth &&
+              state.seen.size < cfg.maxPages * 50) {
+            state.seen.add(norm);
+            state.queue.push({ url: norm, depth: job.depth + 1 });
+          }
+        } else {
+          externalFound++;
+          const key = link.href;
+          if (!state.external.has(key)) {
+            state.external.set(key, { url: key, host: link.hostname, sources: new Set(), status: null });
+          }
+          state.external.get(key).sources.add(job.url);
+        }
+      }
+      state.pages.push({ url: job.url, title, status: result.status, depth: job.depth,
+                         internal: internalFound, external: externalFound });
+      log("✓ [d" + job.depth + "] " + job.url + "  (" + internalFound + " int, " + externalFound + " ext)", "ok");
+    }
+
+    const n = Math.max(1, Math.min(12, cfg.concurrency));
+    await Promise.all(Array.from({ length: n }, worker));
+
+    // Optional external reachability pass.
+    if (cfg.checkExternal && !stopping) {
+      log("Checking " + state.external.size + " external links…");
+      const exts = [...state.external.values()];
+      let i = 0;
+      async function checker() {
+        while (i < exts.length && !stopping) {
+          const e = exts[i++];
+          e.status = await checkExternal(e.url, cfg);
+          if (cfg.delay) await sleep(cfg.delay);
+        }
+      }
+      await Promise.all(Array.from({ length: n }, checker));
+    }
+
+    log(stopping ? "Stopped." : "Done.", "ok");
+    renderStats();
+    renderReport();
+  }
+
+  // ---------- Report rendering ----------
+  function renderReport() {
+    const s = state;
+    $("reportCard").style.display = "";
+    $("cInternal").textContent = "(" + s.pages.length + ")";
+    $("cExternal").textContent = "(" + s.external.size + ")";
+    $("cBroken").textContent = "(" + s.errors.length + ")";
+
+    // Internal pages
+    const rowsI = s.pages
+      .sort((a, b) => a.depth - b.depth || a.url.localeCompare(b.url))
+      .map((p) => `<tr>
+        <td>${p.depth}</td>
+        <td><a href="${esc(p.url)}" target="_blank" rel="noopener">${esc(p.url)}</a></td>
+        <td>${esc(p.title || "—")}</td>
+        <td><span class="pill ok">${p.status}</span></td>
+        <td>${p.internal}</td><td>${p.external}</td></tr>`).join("");
+    $("tab-internal").innerHTML = s.pages.length
+      ? `<div class="tablewrap"><table><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int links</th><th>Ext links</th></tr></thead><tbody>${rowsI}</tbody></table></div>`
+      : `<p class="muted">No internal pages crawled.</p>`;
+
+    // External links, grouped by host
+    const byHost = new Map();
+    for (const e of s.external.values()) {
+      if (!byHost.has(e.host)) byHost.set(e.host, []);
+      byHost.get(e.host).push(e);
+    }
+    const groups = [...byHost.entries()].sort((a, b) => b[1].length - a[1].length);
+    $("tab-external").innerHTML = s.external.size
+      ? groups.map(([host, list]) => {
+          const rows = list.map((e) => {
+            const st = e.status === "ok" ? `<span class="pill ok">reachable</span>`
+                     : e.status === "err" ? `<span class="pill err">unreachable</span>`
+                     : `<span class="pill skip">not checked</span>`;
+            const src = [...e.sources].slice(0, 3).map((u) => esc(u)).join("<br>");
+            const more = e.sources.size > 3 ? `<br><span class="muted">+${e.sources.size - 3} more</span>` : "";
+            return `<tr><td><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url)}</a></td>
+                    <td>${st}</td><td class="muted">${src}${more}</td></tr>`;
+          }).join("");
+          return `<details open><summary>${esc(host)} <span class="count">(${list.length})</span></summary>
+            <div class="tablewrap"><table><thead><tr><th>External URL</th><th>Status</th><th>Found on</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
+        }).join("")
+      : `<p class="muted">No external links found.</p>`;
+
+    // Errors
+    const rowsE = s.errors.map((e) =>
+      `<tr><td><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.url)}</a></td><td class="pill err">${esc(e.error)}</td></tr>`).join("");
+    $("tab-broken").innerHTML = s.errors.length
+      ? `<div class="tablewrap"><table><thead><tr><th>URL</th><th>Error</th></tr></thead><tbody>${rowsE}</tbody></table></div>`
+      : `<p class="muted">No errors.</p>`;
+  }
+
+  // ---------- Export ----------
+  function exportJson() {
+    if (!state) return;
+    const data = {
+      crawledAt: new Date(state.startedAt).toISOString(),
+      config: state.cfg,
+      summary: { pagesCrawled: state.pages.length, externalLinks: state.external.size, errors: state.errors.length },
+      internalPages: state.pages,
+      externalLinks: [...state.external.values()].map((e) => ({ url: e.url, host: e.host, status: e.status, foundOn: [...e.sources] })),
+      errors: state.errors,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: "crawl-report.json" });
+    document.body.append(a); a.click(); a.remove();
+  }
+
+  // ---------- Wiring ----------
+  $("startBtn").addEventListener("click", async () => {
+    const startUrl = $("startUrl").value.trim();
+    if (!startUrl) { alert("Enter a start URL."); return; }
+    try { new URL(startUrl); } catch { alert("Invalid URL."); return; }
+    const cfg = {
+      startUrl,
+      maxPages: Math.max(1, +$("maxPages").value || 100),
+      maxDepth: Math.max(0, +$("maxDepth").value || 0),
+      concurrency: Math.max(1, +$("concurrency").value || 4),
+      delay: Math.max(0, +$("delay").value || 0),
+      proxy: $("proxy").value.trim(),
+      includeSubdomains: $("includeSubdomains").checked,
+      checkExternal: $("checkExternal").checked,
+    };
+    $("startBtn").disabled = true; $("stopBtn").disabled = false; $("exportBtn").disabled = true;
+    try { await crawl(cfg); }
+    catch (e) { log("Fatal: " + (e.message || e), "err"); }
+    finally { $("startBtn").disabled = false; $("stopBtn").disabled = true; $("exportBtn").disabled = false; }
+  });
+
+  $("stopBtn").addEventListener("click", () => { stopping = true; log("Stopping…"); });
+  $("exportBtn").addEventListener("click", exportJson);
+
+  // ---------- Bundled proxy: view / download / copy ----------
+  const proxySrc = ($("proxySource").textContent || "").replace(/^\n/, "");
+  $("proxyView").textContent = proxySrc;
+  $("dlProxyBtn").addEventListener("click", () => {
+    const blob = new Blob([proxySrc], { type: "text/javascript" });
+    const a = el("a", { href: URL.createObjectURL(blob), download: "local-cors-proxy.js" });
+    document.body.append(a); a.click(); a.remove();
+  });
+  $("copyProxyBtn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(proxySrc); $("copyProxyBtn").textContent = "Copied!"; }
+    catch { $("copyProxyBtn").textContent = "Copy failed — select manually"; }
+    setTimeout(() => { $("copyProxyBtn").textContent = "Copy source"; }, 1800);
+  });
+
+  document.querySelectorAll(".tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
+      tab.classList.add("active");
+      for (const name of ["internal", "external", "broken"])
+        $("tab-" + name).classList.toggle("hidden", name !== tab.dataset.tab);
+    });
+  });
+})();
+</script>
+</body>
+</html>

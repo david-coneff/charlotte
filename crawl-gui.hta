@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="x-ua-compatible" content="ie=edge">
+<meta charset="utf-8">
+<title>Domain Crawler</title>
+<hta:application
+  id="crawlApp"
+  applicationname="DomainCrawler"
+  border="thin"
+  borderstyle="normal"
+  caption="yes"
+  maximizebutton="yes"
+  minimizebutton="yes"
+  scroll="auto"
+  singleinstance="yes"
+  sysmenu="yes"
+  contextmenu="no" />
+<!--
+  crawl-gui.hta — friendly Windows front-end for crawl.js
+
+  Double-click to open. Fill in the options, click "Start crawl". It builds and
+  runs:  node crawl.js <start-url> [options]  in the background, streams the
+  output here, and lets you open the report when it finishes.
+
+  Requirements:
+    * Windows (uses built-in mshta.exe — no install)
+    * Node.js available on PATH (https://nodejs.org)
+    * crawl.js in the same folder as this file (auto-detected)
+
+  JScript note: this engine is ES3/ES5 only — no arrow functions, let/const,
+  or template literals. Keep edits in that dialect.
+-->
+<style>
+  body { font: 15px "Segoe UI", Tahoma, sans-serif; background: #0f1115; color: #e6e9ef; margin: 0; }
+  .wrap { padding: 18px 22px; }
+  h1 { font-size: 22px; margin: 0 0 3px; }
+  .sub { color: #9aa4b2; font-size: 14px; margin: 0 0 16px; }
+  fieldset { border: 1px solid #2c3340; border-radius: 8px; margin: 0 0 16px; padding: 14px 16px; }
+  legend { color: #9aa4b2; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; padding: 0 6px; }
+  .row { margin: 9px 0; }
+  label.f { display: inline-block; width: 168px; color: #9aa4b2; vertical-align: middle; font-size: 15px; }
+  input, select { font: 15px "Segoe UI", Tahoma, sans-serif; }
+  input.t, input.n, select { background: #222834; color: #e6e9ef; border: 1px solid #2c3340; border-radius: 6px; padding: 7px 9px; }
+  input.t { width: 380px; }
+  input.n { width: 100px; }
+  input.wide { width: 380px; }
+  .hint { color: #6b7585; font-size: 13px; margin-left: 8px; }
+  .cols { width: 100%; }
+  .cols td { vertical-align: top; padding-right: 22px; }
+  button { font: 15px "Segoe UI", sans-serif; font-weight: 600; border: 0; border-radius: 7px; padding: 10px 18px; cursor: pointer; margin-right: 8px; }
+  button.go { background: #5db0ff; color: #06121f; }
+  button.sec { background: #222834; color: #e6e9ef; border: 1px solid #2c3340; }
+  button[disabled] { opacity: .5; cursor: default; }
+  .cmd { font: 13px Consolas, monospace; background: #0b0d11; border: 1px solid #2c3340; border-radius: 6px; padding: 9px 11px; color: #9aa4b2; word-break: break-all; min-height: 18px; }
+  #liveout { width: 100%; height: 240px; background: #0b0d11; color: #c8d0db; border: 1px solid #2c3340; border-radius: 6px; font: 13px Consolas, monospace; resize: vertical; }
+  .statchip { display: inline-block; background: #1a1e26; border: 1px solid #2c3340; border-radius: 7px; padding: 7px 13px; margin: 0 8px 7px 0; font-size: 15px; }
+  .statchip b { color: #5db0ff; }
+  .statchip.ok b { color: #4ade80; }
+  .statchip.warn { border-color: #fbbf24; }
+  .statchip.warn b, .statchip.warn { color: #fbbf24; }
+  .recent { width: 100%; height: 110px; overflow: auto; background: #0b0d11; color: #9aa4b2; border: 1px solid #2c3340; border-radius: 6px; font: 13px Consolas, monospace; margin: 0; padding: 9px 11px; white-space: pre; }
+  .status { margin: 10px 0; font-size: 14px; }
+  .ok { color: #4ade80; } .bad { color: #f87171; } .muted { color: #9aa4b2; }
+  code { background: #222834; padding: 1px 5px; border-radius: 4px; }
+  .urlrow { margin-bottom: 6px; }
+  .urlinput { width: 360px; background: #222834; color: #e6e9ef; border: 1px solid #2c3340; border-radius: 6px; padding: 7px 9px; font: 15px "Segoe UI", Tahoma, sans-serif; }
+  .urlrm { padding: 6px 11px; margin-left: 6px; }
+  html, body { overflow-x: hidden; }
+  a { color: #5db0ff; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Domain Crawler</h1>
+  <p class="sub">A friendly front-end for crawl.js. Requires Node.js on your PATH.</p>
+
+  <fieldset>
+    <legend>Target</legend>
+    <div class="row" style="align-items:flex-start">
+      <label class="f">Start URLs</label>
+      <span id="urlRows"></span>
+    </div>
+    <div class="row">
+      <label class="f">&nbsp;</label>
+      <button class="sec" type="button" onclick="addUrlRow('')">+ Add another site</button>
+      <span class="hint">each site is crawled sequentially with the same settings below</span>
+    </div>
+    <div class="row">
+      <label class="f" for="scope">Crawl scope</label>
+      <select id="scope" onchange="toggleInputs();updatePreview()">
+        <option value="domain">Entire domain (whole site)</option>
+        <option value="path">Only under the start URL's path</option>
+        <option value="custom">Custom path prefix&hellip;</option>
+      </select>
+    </div>
+    <div class="row" id="prefixRow" style="display:none">
+      <label class="f" for="pathPrefix">Path prefix</label>
+      <input class="t" type="text" id="pathPrefix" value="" onkeyup="updatePreview()">
+      <span class="hint">e.g. /mysubsection</span>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Crawl limits &amp; rate limiting</legend>
+    <table class="cols"><tr><td>
+      <div class="row"><label class="f" for="maxPages">Max pages</label><input class="n" type="text" id="maxPages" value="200" onkeyup="updatePreview()"> <label class="hint" style="color:#9aa4b2"><input type="checkbox" id="noPages" checked onclick="toggleInputs();updatePreview()"> no limit</label></div>
+      <div class="row"><label class="f" for="maxDepth">Max depth</label><input class="n" type="text" id="maxDepth" value="3" onkeyup="updatePreview()"> <label class="hint" style="color:#9aa4b2"><input type="checkbox" id="noDepth" checked onclick="toggleInputs();updatePreview()"> no limit</label></div>
+      <div class="row"><label class="f" for="timeout">Timeout (ms)</label><input class="n" type="text" id="timeout" value="20000" onkeyup="updatePreview()"></div>
+    </td><td>
+      <div class="row"><label class="f" for="concurrency">Concurrency</label><input class="n" type="text" id="concurrency" value="2" onkeyup="updatePreview()"><span class="hint">requests at once</span></div>
+      <div class="row"><label class="f" for="delay">Delay (ms)</label><input class="n" type="text" id="delay" value="250" onkeyup="updatePreview()"><span class="hint">pause between requests</span></div>
+      <div class="row"><label class="f" for="rps">Max req/sec</label><input class="n" type="text" id="rps" value="2" onkeyup="updatePreview()"><span class="hint">polite default ≈2/sec; 0 = no cap</span></div>
+    </td></tr></table>
+    <div class="row"><span class="hint" style="margin-left:0">Defaults are deliberately gentle. The crawler also honors <code>robots.txt</code> Crawl-delay and automatically backs off &amp; retries if the server returns 429/503 (rate limiting).</span></div>
+    <div class="row">
+      <label class="f">Options</label>
+      <input type="checkbox" id="includeSub" checked onclick="updatePreview()"> <span class="muted">Treat subdomains as internal</span>
+      &nbsp;&nbsp;
+      <input type="checkbox" id="checkExternal" checked onclick="updatePreview()"> <span class="muted">Verify external links resolve</span>
+      &nbsp;&nbsp;
+      <input type="checkbox" id="recheck" checked onclick="updatePreview()"> <span class="muted">Re-test failed links once at the end</span>
+      &nbsp;&nbsp;
+      <input type="checkbox" id="scanDocs" checked onclick="updatePreview()"> <span class="muted">Scan links inside documents (PDF/Office)</span>
+      &nbsp;&nbsp;
+      <input type="checkbox" id="browser" checked onclick="onBrowserToggle()"> <span class="muted">Browser mode (desktop UA, fewer false dead links)</span>
+    </div>
+    <div class="row">
+      <label class="f" for="userAgent">User-Agent</label>
+      <input class="t" type="text" id="userAgent" value="broodforge-crawler/1.0 (+local)" onkeyup="updatePreview()">
+    </div>
+    <div class="row">
+      <label class="f" for="seen">Dedup index</label>
+      <select id="seen" onchange="updatePreview()">
+        <option value="memory">In-memory (fastest)</option>
+        <option value="compact" selected>Compact (low RAM, fixed)</option>
+        <option value="disk">Disk (lowest RAM, slowest)</option>
+      </select>
+      <span class="hint">how visited URLs are remembered</span>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Output &amp; allowlist</legend>
+    <div class="row"><label class="f" for="workDir">Output folder</label><input class="wide" type="text" id="workDir" value="" onkeyup="updatePreview()"><span class="hint">where files are written</span></div>
+    <div class="row"><label class="f" for="out">Report file</label><input class="wide" type="text" id="out" value="crawl-report.html" onkeyup="updatePreview()"></div>
+    <div class="row"><label class="f" for="allowlist">Allowlist file</label><input class="wide" type="text" id="allowlist" value="crawl-allowlist.txt" onkeyup="updatePreview()"><span class="hint">suppress known-broken links</span></div>
+    <div class="row"><label class="f" for="json">JSON file</label><input class="wide" type="text" id="json" value="" onkeyup="updatePreview()"><span class="hint">optional, leave blank to skip</span></div>
+    <div class="row"><label class="f" for="log">Progress log</label><input class="wide" type="text" id="log" value="crawl-progress.log" onkeyup="toggleInputs();updatePreview()"><span class="hint">live trail; partitioned into parts</span></div>
+    <div class="row"><label class="f" for="checkpoint">Checkpoint (pages)</label><input class="n" type="text" id="checkpoint" value="25" onkeyup="updatePreview()"><span class="hint">snapshot report every N pages; 0 = off</span></div>
+  </fieldset>
+
+  <div class="row"><span class="muted" style="font-size:13px">Command preview:</span></div>
+  <div class="cmd" id="preview"></div>
+
+  <div class="row" style="margin-top:14px">
+    <button class="go" id="startBtn" onclick="startCrawl()">Start crawl</button>
+    <button class="sec" id="pauseBtn" onclick="togglePause()" disabled>Pause</button>
+    <button class="sec" id="stopBtn" onclick="stopCrawl()" disabled>Stop</button>
+    <button class="sec" id="reportBtn" onclick="openReport()">Open crawl report</button>
+    <button class="sec" onclick="openFolder()">Open output folder</button>
+    <button class="sec" onclick="copyCommand()">Copy command</button>
+  </div>
+
+  <div class="status" id="status">&nbsp;</div>
+
+  <div id="statsBar" style="display:none">
+    <span class="statchip">Crawled: <b id="statCount">0</b></span>
+    <span class="statchip ok" id="goodChip">Good: <b id="statGood">0</b></span>
+    <span class="statchip" id="brokenChip">Broken (internal): <b id="statBroken">0</b></span>
+    <span class="statchip" id="blockedChip">Blocked/uncertain: <b id="statBlocked">0</b></span>
+    <span class="statchip" id="extChip">External: <b>0</b> found</span>
+    <span class="statchip">Elapsed: <b id="statTime">0:00</b></span>
+    <span class="statchip">Rate: <b id="statRate">0</b>/min</span>
+    <span class="statchip" id="statActivity">starting&hellip;</span>
+  </div>
+  <div id="recentBox" style="display:none">
+    <div class="muted" style="font-size:13px;margin:8px 0 3px">Last crawled (newest at bottom):</div>
+    <pre id="recent" class="recent"></pre>
+  </div>
+
+  <div class="muted" style="font-size:13px;margin:8px 0 3px">Live log (the crawler's progress log):</div>
+  <textarea id="liveout" readonly wrap="off"></textarea>
+</div>
+
+<script language="JScript">
+var shell = new ActiveXObject("WScript.Shell");
+var fso   = new ActiveXObject("Scripting.FileSystemObject");
+var scriptDir = "";   // folder this .hta lives in
+var jsPath = "";      // absolute path to crawl.js
+var logPath = "";     // temp log file for the current run
+var batPath = "";     // temp batch file for the current run
+var timer = null;
+var running = false;
+var startMs = 0;        // crawl start time (ms)
+var lastCount = 0;      // pages counted at last change
+var lastChangeMs = 0;   // when the count last increased (for stuck detection)
+var livePath = "";      // the crawler's progress log we tail (lock-free, live)
+var errPath = "";       // captured node stdout/stderr (for launch failures)
+var stopPath = "";      // Stop control file
+var pausePath = "";     // Pause control file
+var isPaused = false;
+// Incremental log parsing state (so huge logs don't get re-read/re-parsed each
+// poll — that was making the live counts read 0 on large crawls).
+var gPos = 0, gBuf = "", gTail = "";
+var gCrawled = 0, gGood = 0, gBroken = 0, gBlocked = 0;
+var gExtFound = 0, gExtChecked = 0, gExtTotal = 0, gExtBad = 0;
+var gRecent = [], gBackoffUntil = 0, gSiteI = 0, gSiteN = 0, gDoneCode = null;
+function resetLiveState() {
+  gPos = 0; gBuf = ""; gTail = "";
+  gCrawled = 0; gGood = 0; gBroken = 0; gBlocked = 0;
+  gExtFound = 0; gExtChecked = 0; gExtTotal = 0; gExtBad = 0;
+  gRecent = []; gBackoffUntil = 0; gSiteI = 0; gSiteN = 0; gDoneCode = null;
+}
+
+function $(id) { return document.getElementById(id); }
+
+// ---- locate this file's folder and crawl.js ----
+function initPaths() {
+  var p = String(window.location.pathname);     // e.g. /C:/Users/me/tools/crawl-gui.hta
+  p = p.replace(/^[\/\\]+/, "");                 // strip leading slash
+  try { p = decodeURIComponent(p); } catch (e) {}
+  p = p.replace(/\//g, "\\");                    // to backslashes
+  var slash = p.lastIndexOf("\\");
+  scriptDir = (slash >= 0) ? p.substring(0, slash) : ".";
+  jsPath = scriptDir + "\\crawl.js";
+  $("workDir").value = scriptDir;
+  if (!fso.FileExists(jsPath)) {
+    setStatus("Could not find crawl.js next to this file (" + jsPath + "). Set it up first.", "bad");
+  } else {
+    setStatus("Ready. crawl.js found. Node.js must be on your PATH.", "muted");
+  }
+}
+
+function setStatus(msg, cls) {
+  var s = $("status");
+  s.className = "status " + (cls || "muted");
+  s.innerHTML = msg;
+}
+
+// ---- quoting / command building ----
+function q(s) { return '"' + String(s).replace(/"/g, "") + '"'; }
+function val(id) { return trim($(id).value); }
+function trim(s) { return String(s).replace(/^\s+|\s+$/g, ""); }
+
+function buildArgs() {
+  var a = [];
+  var urls = getUrls();
+  for (var u = 0; u < urls.length; u++) a.push(q(urls[u]));
+  if ($("noPages").checked)      a.push("--max-pages none");
+  else if (val("maxPages") !== "") a.push("--max-pages " + q(val("maxPages")));
+  if ($("noDepth").checked)      a.push("--max-depth none");
+  else if (val("maxDepth") !== "") a.push("--max-depth " + q(val("maxDepth")));
+  var sc = $("scope").value;
+  if (sc === "path") a.push("--scope path");
+  else if (sc === "custom" && val("pathPrefix") !== "") a.push("--path-prefix " + q(val("pathPrefix")));
+  if (val("concurrency") !== "") a.push("--concurrency " + q(val("concurrency")));
+  if (val("delay") !== "")       a.push("--delay " + q(val("delay")));
+  if (val("rps") !== "" && val("rps") !== "0") a.push("--rps " + q(val("rps")));
+  if (val("timeout") !== "")     a.push("--timeout " + q(val("timeout")));
+  if ($("includeSub").checked)   a.push("--include-subdomains");
+  if ($("checkExternal").checked) a.push("--check-external");
+  if (!$("recheck").checked)      a.push("--no-recheck");
+  if (!$("scanDocs").checked)     a.push("--no-scan-docs");
+  if ($("browser").checked)       a.push("--browser");
+  // In browser mode, the default UA box means "use the built-in browser UA" — so
+  // only pass --user-agent when it's non-empty AND not the unchanged default.
+  var uaVal = val("userAgent");
+  if (uaVal !== "" && !($("browser").checked && uaVal === "broodforge-crawler/1.0 (+local)")) a.push("--user-agent " + q(uaVal));
+  if ($("seen").value !== "memory") a.push("--seen " + $("seen").value);
+  if (val("allowlist") !== "")   a.push("--allowlist " + q(val("allowlist")));
+  if (val("out") !== "")         a.push("--out " + q(val("out")));
+  if (val("json") !== "")        a.push("--json " + q(val("json")));
+  // The GUI tails this single (un-partitioned) progress log for live stats.
+  a.push("--log " + q(val("log") || "crawl-gui-run.log"));
+  a.push("--log-max-bytes 0");
+  if (val("checkpoint") !== "")  a.push("--checkpoint " + q(val("checkpoint")));
+  return a.join(" ");
+}
+
+function buildCommand() {
+  return "node " + q(jsPath) + " " + buildArgs();
+}
+
+function updatePreview() {
+  $("preview").innerHTML = escHtml(buildCommand());
+}
+
+// Browser-mode toggle. Note the User-Agent box: when browser mode is on and the
+// box still holds the default value, the crawler substitutes a desktop-Chrome
+// UA; type a custom UA to override it (it's still sent with browser headers).
+function onBrowserToggle() { updatePreview(); }
+
+// ---- Start URL rows (multiple sites, crawled sequentially) ----
+function addUrlRow(value) {
+  var wrap = document.createElement("div");
+  wrap.className = "urlrow";
+  var inp = document.createElement("input");
+  inp.type = "text"; inp.className = "urlinput";
+  inp.value = value || "https://";
+  inp.onkeyup = updatePreview; inp.onchange = updatePreview;
+  var rm = document.createElement("button");
+  rm.className = "sec urlrm"; rm.type = "button"; rm.innerHTML = "&times;"; rm.title = "Remove this site";
+  rm.onclick = function () {
+    var rows = $("urlRows").getElementsByTagName("div");
+    if (rows.length <= 1) { inp.value = "https://"; } // keep at least one row
+    else { wrap.parentNode.removeChild(wrap); }
+    updatePreview();
+  };
+  wrap.appendChild(inp); wrap.appendChild(rm);
+  $("urlRows").appendChild(wrap);
+  updatePreview();
+}
+function getUrls() {
+  var ins = $("urlRows").getElementsByTagName("input"), urls = [];
+  for (var i = 0; i < ins.length; i++) {
+    var v = trim(ins[i].value);
+    if (v !== "" && v !== "https://" && v !== "http://") urls.push(v);
+  }
+  return urls;
+}
+
+// Enable/disable dependent fields: "no limit" greys out the depth box, and the
+// custom path-prefix row only shows when scope is "custom".
+function toggleInputs() {
+  $("maxDepth").disabled = $("noDepth").checked;
+  $("maxPages").disabled = $("noPages").checked;
+  var sc = $("scope").value;
+  $("pathPrefix").disabled = (sc !== "custom");
+  $("prefixRow").style.display = (sc === "custom") ? "" : "none";
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// ---- run ----
+function startCrawl() {
+  if (running) return;
+  if (getUrls().length === 0) {
+    setStatus("Enter at least one start URL.", "bad"); return;
+  }
+  if (!fso.FileExists(jsPath)) { setStatus("crawl.js not found at " + jsPath, "bad"); return; }
+  var workDir = val("workDir") || scriptDir;
+  if (!fso.FolderExists(workDir)) { setStatus("Output folder does not exist: " + workDir, "bad"); return; }
+
+  // All helper files go in the OUTPUT folder (managed machines often block
+  // %TEMP%). We tail the crawler's OWN progress log (livePath) — it's written
+  // with per-line appends, so it reads reliably while the crawl runs, unlike a
+  // file held open by a shell redirect.
+  var logName = val("log") || "crawl-gui-run.log";
+  livePath = isAbsolute(logName) ? logName : (workDir + "\\" + logName);
+  errPath  = workDir + "\\crawl-gui-err.log";
+  batPath  = workDir + "\\crawl-gui-run.bat";
+  stopPath = workDir + "\\crawl-gui-stop.flag";
+  pausePath = workDir + "\\crawl-gui-pause.flag";
+
+  // The batch runs node (with control files), sends node's own console to the
+  // err log, and appends a DONE_<exitcode> marker to the live log we poll.
+  var runCmd = buildCommand() +
+    " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath);
+  var bat = "";
+  bat += "@echo off\r\n";
+  bat += "cd /d " + q(workDir) + "\r\n";
+  bat += runCmd + " > " + q(errPath) + " 2>&1\r\n";
+  bat += "echo DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
+
+  try {
+    deleteIfExists(stopPath);
+    deleteIfExists(pausePath);
+    deleteIfExists(livePath);   // fresh live log for this run
+    writeFile(batPath, bat);
+  } catch (e) {
+    setStatus("Couldn't write helper files to " + workDir + " — " + e.message +
+      ". Pick an output folder you can write to, or click “Copy command” and run it in a terminal.", "bad");
+    return;
+  }
+
+  $("liveout").value = "Launching crawler… live progress will appear here as pages are crawled.";
+  $("recent").innerHTML = "";
+  $("startBtn").disabled = true;
+  $("pauseBtn").disabled = false;
+  $("pauseBtn").innerHTML = "Pause";
+  $("stopBtn").disabled = false;
+  running = true;
+  isPaused = false;
+  startMs = new Date().getTime();
+  lastCount = 0;
+  lastChangeMs = startMs;
+  resetLiveState();
+  $("statsBar").style.display = "";
+  $("recentBox").style.display = "";
+  $("statCount").innerHTML = "0";
+  $("statGood").innerHTML = "0";
+  $("statBroken").innerHTML = "0";
+  $("statTime").innerHTML = "0:00";
+  $("statRate").innerHTML = "0";
+  setActivity("starting&hellip;", false);
+  setStatus("Crawling… (live stats below)", "muted");
+
+  // Launch hidden + async; we tail the live log ourselves.
+  try {
+    shell.Run('cmd /c ""' + batPath + '""', 0, false);
+  } catch (e) {
+    running = false;
+    $("startBtn").disabled = false;
+    $("pauseBtn").disabled = true;
+    $("stopBtn").disabled = true;
+    setActivity("error", true);
+    setStatus("Couldn't launch the crawl — " + e.message +
+      ". Click “Copy command” and run it in a terminal instead.", "bad");
+    return;
+  }
+  timer = window.setInterval(poll, 500);
+}
+
+function isAbsolute(p) { return /^[A-Za-z]:\\/.test(p) || p.indexOf("\\\\") === 0; }
+function deleteIfExists(p) { try { if (fso.FileExists(p)) fso.DeleteFile(p); } catch (e) {} }
+
+// ---- Stop / Pause via control files (the crawler watches for these) ----
+function stopCrawl() {
+  if (!running) return;
+  try { writeFile(stopPath, ""); }
+  catch (e) { setStatus("Couldn't write stop file — " + e.message, "bad"); return; }
+  $("stopBtn").disabled = true;
+  $("pauseBtn").disabled = true;
+  setActivity("stopping&hellip;", true);
+  setStatus("Stopping — the crawler is writing a partial report…", "muted");
+}
+function togglePause() {
+  if (!running) return;
+  if (!isPaused) {
+    try { writeFile(pausePath, ""); }
+    catch (e) { setStatus("Couldn't write pause file — " + e.message, "bad"); return; }
+    isPaused = true;
+    $("pauseBtn").innerHTML = "Resume";
+    setActivity("paused", true);
+    setStatus("Paused — click Resume to continue.", "muted");
+  } else {
+    deleteIfExists(pausePath);
+    isPaused = false;
+    $("pauseBtn").innerHTML = "Pause";
+    setActivity("resuming&hellip;", false);
+    setStatus("Crawling…", "muted");
+  }
+}
+
+// mm:ss from whole seconds.
+function fmtTime(secs) {
+  var m = Math.floor(secs / 60), s = secs % 60;
+  return m + ":" + (s < 10 ? "0" + s : s);
+}
+
+function setActivity(html, warn) {
+  var a = $("statActivity");
+  a.innerHTML = html;
+  a.className = warn ? "statchip warn" : "statchip";
+}
+
+// Parse the crawler's progress log for live stats. Lines look like
+//   "<ISO> OK d0 200 http://… int=4 ext=1"   (a good page)
+//   "<ISO> ERR http://… :: HTTP 404"          (a broken one)
+//   "<ISO> SKIP http://… :: text/…"           (non-HTML, skipped)
+// plus "# …" markers and a trailing "DONE_<code>".
+function progressPages(text) {
+  var lines = text.split(/\r?\n/);
+  var pages = [], broken = 0, good = 0;
+  for (var i = 0; i < lines.length; i++) {
+    var m = lines[i].match(/^\S+\s+(OK|ERR|SKIP)\s+(.*)$/);
+    if (!m) continue;
+    pages.push(m[1] + "  " + m[2]);
+    if (m[1] === "ERR") broken++;
+    else if (m[1] === "OK") good++;
+  }
+  pages.broken = broken;
+  pages.good = good;
+  return pages;
+}
+
+// Latest "# BACKOFF … untilMs=<epoch>" marker, so the GUI can show a live
+// rate-limit countdown instead of a misleading "stuck" warning.
+function lastBackoffUntil(text) {
+  var re = /# BACKOFF [^\n]*untilMs=(\d+)/g, m, last = 0;
+  while ((m = re.exec(text)) !== null) last = parseInt(m[1], 10);
+  return last;
+}
+// Last single-capture int / last pair of ints matching a /g regex.
+function lastInt(re, text) { var m, last = null; while ((m = re.exec(text)) !== null) last = parseInt(m[1], 10); return last; }
+function lastPair(re, text) { var m, last = null; while ((m = re.exec(text)) !== null) last = [parseInt(m[1], 10), parseInt(m[2], 10)]; return last; }
+
+// Read only the NEW bytes of the log since last poll (FSO Skip), so a multi-MB
+// log isn't re-read and re-parsed every tick.
+function readNew(path) {
+  try {
+    if (!fso.FileExists(path)) return "";
+    var f = fso.OpenTextFile(path, 1, false);
+    if (gPos > 0) { try { f.Skip(gPos); } catch (e) {} }
+    var t = f.AtEndOfStream ? "" : f.ReadAll();
+    f.Close();
+    gPos += t.length;
+    return t;
+  } catch (e) { return ""; }
+}
+
+// Update running counters from one log line.
+function processLine(ln) {
+  ln = ln.replace(/\r$/, "");
+  if (ln === "") return;
+  var dm = ln.match(/^DONE_(\-?\d+)/);
+  if (dm) { gDoneCode = parseInt(dm[1], 10); return; }
+  var m = ln.match(/^\S+\s+(OK|ERR|SKIP|BLOCKED)\s+(.*)$/);
+  if (m) {
+    gCrawled++;
+    if (m[1] === "OK") gGood++; else if (m[1] === "ERR") gBroken++; else if (m[1] === "BLOCKED") gBlocked++;
+    var et = ln.match(/extTotal=(\d+)/); if (et) gExtFound = parseInt(et[1], 10);
+    gRecent.push(m[1] + "  " + m[2]); if (gRecent.length > 5) gRecent.shift();
+    lastChangeMs = (new Date()).getTime();
+    return;
+  }
+  var ex = ln.match(/^# extcheck (\d+)\/(\d+) (\w+)/);
+  if (ex) { gExtChecked = parseInt(ex[1], 10); gExtTotal = parseInt(ex[2], 10); if (ex[3] === "err") gExtBad++; else if (ex[3] === "blocked") gBlocked++; return; }
+  var bo = ln.match(/untilMs=(\d+)/); if (ln.indexOf("# BACKOFF") === 0 && bo) { gBackoffUntil = parseInt(bo[1], 10); return; }
+  var sm = ln.match(/^# === site (\d+)\/(\d+)/); if (sm) { gSiteI = parseInt(sm[1], 10); gSiteN = parseInt(sm[2], 10); return; }
+}
+
+function poll() {
+  var chunk = readNew(livePath);
+  if (chunk !== "") {
+    gBuf += chunk;
+    var lines = gBuf.split(/\n/);
+    gBuf = lines.pop();                 // keep trailing partial line for next read
+    for (var i = 0; i < lines.length; i++) processLine(lines[i]);
+    // tail buffer for the live-log textarea (cap so it never grows unbounded)
+    gTail += chunk; if (gTail.length > 60000) gTail = gTail.substring(gTail.length - 60000);
+    var disp = gTail.replace(/DONE_(\-?\d+)\s*$/, "");
+    if (disp.replace(/\s/g, "") === "") { var efb = readFile(errPath); if (efb !== "") disp = efb; }
+    $("liveout").value = disp;
+    $("liveout").scrollTop = $("liveout").scrollHeight;
+  }
+  // DONE may arrive on the still-partial last line:
+  if (gDoneCode === null) { var dm = gBuf.match(/DONE_(\-?\d+)/); if (dm) gDoneCode = parseInt(dm[1], 10); }
+
+  var now = (new Date()).getTime();
+  var secs = Math.floor((now - startMs) / 1000);
+  $("statCount").innerHTML = gCrawled;
+  $("statGood").innerHTML = gGood;
+  $("statBroken").innerHTML = gBroken;
+  $("brokenChip").className = gBroken > 0 ? "statchip warn" : "statchip";
+  $("statBlocked").innerHTML = gBlocked;
+  $("blockedChip").className = gBlocked > 0 ? "statchip warn" : "statchip";
+  $("statTime").innerHTML = fmtTime(secs);
+  // Rate counts every request — pages AND external checks.
+  $("statRate").innerHTML = secs > 0 ? Math.round((gCrawled + gExtChecked) / secs * 60) : 0;
+  $("recent").innerHTML = escHtml(gRecent.join("\n"));
+  $("recent").scrollTop = $("recent").scrollHeight;
+
+  if (gExtChecked > 0) {
+    $("extChip").innerHTML = "External: <b>" + gExtChecked + "/" + gExtTotal + "</b> verified" + (gExtBad ? " · <b>" + gExtBad + "</b> broken" : "");
+    $("extChip").className = gExtBad ? "statchip warn" : "statchip";
+  } else {
+    $("extChip").innerHTML = "External: <b>" + gExtFound + "</b> found";
+    $("extChip").className = "statchip";
+  }
+
+  var done = (gDoneCode !== null);
+  if (!done) {
+    var siteTag = gSiteN ? " (site " + gSiteI + "/" + gSiteN + ")" : "";
+    if (isPaused) setActivity("paused" + siteTag, true);
+    else if (gBackoffUntil > now) setActivity("rate limited — auto-resume in " + Math.ceil((gBackoffUntil - now) / 1000) + "s" + siteTag, true);
+    else if (gExtTotal > 0 && gExtChecked < gExtTotal) setActivity("verifying external links " + gExtChecked + "/" + gExtTotal + siteTag, false);
+    else {
+      var idle = Math.floor((now - lastChangeMs) / 1000);
+      if (gCrawled === 0 && secs >= 5) setActivity("waiting for first page&hellip; (" + secs + "s)" + siteTag, true);
+      else if (idle >= 10) setActivity("no new page in " + idle + "s — may be stuck or rate-limited" + siteTag, true);
+      else setActivity("crawling&hellip;" + siteTag, false);
+    }
+  } else {
+    window.clearInterval(timer); timer = null; running = false; isPaused = false;
+    $("startBtn").disabled = false;
+    $("pauseBtn").disabled = true; $("pauseBtn").innerHTML = "Pause";
+    $("stopBtn").disabled = true;
+    deleteIfExists(stopPath); deleteIfExists(pausePath);
+    if (gDoneCode === 0) {
+      $("reportBtn").disabled = false;
+      setActivity("finished", false);
+      setStatus("Done — " + gCrawled + " crawled (" + gGood + " good, " + gBroken + " broken" + (gBlocked ? ", " + gBlocked + " blocked/uncertain" : "") + ") in " + fmtTime(secs) + ". Click “Open crawl report”.", "ok");
+    } else if (gDoneCode === 130) {
+      $("reportBtn").disabled = false;
+      setActivity("stopped", false);
+      setStatus("Stopped after " + gCrawled + " pages — a partial report was written. Click “Open crawl report”.", "muted");
+    } else {
+      setActivity("error", true);
+      var err = readFile(errPath);
+      if (err !== "") $("liveout").value = err;
+      var hint = (gDoneCode === 9009 || /not recognized|is not recognized/i.test(err))
+        ? " — Node.js wasn't found. Install it from nodejs.org and reopen this window."
+        : ". Click “Copy command” and run it in a terminal to see the full error.";
+      setStatus("Finished with errors (exit code " + gDoneCode + ")" + hint, "bad");
+    }
+  }
+}
+
+// ---- file helpers ----
+function writeFile(path, content) {
+  var f = fso.OpenTextFile(path, 2, true);   // 2 = write, create if missing
+  f.Write(content);
+  f.Close();
+}
+function readFile(path) {
+  try {
+    if (!fso.FileExists(path)) return "";
+    var f = fso.OpenTextFile(path, 1, false); // 1 = read
+    var t = f.AtEndOfStream ? "" : f.ReadAll();
+    f.Close();
+    return t;
+  } catch (e) { return ""; }
+}
+
+// ---- buttons ----
+function reportPath() {
+  var workDir = val("workDir") || scriptDir;
+  var out = val("out") || "crawl-report.html";
+  // absolute path? leave as-is, else join with workDir
+  if (/^[A-Za-z]:\\/.test(out) || out.indexOf("\\") === 0) return out;
+  return workDir + "\\" + out;
+}
+function openReport() {
+  var rp = reportPath();
+  if (!fso.FileExists(rp)) {
+    setStatus(running
+      ? "Report is being written — try again in a second."
+      : "No report yet at " + rp + ". Run a crawl first.", "muted");
+    return;
+  }
+  // While running, the report is the partial one and auto-refreshes in the browser.
+  shell.Run(q(rp), 1, false);
+  if (running) setStatus("Opened the live partial report — it refreshes every 5s as the crawl runs.", "muted");
+}
+function openFolder() {
+  var workDir = val("workDir") || scriptDir;
+  shell.Run("explorer.exe " + q(workDir), 1, false);
+}
+function copyCommand() {
+  try {
+    window.clipboardData.setData("Text", buildCommand());
+    setStatus("Command copied to clipboard.", "ok");
+  } catch (e) {
+    setStatus("Copy failed — select the preview text manually.", "bad");
+  }
+}
+
+// Show unexpected script errors as a friendly status line instead of the raw
+// "Script Error / continue running scripts?" dialog.
+window.onerror = function (msg, url, line) {
+  try {
+    if (running) { running = false; if (timer) { window.clearInterval(timer); timer = null; } }
+    $("startBtn").disabled = false;
+    $("pauseBtn").disabled = true; $("pauseBtn").innerHTML = "Pause";
+    $("stopBtn").disabled = true;
+    setStatus("Unexpected error: " + msg + " (line " + line + "). If launching, use “Copy command” and run it in a terminal.", "bad");
+  } catch (e) {}
+  return true; // suppress the default error dialog
+};
+
+// ---- boot ----
+initPaths();
+addUrlRow("https://");   // seed one Start URL row
+toggleInputs();
+updatePreview();
+</script>
+</body>
+</html>

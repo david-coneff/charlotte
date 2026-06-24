@@ -1,0 +1,21 @@
+{
+  "name": "charlotte",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Domain crawler — maps a website's internal links plus first-tier external links, verifies them (including links inside PDFs/Office docs), and writes a self-contained HTML report.",
+  "bin": {
+    "crawl": "./crawl.js",
+    "crawl-render": "./crawl-render.js"
+  },
+  "scripts": {
+    "crawl": "node crawl.js",
+    "render": "node crawl-render.js",
+    "proxy": "node local-cors-proxy.js"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.40.0"
+  },
+  "engines": {
+    "node": ">=14"
+  }
+}

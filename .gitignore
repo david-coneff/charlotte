@@ -1,0 +1,21 @@
+# Node
+node_modules/
+
+# Crawler (crawl.js) runtime outputs — generated per run, not source
+crawl-report.html
+crawl-report.json
+crawl-allowlist.txt
+crawl-allowlist.suggested.txt
+crawl-progress.log
+crawl-progress.part*.log
+crawl-progress.manifest.json
+crawl-seen.idx
+crawl-gui-run.bat
+crawl-gui-run.log
+crawl-gui-err.log
+crawl-gui-stop.flag
+crawl-gui-pause.flag
+# crawl-render.js (browser second-opinion) outputs
+crawl-render.json
+render-report.html
+crawl-report.json.bak

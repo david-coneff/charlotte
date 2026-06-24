@@ -47,6 +47,11 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
     referrer→broken-link pairs with editable **Fixed** boxes and a **Notes · who
     to contact** field; self-renders from an embedded JSON island, state persisted
     in localStorage. Verified report→export→render.
+  - Refactor (AD-009): extracted the report/output layer (~570 lines) from
+    `crawl.js` into a sibling **`report.js`** (`buildReport`, `writeOutputs`,
+    `buildIndexReport`, `writeCombinedJson` + render caps / branding / `esc`);
+    `crawl.js` dropped 1,861→1,301 lines and `require`s the three writers back.
+    Report output verified **byte-for-byte identical** to pre-split.
 
 - **milestone_checklist**:
   - [x] Located the crawler + migration handoff on broodforge `claude/html-web-crawler-sd0i4p`
@@ -59,6 +64,7 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] Report: Runtime headline stat; Charlotte branding + 🕸️ favicon; `broodforge*`→`charlotte*` keys/UA
   - [x] Verified features against a local fixture (export round-trips to Suppressed)
   - [x] Per-referrer fix checkboxes + standalone editable fix-tracker export (notes per row); verified report→export→render
+  - [x] Extracted the report/output layer into `report.js` (AD-009); `crawl.js` 1,861→1,301 lines, report output byte-identical, multi-site + `--help` verified
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

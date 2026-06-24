@@ -121,3 +121,27 @@ JS is dependency-free and **backslash-free** (newline/backslash produced via
 `String.fromCharCode`) to keep the nested template/script escaping safe. Verified
 end-to-end: report → export → render yields the two tabs, the per-pair checkboxes,
 the notes inputs, correct pre-ticked state, and live progress counts.
+
+## AD-009: Extract the report/output layer into report.js
+**Date:** 2026-06-24
+**Decision:** Split the HTML/JSON report generation out of `crawl.js` into a sibling
+module **`report.js`** (~570 lines): `TRACKER_TEMPLATE`, `buildReport`,
+`writeOutputs`, `buildIndexReport`, `writeCombinedJson`, plus the render caps
+(`REF_PREVIEW`/`REF_CAP`/`RENDER_CAP`), the branding constants (`BRAND`/`BRAND_ICON`),
+and the `esc` helper they use. `crawl.js` `require`s `{ writeOutputs,
+buildIndexReport, writeCombinedJson }` back. Orchestration helpers (`hostOf`,
+`sitePath`) and `TITLE_CAP` (used by `extractLinks`) stayed in `crawl.js`.
+**Rationale:** `crawl.js` had grown to 1,861 lines and the report layer (~29%) was
+the fastest-growing concern — three feature rounds (runtime, allowlist export, fix
+tracker) all landed there. It is also the cleanest seam: the report functions are
+pure-ish (state/cfg → HTML strings; only `writeOutputs`/`writeCombinedJson` touch
+`fs`) with **no crawl-engine dependencies**, so `report.js` is a leaf module — no
+circular imports. `crawl.js` dropped to 1,301 lines.
+**Distribution preserved:** `report.js` lives beside `crawl.js` and is published with
+it (no `files` whitelist in `package.json`), so `node crawl.js`, `npx`, and the `bin`
+entry keep working. The one new constraint — the two files must travel together — is
+noted in `CRAWLER.md` (crawl.js + GUI requirements) and the README.
+**Verification:** the move is byte-preserving — a regenerated report is **byte-for-byte
+identical** to the pre-split output (modulo timestamps/runtime/runId); the
+embed → export → render checks still pass; and `--help` plus a multi-site run (index +
+per-site reports + combined JSON) work.

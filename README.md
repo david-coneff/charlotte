@@ -36,7 +36,9 @@ in-browser variant.
 
 ## Requirements
 
-- **`crawl.js`, `local-cors-proxy.js`** — Node ≥ 14, zero npm dependencies.
+- **`crawl.js` (+ its companion `report.js`), `local-cors-proxy.js`** — Node ≥ 14,
+  zero npm dependencies. `crawl.js` `require`s `report.js` (the report/output layer)
+  from the same folder, so keep the two together.
 - **`crawl-render.js`** — Node, plus an optional [Playwright](https://playwright.dev)
   install (`npm install`); without it, run with `--http-fallback` for plain HTTP checks.
 - **`crawl-gui.hta`** — Windows (mshta.exe) with Node on `PATH`.

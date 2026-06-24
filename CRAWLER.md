@@ -391,6 +391,17 @@ exactly the links you picked — append them to your allowlist and those links m
 to **Suppressed** on the next scan. See
 [Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports).
 
+Each broken link also lists the pages it was **found on**, and every one of those
+referrers has its **own checkbox** — tick a referrer as you fix the link on that
+page. **🔧 Export fix tracker** (on either Errors tab) then saves the whole set —
+every referrer → broken-link pair, internal *and* external — as a **standalone
+HTML checklist**: two tabs (internal/external) styled like this report, each row a
+referrer paired with the broken link it points to, an editable **Fixed** checkbox,
+and a **Notes · who to contact** field. The exported file is self-contained and its
+checkboxes **and notes persist in the browser** (localStorage), so someone can keep
+working through it — and hand it off — over time. Referrers you already ticked in
+the report come across pre-checked.
+
 Every broken link lists **all** the pages that link to it (each a clickable
 "found on" referrer); when there's more than one, they're shown in a collapsible
 table inside the row, so you can fix every reference. The full referrer lists are

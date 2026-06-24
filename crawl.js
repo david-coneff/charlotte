@@ -1224,6 +1224,84 @@ function writeSuggested(cfg, suppressedOut, activeErrors) {
 }
 
 // ----------------------------- report -----------------------------
+// Standalone "fix tracker" document. The crawl report fills the "__DATA__"
+// placeholder with a JSON island ({host, generatedAt, internal[], external[],
+// ticked{}}) and downloads it. The tracker renders itself from that island:
+// two tabs (internal/external), one row per referrer→broken-link pair, each with
+// an editable checkbox whose state persists in the opener's localStorage — so a
+// fixer can keep working across sessions. Authored with no backticks / no ${} /
+// no backslashes so it embeds cleanly inside the report's template + script.
+const TRACKER_TEMPLATE = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🕸️ Charlotte — Broken-link fix tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%95%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--good:#4ade80;--bad:#f87171;--border:#2c3340}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
+header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
+main{max-width:1100px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px}
+.bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}.grow{flex:1}
+.tabs{display:flex;gap:6px}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--fg)}.tab.active{background:var(--accent);color:#06121f;border-color:var(--accent)}
+.btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover{border-color:var(--accent);color:var(--accent)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
+td a{color:var(--accent);text-decoration:none}td a:hover{text-decoration:underline}td{overflow-wrap:anywhere}
+.tablewrap{max-height:72vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
+.c{width:54px;text-align:center}.c input{width:16px;height:16px;cursor:pointer}
+.ncol{min-width:220px}.note{width:100%;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font:inherit;font-size:12px}.note:focus{outline:none;border-color:var(--accent)}
+tr.done td:not(.c):not(.ncol){opacity:.5;text-decoration:line-through}
+.muted{color:var(--muted)}.hidden{display:none}
+</style>
+</head><body>
+<header><h1>🕸️ Charlotte <span class="muted" style="font-weight:400">· Broken-link fix tracker</span></h1><p id="sub"></p></header>
+<main><div class="card">
+ <div class="bar">
+  <div class="tabs"><button class="tab active" data-t="int" type="button">Internal</button><button class="tab" data-t="ext" type="button">External</button></div>
+  <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button>
+ </div>
+ <div id="panel-int"></div>
+ <div id="panel-ext" class="hidden"></div>
+</div></main>
+<script>
+var DATA = "__DATA__";
+(function(){
+  var NS='cwfix:'+(DATA.host||'')+':', NL=String.fromCharCode(10);
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function isUrl(s){return s.indexOf('http://')===0||s.indexOf('https://')===0;}
+  function cell(s){return isUrl(s)?'<a href="'+esc(s)+'" target="_blank" rel="noopener">'+esc(s)+'</a>':esc(s);}
+  function pairs(list){var out=[],i,j;for(i=0;i<list.length;i++){var e=list[i],r=e.refs||[];for(j=0;j<r.length;j++)out.push({ref:r[j],broken:e.url,reason:e.reason});}out.sort(function(a,b){return a.ref<b.ref?-1:a.ref>b.ref?1:(a.broken<b.broken?-1:1);});return out;}
+  function key(p){return p.ref+NL+p.broken;}
+  function stored(k){try{return localStorage.getItem(NS+k);}catch(e){return null;}}
+  function save(k,v){try{if(v)localStorage.setItem(NS+k,'1');else localStorage.removeItem(NS+k);}catch(e){}}
+  function initChecked(p){var s=stored(key(p));if(s!=null)return s==='1';return !!(DATA.ticked&&DATA.ticked[key(p)]);}
+  function storedNote(k){try{return localStorage.getItem(NS+'n:'+k);}catch(e){return null;}}
+  function saveNote(k,v){try{if(v)localStorage.setItem(NS+'n:'+k,v);else localStorage.removeItem(NS+'n:'+k);}catch(e){}}
+  function initNote(p){var k=key(p),s=storedNote(k);if(s!=null)return s;return (DATA.notes&&DATA.notes[k])||'';}
+  function render(which){
+    var list=(which==='int')?(DATA.internal||[]):(DATA.external||[]),ps=pairs(list),i;
+    if(!ps.length)return '<p class="muted">No '+(which==='int'?'internal':'external')+' broken links recorded. 🎉</p>';
+    var rows='';
+    for(i=0;i<ps.length;i++){var p=ps[i],ck=initChecked(p);
+      rows+='<tr'+(ck?' class="done"':'')+' data-k="'+esc(key(p))+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td>'+cell(p.ref)+'</td><td>'+cell(p.broken)+'</td><td class="muted">'+esc(p.reason)+'</td><td class="ncol"><input type="text" class="note" placeholder="who to contact / status…" value="'+esc(initNote(p))+'"></td></tr>';}
+    return '<div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th>Referrer page (fix this)</th><th>Broken link it points to</th><th>Reason</th><th class="ncol">Notes · who to contact</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+  function count(which){var list=(which==='int')?(DATA.internal||[]):(DATA.external||[]),ps=pairs(list),done=0,i;for(i=0;i<ps.length;i++)if(initChecked(ps[i]))done++;return {done:done,total:ps.length};}
+  function progress(){var a=count('int'),b=count('ext');document.getElementById('prog').textContent='Fixed: internal '+a.done+'/'+a.total+' · external '+b.done+'/'+b.total;}
+  function wire(){
+    var boxes=document.querySelectorAll('.fx'),notes=document.querySelectorAll('.note'),i;
+    for(i=0;i<boxes.length;i++){boxes[i].addEventListener('change',function(){var tr=this.parentNode.parentNode,k=tr.getAttribute('data-k');save(k,this.checked);tr.className=this.checked?'done':'';progress();});}
+    for(i=0;i<notes.length;i++){notes[i].addEventListener('input',function(){var tr=this.parentNode.parentNode,k=tr.getAttribute('data-k');saveNote(k,this.value);});}
+  }
+  function fill(){document.getElementById('panel-int').innerHTML=render('int');document.getElementById('panel-ext').innerHTML=render('ext');wire();progress();}
+  var tabs=document.querySelectorAll('.tab'),i;
+  for(i=0;i<tabs.length;i++){tabs[i].addEventListener('click',function(){var t=this.getAttribute('data-t'),j;for(j=0;j<tabs.length;j++)tabs[j].className='tab'+(tabs[j]===this?' active':'');document.getElementById('panel-int').className=(t==='int')?'':'hidden';document.getElementById('panel-ext').className=(t==='ext')?'':'hidden';});}
+  document.getElementById('reset').addEventListener('click',function(){if(!window.confirm('Clear all ticks in this tracker?'))return;var list=(DATA.internal||[]).concat(DATA.external||[]),ps=pairs(list),i;for(i=0;i<ps.length;i++)save(key(ps[i]),false);fill();});
+  var ci=count('int'),ce=count('ext');
+  document.getElementById('sub').textContent=(DATA.host||'')+' · generated '+(DATA.generatedAt||'')+' · '+(ci.total+ce.total)+' referrer→broken pairs · ticks saved in this browser';
+  fill();
+})();
+</script>
+</body></html>`;
+
 function buildReport(state, cfg, allow, partial) {
   const suppressed = [], active = [];
   for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);
@@ -1296,16 +1374,43 @@ function buildReport(state, cfg, allow, partial) {
   const errRows = (arr) => arr.slice(0, RENDER_CAP).map((e) => `<tr><td>${link(e.url)}</td><td><span class="pill err">${esc(e.reason)}</span></td><td class="muted">${refCell(e.url, e.source)}</td></tr>`).join("");
   // Blocked rows: a neutral "uncertain" pill + the kind (internal/external).
   const blockedRows = (arr) => arr.slice(0, RENDER_CAP).map((e) => `<tr><td>${link(e.url)}</td><td><span class="pill skip">${esc(e.reason)}</span></td><td>${esc(e.kind || "internal")}</td><td class="muted">${refCell(e.url, e.source)}</td></tr>`).join("");
+  // All referrers of a broken link (full list; capped only at render/embed sites).
+  const refsAll = (url, fallback) => {
+    const a = refsOf(url);
+    if (a.length) return a;
+    return [fallback && /^https?:\/\//i.test(fallback) ? fallback : (fallback || "(start)")];
+  };
+  // "Found on" cell for the Errors tabs — each referrer carries a fix checkbox so
+  // someone fixing referrer pages can tick them off (and export the set, below).
+  const reffix = (r, brokenUrl) => `<label class="reffix"><input type="checkbox" class="fixbox" data-ref="${esc(r)}" data-broken="${esc(brokenUrl)}"><span>${/^https?:\/\//i.test(r) ? link(r) : esc(r)}</span></label>`;
+  const refCellFix = (brokenUrl, fallback) => {
+    const arr = refsAll(brokenUrl, fallback);
+    if (arr.length === 1) return reffix(arr[0], brokenUrl);
+    const rows = arr.slice(0, REF_CAP).map((r) => `<tr><td>${reffix(r, brokenUrl)}</td></tr>`).join("");
+    const more = arr.length > REF_CAP ? `<tr><td class="muted">+${arr.length - REF_CAP} more — see JSON output</td></tr>` : "";
+    return `<details><summary>${arr.length} pages link here</summary><div class="tablewrap" style="max-height:220px;margin-top:6px"><table class="subtable"><tbody>${rows}${more}</tbody></table></div></details>`;
+  };
   // Error rows WITH a leading checkbox — only on the two "Errors" tabs. Each box
   // carries the data to render an allowlist line (url + reason + a representative
   // referrer), so a selection can be exported as an allowlist appendage.
   const pickRows = (arr) => arr.slice(0, RENDER_CAP).map((e) => {
     const src = refsOf(e.url)[0] || e.source || "(start)";
-    return `<tr><td><input type="checkbox" class="pickbox" data-url="${esc(e.url)}" data-reason="${esc(e.reason)}" data-source="${esc(src)}"></td><td>${link(e.url)}</td><td><span class="pill err">${esc(e.reason)}</span></td><td class="muted">${refCell(e.url, e.source)}</td></tr>`;
+    return `<tr><td><input type="checkbox" class="pickbox" data-url="${esc(e.url)}" data-reason="${esc(e.reason)}" data-source="${esc(src)}"></td><td>${link(e.url)}</td><td><span class="pill err">${esc(e.reason)}</span></td><td class="muted">${refCellFix(e.url, e.source)}</td></tr>`;
   }).join("");
   // Toolbar above an Errors table: a live count + copy/export actions (disabled
   // until something is ticked). The select-all lives in the table header cell.
-  const exportBar = (scope) => `<div class="exportbar"><span class="selcount" data-scope="${scope}">0 selected</span><span class="grow"></span><button type="button" class="btn copybtn" data-scope="${scope}" disabled>⧉ Copy lines</button><button type="button" class="btn exportbtn" data-scope="${scope}" disabled>⬇ Export to allowlist…</button></div>`;
+  const exportBar = (scope) => `<div class="exportbar"><span class="selcount" data-scope="${scope}">0 selected</span><span class="grow"></span><button type="button" class="btn copybtn" data-scope="${scope}" disabled>⧉ Copy lines</button><button type="button" class="btn exportbtn" data-scope="${scope}" disabled>⬇ Export to allowlist…</button><span class="vsep"></span><button type="button" class="btn trackbtn" title="Save an editable checklist (with notes) of every referrer → broken-link pair, internal + external, as a standalone HTML">🔧 Export fix tracker</button></div>`;
+  // Embedded fix-tracker payload + self-rendering template (final report only).
+  const refsCapped = (url, fallback) => refsAll(url, fallback).slice(0, REF_CAP);
+  const brokenFor = (arr) => arr.slice(0, RENDER_CAP).map((e) => ({ url: e.url, reason: e.reason, refs: refsCapped(e.url, e.source) }));
+  const trackerData = { host: state.startHost, generatedAt: state.startedAt, internal: brokenFor(activeInt), external: brokenFor(activeExt) };
+  const trackerLiteral = JSON.stringify(TRACKER_TEMPLATE).replace(/</g, "\\u003c");
+  const brokenLiteral = JSON.stringify(trackerData).replace(/</g, "\\u003c");
+  const trackerEmbed = showPick
+    ? `<script>window.__CW_BROKEN__=${brokenLiteral};window.__CW_TPL__=${trackerLiteral};</script>`
+    : "";
+  // One-line helper under each Errors table explaining the two kinds of checkbox.
+  const pickHelp = `<p class="muted" style="margin:2px 0 10px">Left box selects a link for the <strong>allowlist</strong>. The box beside each “found on” page marks that referrer <strong>fixed</strong> — <strong>Export fix tracker</strong> saves those (with a notes field per row) as a standalone editable checklist.</p>`;
 
   // Out-of-scope (same domain, outside the chosen subsection) — only shown when scoped.
   const scoped = !!state.pathPrefix;
@@ -1370,6 +1475,8 @@ function buildReport(state, cfg, allow, partial) {
  .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
  .btn.exportbtn:not(:disabled){background:var(--accent);color:#06121f;border-color:var(--accent);font-weight:600}
  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}.toast.show{opacity:1}
+ .reffix{display:inline-flex;align-items:flex-start;gap:6px}.reffix input{margin-top:3px;cursor:pointer;flex:none}.reffix.done span{opacity:.55;text-decoration:line-through}
+ .vsep{display:inline-block;width:1px;height:20px;background:var(--border);margin:0 2px;vertical-align:middle}
  /* No-flash tab restore: a head script sets html.tab-NAME before first paint so
     the correct tab/panel renders immediately, not the default then a swap. */
  html[class*="tab-"] .panel{display:none}
@@ -1408,8 +1515,8 @@ function buildReport(state, cfg, allow, partial) {
   <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
   <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
-  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
-  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th>External URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeExt) : errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
+  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th>External URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeExt) : errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
   <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${capNote(blocked.length)}<div class="tablewrap"><table><thead><tr><th>URL</th><th>Why uncertain</th><th>Kind</th><th>Found on</th></tr></thead><tbody>${blockedRows(blocked)}</tbody></table></div>` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-suppressed">${suppressed.length ? `<p class="muted">Hidden from Errors via <code>${esc(cfg.allowlist)}</code>.</p><div class="tablewrap"><table><thead><tr><th>URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${errRows(suppressed)}</tbody></table></div>` : `<p class="muted">Nothing suppressed.</p>`}</div>
  </div>
@@ -1495,6 +1602,7 @@ function buildReport(state, cfg, allow, partial) {
   }
 })();
 </script>
+${trackerEmbed}
 <script>
 /* Broken-link selection → allowlist appendage (final report only). Each ticked
    row on the two Errors tabs becomes an allowlist line; Export downloads them as
@@ -1561,6 +1669,29 @@ function buildReport(state, cfg, allow, partial) {
     refresh(scope);
   }
   for(var i=0;i<SCOPES.length;i++){ wire(SCOPES[i]); }
+
+  // ---- per-referrer fix checkboxes + standalone editable "fix tracker" export ----
+  var NL=String.fromCharCode(10), BS=String.fromCharCode(92);
+  var fixes=document.querySelectorAll('.fixbox');
+  for(var fi=0;fi<fixes.length;fi++){ fixes[fi].addEventListener('change', function(){ var l=this.parentNode; if(l){ l.className = this.checked ? 'reffix done' : 'reffix'; } }); }
+  function exportTracker(){
+    var tpl=window.__CW_TPL__; if(!tpl){ toast('Tracker template unavailable'); return; }
+    var data=JSON.parse(JSON.stringify(window.__CW_BROKEN__||{host:'',internal:[],external:[]}));
+    var ticked={}, fb=document.querySelectorAll('.fixbox'), j;
+    for(j=0;j<fb.length;j++){ if(fb[j].checked){ ticked[fb[j].getAttribute('data-ref')+NL+fb[j].getAttribute('data-broken')]=1; } }
+    data.ticked=ticked;
+    var inj=JSON.stringify(data).split('</').join('<'+BS+'/');
+    var doc=tpl.replace('"__DATA__"', function(){ return inj; });
+    try{
+      var blob=new Blob([doc],{type:'text/html;charset=utf-8'}), url=URL.createObjectURL(blob), a=document.createElement('a');
+      a.href=url; a.download='charlotte-fix-tracker.html'; document.body.appendChild(a); a.click();
+      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
+      var n=0,k; for(k in ticked){ if(ticked.hasOwnProperty(k)) n++; }
+      toast('Exported fix tracker — '+n+' marked fixed');
+    }catch(e){ toast('Tracker export failed'); }
+  }
+  var tb=document.querySelectorAll('.trackbtn');
+  for(var ti=0;ti<tb.length;ti++){ tb[ti].addEventListener('click', exportTracker); }
 })();
 </script>
 </body></html>`;

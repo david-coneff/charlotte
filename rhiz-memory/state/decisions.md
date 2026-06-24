@@ -95,3 +95,29 @@ checkbox plus an **Export to allowlist…** / **Copy lines** toolbar.
 local fixture: the embedded scripts syntax-check, the favicon decodes to valid
 SVG, and an exported selection fed back via `--allowlist` moves those links from
 Errors to **Suppressed** on the next scan.
+
+## AD-008: Per-referrer fix checkboxes + standalone "fix tracker" export (with notes)
+**Date:** 2026-06-24
+**Decision:** On the report's two Errors tabs, give every "found on" referrer its
+own checkbox, and add **Export fix tracker** — a single standalone HTML, tabbed
+internal/external (styled like the crawl report), listing each referrer → broken-link
+pair with an editable **Fixed** checkbox and a **Notes · who to contact** field.
+**Rationale / how it meets the goal:**
+- The unit of *fixing* is "(a referrer page) links to (a broken URL)", so the
+  fixer's checklist is keyed on that pair and grouped by referrer. The report's
+  per-referrer checkboxes let you tick progress in place; the export turns that
+  into a portable, durable work artifact.
+- The tracker is **self-rendering from an embedded JSON island** (`__DATA__`): the
+  report fills it with the broken-link data plus whichever pairs are already
+  ticked, and the tracker builds its own tabs/rows. Checkbox **and note** state
+  **persist in localStorage** (namespaced by host) so work survives reopening and
+  can be handed off.
+- The notes field captures *who needs contacting* to fix each section — the
+  operator's stated purpose.
+**Implementation notes:** the tracker template is embedded in the report as a JS
+string with every `<` hex-escaped (so its own `</script>` cannot close the
+report's script) and filled via a placeholder replace at export time. All browser
+JS is dependency-free and **backslash-free** (newline/backslash produced via
+`String.fromCharCode`) to keep the nested template/script escaping safe. Verified
+end-to-end: report → export → render yields the two tabs, the per-pair checkboxes,
+the notes inputs, correct pre-ticked state, and live progress counts.

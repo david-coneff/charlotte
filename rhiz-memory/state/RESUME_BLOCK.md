@@ -27,12 +27,14 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added + verified crawler **report features**
-  (2026-06-24, AD-007): selectable broken-link → allowlist export on the Errors
-  tabs, a Runtime headline stat, and Charlotte branding + 🕸️ favicon; committed
-  and pushed. Earlier: migrated the crawler + `rhiz-memory/` instance to
-  `claude/festive-cerf-7loovw`; broodforge branch deletion is blocked from this
-  session (403) and left to the operator.
+- **last_completed_step**: Added + verified the **broken-link fix tracker**
+  (2026-06-24, AD-008): per-referrer fix checkboxes on the Errors tabs and an
+  **Export fix tracker** button that saves a standalone, tabbed (internal/external)
+  HTML checklist of referrer→broken-link pairs with editable Fixed boxes and a
+  Notes·who-to-contact field, persisted in localStorage. Builds on the earlier
+  report features (AD-007: allowlist export, runtime, branding) and the migration
+  (AD-001…AD-006). All committed and pushed; broodforge branch deletion remains an
+  operator action (session is 403-blocked from it).
 
 - **resume_instructions**:
   1. Read `rhiz-memory/state/SESSION_HANDOFF.md` for full context.

@@ -42,6 +42,11 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
     found on: src` lines; round-trip verified to move links to Suppressed); a
     **Runtime** headline stat; Charlotte branding (title/header + 🕸️ favicon);
     `broodforge*` localStorage keys and default UA renamed to `charlotte*`.
+  - Fix-tracker (AD-008): per-referrer checkboxes on the Errors tabs + **Export
+    fix tracker** → a standalone, tabbed (internal/external) HTML checklist of
+    referrer→broken-link pairs with editable **Fixed** boxes and a **Notes · who
+    to contact** field; self-renders from an embedded JSON island, state persisted
+    in localStorage. Verified report→export→render.
 
 - **milestone_checklist**:
   - [x] Located the crawler + migration handoff on broodforge `claude/html-web-crawler-sd0i4p`
@@ -53,6 +58,7 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] Report: selectable broken-link → allowlist export on the Errors tabs (checkbox + Export/Copy)
   - [x] Report: Runtime headline stat; Charlotte branding + 🕸️ favicon; `broodforge*`→`charlotte*` keys/UA
   - [x] Verified features against a local fixture (export round-trips to Suppressed)
+  - [x] Per-referrer fix checkboxes + standalone editable fix-tracker export (notes per row); verified report→export→render
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

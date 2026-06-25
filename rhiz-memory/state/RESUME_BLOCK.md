@@ -27,7 +27,12 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Fixed Pause being ignored during the external-check /
+- **last_completed_step**: Partitioned `crawl.js` (1,480→998 lines) into leaf modules
+  **`parse.js`** (link extraction) / **`fetch.js`** (HTTP) / **`log.js`** (log+journal) /
+  **`seen.js`** (dedup) — byte-preserving; a deterministic crawl is byte-identical (HTML
+  + JSON) vs the pre-split version, resume/multi-site/recheck verified (2026-06-25,
+  AD-014). The tool stays zero-dependency `require()` modules (no bundler). Before that:
+  Fixed Pause being ignored during the external-check /
   second-pass loops (now honored like the main worker, verified), and added on-demand
   broken-link re-check `--recheck-from <report.json>` — re-probes just the flagged
   links with the current settings and rewrites the report with the record corrected +

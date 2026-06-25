@@ -231,3 +231,23 @@ injected duplicate error to a single entry, and preserved the crawled pages.
 same launcher (bat + `DONE_` marker + poll), runs to completion with the form's
 current network settings, and shows "Re-check complete". JScript syntax + wiring
 verified; the `.hta` itself is Windows-only and wasn't run here.
+
+## AD-014: Partition crawl.js into leaf modules (parse / fetch / log / seen)
+**Date:** 2026-06-25
+**Decision:** Split four cohesive layers out of `crawl.js` into sibling modules:
+**`parse.js`** (HTML + document link extraction), **`fetch.js`** (HTTP request / probe
+/ disposition), **`log.js`** (progress log + resume journal + reconstruction), and
+**`seen.js`** (dedup backends). `crawl.js` `require`s them back; `fetch.js` `require`s
+`parse.js` (for `docTypeOf` / `sniffMagic`). Shared constants moved to their owning
+module (`MAX_REDIRECTS` / `MAX_BYTES` / `BROWSER_UA` → fetch; `TITLE_CAP` → parse).
+**Rationale:** `crawl.js` had grown back to ~1,480 lines after the resume / re-check
+work. These four are the cleanest seams — pure-ish, low-coupling leaves with no
+crawl-engine dependencies (a clean DAG: parse ← fetch ← crawl; log, seen ← crawl).
+`crawl.js` dropped to **998 lines**; the new modules are 82–151 lines each. As in
+AD-009, plain CommonJS `require()` (no bundler) keeps the tool zero-dependency and
+install-free — a bundler would buy nothing for a Node CLI and would cost the no-install
+property.
+**Verification:** byte-preserving extraction (code moved verbatim by script). Proven
+behavior-preserving: a deterministic crawl produces a **byte-identical** HTML report
+*and* JSON vs. the committed pre-split `crawl.js`; the resume round-trip still matches;
+`--help`, multi-site, and `--recheck-from` all work; all six files syntax-check.

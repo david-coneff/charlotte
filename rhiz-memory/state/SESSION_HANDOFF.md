@@ -71,6 +71,7 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] Bugfix: Pause now honored during external-check + second-pass loops (verified). `--recheck-from` re-checks broken links on demand with current settings, correcting + deduping the record (AD-013). GUI **Re-check broken links** button added
     (JScript syntax-verified; HTA not runtime-testable here). Still pending: GUI Resume
     button + poison-URL quarantine.
+  - [x] Partitioned `crawl.js` (1,480→998 lines) into leaf modules `parse.js` / `fetch.js` / `log.js` / `seen.js` (AD-014); byte-identical report + JSON vs pre-split, resume/multi-site/recheck verified.
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

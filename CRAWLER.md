@@ -33,9 +33,10 @@ No browser, no CORS. Crawls any domain directly and writes a self-contained
 
 ### Requirements
 
-Node.js (any recent version — uses only built-in modules, no `npm install`). Keep
-**`report.js`** (the report/output module) in the same folder as `crawl.js` — the
-crawler `require`s it.
+Node.js (any recent version — uses only built-in modules, no `npm install`). `crawl.js`
+is split into sibling modules — **`report.js`, `parse.js`, `fetch.js`, `log.js`,
+`seen.js`** — so keep those in the same folder as `crawl.js` (it `require`s them; no
+bundler or build step).
 
 ### Quick start
 
@@ -543,8 +544,9 @@ install** beyond Node.js.
 - Windows.
 - **Node.js on your PATH** (https://nodejs.org). The GUI just runs `crawl.js`
   for you; it doesn't replace Node.
-- `crawl.js` **and `report.js`** in the **same folder** as `crawl-gui.hta`
-  (`crawl.js` is auto-detected and `require`s `report.js`).
+- `crawl.js` **and its sibling modules** (`report.js`, `parse.js`, `fetch.js`,
+  `log.js`, `seen.js`) in the **same folder** as `crawl-gui.hta` (`crawl.js` is
+  auto-detected and `require`s them).
 
 ### Default start URLs (optional)
 

@@ -316,7 +316,7 @@ function buildReport(state, cfg, allow, partial) {
  :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340}
  *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
  header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
- main{max-width:1100px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px}
+ main{max-width:1500px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px}
  .stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
  .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}.stat .n{font-size:26px;font-weight:700}.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
  .stat.good .n{color:var(--good)}.stat.bad .n{color:var(--bad)}.stat.warn .n{color:var(--warn)}
@@ -326,6 +326,14 @@ function buildReport(state, cfg, allow, partial) {
  td{overflow-wrap:anywhere;word-break:normal}
  th:first-child,td:first-child{min-width:360px}
  td:last-child{min-width:300px}
+ /* Internal-pages table: a 1–2 digit Depth and the small Status/Int/Ext cells shouldn't
+    hog width — narrow them and give the space to URL + Title so those wrap far less. */
+ .pagestbl th:first-child,.pagestbl td:first-child{min-width:0;width:64px}
+ .pagestbl th:nth-child(2),.pagestbl td:nth-child(2){min-width:380px}
+ .pagestbl th:nth-child(3),.pagestbl td:nth-child(3){min-width:300px}
+ .pagestbl th:nth-child(4),.pagestbl td:nth-child(4){width:90px}
+ .pagestbl th:nth-child(5),.pagestbl td:nth-child(5){width:58px}
+ .pagestbl th:last-child,.pagestbl td:last-child{min-width:0;width:58px}
  td a{color:var(--accent);text-decoration:none}td a:hover{text-decoration:underline}
  .tablewrap{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:8px}
  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}.pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.err{background:rgba(248,113,113,.15);color:var(--bad)}.pill.skip{background:rgba(251,191,36,.15);color:var(--warn)}
@@ -387,7 +395,7 @@ function buildReport(state, cfg, allow, partial) {
    <div class="tab" data-tab="blockd">Blocked · uncertain (${blocked.length})</div>
    <div class="tab" data-tab="suppressed">Suppressed (${suppressed.length})</div>
   </div>
-  <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
+  <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table class="pagestbl"><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
   <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extToggle" data-mode="collapse">Collapse all</button><span class="muted" style="font-size:12px">${byHost.size} domain${byHost.size === 1 ? "" : "s"}</span></div>${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
   <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + testBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th><th class="tcol" title="I've manually tested this link">Tested</th><th class="tcol" title="Manual test shows it works — excluded from the fix tracker">Not broken</th>` : ``}<th>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>

@@ -1193,6 +1193,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     let i = 0, checked = 0, bad = 0, blockedN = 0;
     async function checker() {
       while (i < exts.length && !interrupted) {
+        if (isPaused()) { await sleep(300); continue; }   // honor the Pause button here too
         const e = exts[i++];
         await throttle.gate();
         await limiter();
@@ -1232,6 +1233,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     let i = 0, fixed = 0, moved = 0;
     async function rechecker() {
       while (i < toRecheck.length && !interrupted) {
+        if (isPaused()) { await sleep(300); continue; }   // honor the Pause button here too
         const e = toRecheck[i++];
         await throttle.gate();
         await limiter();

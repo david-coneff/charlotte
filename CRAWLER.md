@@ -498,7 +498,7 @@ tabbed sections:
 - **Out of scope** — _(only when a scope/prefix is set)_ same-domain links outside the subsection: recorded, not crawled.
 - **Errors · internal** — broken internal pages (HTTP 404/410, bad requests) — yours to fix.
 - **Errors · external** — unreachable external links (when `--check-external` is on) — a link to fix or remove.
-- **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them.
+- **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them. Each row has the same triage boxes as the Errors tabs, but with the opposite default: a **Tested** box and a **Broken** box that *confirms* an uncertain link really is dead. Confirming one **adds** it to the **Broken link instances** count (live) and to the **fix tracker** — routed to internal or external by its **Kind** — so the blocked tab feeds the same cleanup workflow without needing to be split into two tabs.
 - **Suppressed** — broken links hidden via the allowlist, kept separately so you can still audit them.
 
 Across the top sits a row of **headline numbers** — internal pages, external links,

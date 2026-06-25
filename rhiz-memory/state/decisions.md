@@ -505,3 +505,29 @@ stat (7), Tested/Not-broken columns, the grouped tracker, and the side-window ha
 page/error data intact and the JSON re-emitted with the new fields. Multi-site rebuild
 regenerates the index + per-site HTML. `crawl.js`/`cli.js`/`recheck.js`/`report.js`
 syntax-check; the GUI HTA JScript parses and the rebuild button/command/state are wired.
+
+## AD-025: Manual-testing triage on the Blocked tab (confirm-broken → header + tracker)
+**Date:** 2026-06-25
+**Decision:** Give the **Blocked · uncertain** tab the same manual-testing mechanism as the
+Errors tabs, but with the **opposite default**: a **Tested** box and a **Broken** box that
+*confirms* an uncertain link is actually dead (Errors default to broken with a "Not broken"
+opt-out; Blocked defaults to uncertain with a "Broken" opt-in). Confirming a blocked link:
+(1) **adds** its instances to the live **Broken link instances** header (`recomputeBroken`
+now also sums blocked rows whose `.brokenbox` is checked), and (2) routes it into the **fix
+tracker** by its existing **Kind** column — `exportTracker` appends confirmed-broken blocked
+links to `data.internal`/`data.external` from embedded `blockedInt`/`blockedExt` lists. A live
+per-tab counter ("Manually tested X / N · confirmed broken Y") and localStorage persistence
+(`cwtest:`/`cwbroken:`), with the same Broken⇒Tested implication. A `.confirmed` row class
+tints confirmed rows. New `.blkpick` table CSS (two narrow checkbox cols + wide URL).
+**Rationale:** the operator wanted blocked links to feed the same broken-instances/fix-tracker
+flow. The tab mixes internal+external, which they flagged as a barrier to tracker integration;
+rather than split it into two tabs (their suggested option), the existing **Kind** value is
+enough to route each confirmed link to the right tracker side — simpler, no extra tabs. Default
+"uncertain, opt-in to broken" is correct because blocked links are *presumed maybe-fine*, the
+inverse of Errors.
+**Verification:** DOM-stub — confirming a blocked link (inst 3) bumps the header 1→4 and the
+counter to "tested 1/2 · confirmed broken 1", auto-checks Tested, persists (`cwbroken:`+`cwtest:`);
+a second (inst 2) → 6; unticking Tested clears Broken and drops the header back to 3. Export
+stub: a confirmed internal blocked link lands in `tracker.internal` alongside the real errors, an
+unconfirmed external one is excluded, and `blockedInt`/`blockedExt` are stripped from the output.
+A real 403 fixture renders the Tested/Broken columns + `blkpick` table; all five report scripts parse.

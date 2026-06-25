@@ -27,7 +27,14 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added **`--rebuild-from`** + a GUI **Rebuild report** button
+- **last_completed_step**: Manual-testing triage on the **Blocked** tab (2026-06-25,
+  AD-025) — Tested + **Broken** (confirm) boxes (opposite default from Errors' "Not broken":
+  blocked links are presumed uncertain, you opt IN to broken). Confirming one **adds** its
+  instances to the live **Broken link instances** header and routes it into the fix tracker
+  by its existing **Kind** (internal/external) — so no need to split the tab. Live counter +
+  localStorage persistence; DOM-stub + 403-fixture verified. Also fixed the Internal-pages
+  column widths (narrow Depth, wide URL/Title via `.pagestbl`; report widened to 1500px).
+  Before that: Added **`--rebuild-from`** + a GUI **Rebuild report** button
   (2026-06-25, AD-024): regenerate the HTML report from a prior `--json` (single-site or a
   multi-site index, via its per-site JSONs) using the current report.js — **no crawl, no
   network** — so an old crawl gets new report features without re-crawling (the operator's

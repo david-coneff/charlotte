@@ -302,6 +302,39 @@ This works even if the manifest is missing — point it at the log base path and
 rebuilds the order by reading each part's `#META` header. The report's **Progress
 log** card lists the parts and shows this command.
 
+### Resuming after a stop or crash (`--state` / `--resume`)
+
+A long crawl that dies — a crash, a kill, a dropped connection, a closed laptop —
+doesn't have to start over. Pass **`--state FILE`** and the crawler writes an
+**append-only journal** of everything it discovers (the frontier) and everything it
+finishes (each page, its links, errors). Every line is flushed *synchronously*, so
+even a hard `kill -9` leaves a usable journal.
+
+```bash
+node crawl.js https://example.com/ --max-pages none --state crawl-state.jsonl
+```
+
+If it stops, **resume** it:
+
+```bash
+node crawl.js https://example.com/ --max-pages none --resume crawl-state.jsonl
+```
+
+`--resume` replays the journal to rebuild the queue and the results so far, **skips
+every page already done**, and continues from where it stopped. It does **not**
+re-crawl anything already finished, and the finished report is identical to an
+uninterrupted run. You can be interrupted and resume as many times as needed
+(`--resume` keeps appending to the same file). Use the **same options** (start URL,
+scope, depth) when resuming so the continuation matches the original.
+
+For a **multi-site** run, point `--state` / `--resume` at a base name; each site
+gets its own journal (`crawl-state.1-host.jsonl`, …), just like the per-site
+reports, so a resume skips sites already finished and continues the one that was
+in progress.
+
+The journal grows with the crawl (it records the discovered link graph), so it's
+opt-in via `--state` and independent of the report/log checkpoints above.
+
 ### Memory on big sites
 
 A crawler must remember every URL it has seen to avoid re-crawling, so peak memory

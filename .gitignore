@@ -10,6 +10,8 @@ crawl-progress.log
 crawl-progress.part*.log
 crawl-progress.manifest.json
 crawl-seen.idx
+crawl-state.jsonl
+crawl-state.*.jsonl
 crawl-gui-run.bat
 crawl-gui-run.log
 crawl-gui-err.log

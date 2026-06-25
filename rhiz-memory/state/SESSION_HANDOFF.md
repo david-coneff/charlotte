@@ -67,6 +67,7 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] Extracted the report/output layer into `report.js` (AD-009); `crawl.js` 1,861→1,301 lines, report output byte-identical, multi-site + `--help` verified
   - [x] GUI loads multiple default Start URLs from `crawl-gui-domains.txt` (AD-010); parsing verified
   - [x] External-links tab: Expand/Collapse-all toggle for the per-domain sections (AD-011); verified
+  - [x] Resumable crawls: `--state` journal + `--resume` (single + multi-site), SIGKILL-resume verified with zero re-crawl (AD-012). Poison-URL quarantine + GUI Resume button still pending.
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

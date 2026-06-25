@@ -88,6 +88,8 @@ function parseArgs(argv) {
     suggest: "crawl-allowlist.suggested.txt",
     out: "crawl-report.html",
     json: "",
+    state: "",                       // resume journal path ("" = off); --state FILE to enable
+    resume: "",                      // replay this journal, then continue ("" = fresh crawl)
   };
   const num = (v, name) => { const n = Number(v); if (!Number.isFinite(n)) die("Invalid number for " + name + ": " + v); return n; };
   const a = argv.slice(2);
@@ -151,6 +153,8 @@ function parseArgs(argv) {
       case "--suggest": cfg.suggest = next(); break;
       case "--out": cfg.out = next(); break;
       case "--json": cfg.json = next(); break;
+      case "--state": cfg.state = next(); break;
+      case "--resume": cfg.resume = next(); if (!cfg.state) cfg.state = cfg.resume; break;
       default:
         if (arg.startsWith("-")) die("Unknown option: " + arg);
         else cfg.startUrls.push(arg);
@@ -191,6 +195,9 @@ Options:
   --max-depth N           Max internal link depth, 0 = start only,
                           'none' (or -1) = unlimited     (default 3)
   --checkpoint N          Rewrite report/JSON every N pages, 0 = off (default 25)
+  --state FILE            Write an append-only resume journal (frontier + results)
+  --resume FILE           Replay a journal, then continue WITHOUT re-crawling pages
+                          already done (appends to the same FILE)
   --log FILE              Live append-only progress log  (default crawl-progress.log)
   --log-max-bytes N       Roll to a new log part at this size, 0 = single file
                                                         (default 5242880 = 5 MB)
@@ -425,6 +432,23 @@ function makeLogWriter(cfg, meta) {
   }
 
   return { line, finalize: writeManifest, parts, manifestPath, singleFile: single };
+}
+
+// ----------------------------- resume journal -----------------------------
+// Append-only JSONL trail of discoveries (the frontier) and completions (results),
+// written SYNCHRONOUSLY so an abrupt stop loses nothing already on disk. `--resume`
+// replays it to rebuild the queue + results + seen-set and continue WITHOUT
+// re-crawling anything already done. Enabled by `--state FILE` (and implied by
+// `--resume FILE`, which appends to the same file). Event shapes (one JSON/line):
+//   {t:"meta",v,run,startUrl,scope,depth,subs,startedAt}  once, on a fresh journal
+//   {t:"v",u}                                              about to visit u (attempt)
+//   {t:"p",u,s,d,ti,in:[..],ex:[[u,host]..],oo:[..]}       u crawled OK + its links
+//   {t:"k",u,s,d,ct}                                       u recorded, non-HTML (skip)
+//   {t:"e",u,r,k,src} / {t:"b",u,r,k,src}                  u errored / blocked-uncertain
+function makeJournal(file) {
+  if (!file) return { ev() {}, on: false };
+  const ev = (obj) => { try { fs.appendFileSync(file, JSON.stringify(obj) + "\n"); } catch { /* ignore */ } };
+  return { ev, on: true };
 }
 
 // Reconstruct a partitioned log into a single composite stream. Accepts the
@@ -895,6 +919,12 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
   state.logParts = logger.parts;
   state.logManifest = logger.manifestPath;
   state.logSingleFile = logger.singleFile;
+
+  // Resume journal (append-only; see makeJournal). On a fresh run write the meta
+  // header; on --resume we append to the existing file (its meta is already there).
+  const journal = makeJournal(cfg.state);
+  const J = journal.ev;
+  if (journal.on && !cfg.resume) J({ t: "meta", v: 1, run: runId, startUrl: cfg.startUrl, scope: pathPrefix || "", depth: cfg.maxDepth === Infinity ? null : cfg.maxDepth, subs: !!cfg.includeSubdomains, startedAt: state.startedAt });
   const logLine = (s) => logger.line(s);
 
   // Record that `ref` (a page) links to `target`. Every DISTINCT referrer is
@@ -908,8 +938,55 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
 
   let interrupted = false;
 
+  // ---- resume: replay the journal to rebuild the frontier + results, so we
+  //      continue from where we stopped instead of starting over. Reuses the live
+  //      addRef / seen.tryAdd so the reconstructed frontier + referrers match. ----
+  if (cfg.resume) {
+    const doneSet = new Set();            // URLs already terminally processed (skip these)
+    const enq = new Map();                // url -> {depth, parent}: everything that entered the frontier
+    const consider = (target, parentUrl, parentDepth) => {
+      addRef(target, parentUrl);
+      if (parentDepth < cfg.maxDepth && seen.tryAdd(target) && !enq.has(target)) enq.set(target, { depth: parentDepth + 1, parent: parentUrl });
+    };
+    let lines = [];
+    try { lines = fs.readFileSync(cfg.resume, "utf8").split(/\r?\n/); } catch { /* no journal yet — resume behaves like a fresh crawl */ }
+    let meta = null, replayed = 0;
+    for (const ln of lines) {
+      if (!ln) continue;
+      let e; try { e = JSON.parse(ln); } catch { continue; }
+      if (e.t === "meta") { if (!meta) meta = e; continue; }
+      if (e.t !== "p" && e.t !== "k" && e.t !== "e" && e.t !== "b") continue;  // "v"/"r"/unknown: ignored here
+      if (doneSet.has(e.u)) continue;     // idempotent: a URL completes at most once
+      doneSet.add(e.u);
+      replayed++;
+      if (e.t === "p") {
+        state.pages.push({ url: e.u, title: e.ti, status: e.s, depth: e.d, internal: (e.in || []).length, external: (e.ex || []).length });
+        for (const t of (e.in || [])) consider(t, e.u, e.d);
+        for (const pr of (e.ex || [])) { const u = pr[0]; if (!state.external.has(u)) state.external.set(u, { url: u, host: pr[1], status: null }); addRef(u, e.u); }
+        for (const u of (e.oo || [])) { if (!state.outOfScope.has(u)) state.outOfScope.set(u, { url: u }); addRef(u, e.u); }
+      } else if (e.t === "k") {
+        state.pages.push({ url: e.u, title: "(non-HTML: " + (e.ct || "?") + ")", status: e.s, depth: e.d, internal: 0, external: 0 });
+      } else if (e.t === "e") {
+        state.errors.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
+      } else {
+        state.blocked.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
+      }
+    }
+    if (meta && meta.startUrl && meta.startUrl !== cfg.startUrl) console.log(`Note: resume journal was for ${meta.startUrl}; now crawling ${cfg.startUrl}.`);
+    // Frontier = everything that entered the queue but never completed.
+    state.queue = [];
+    for (const [u, info] of enq) { if (!doneSet.has(u)) state.queue.push({ url: u, depth: info.depth, parent: info.parent }); }
+    // If the start URL was never reached (empty/partial journal), make sure it runs.
+    const su = normalize(cfg.startUrl);
+    if (!doneSet.has(su) && !enq.has(su)) state.queue.unshift({ url: su, depth: 0, parent: "(start)" });
+    state.crawled = doneSet.size;
+    J({ t: "r", at: new Date().toISOString() });   // mark this resume in the journal
+    console.log(`Resumed from ${cfg.resume}: ${replayed} already done, ${state.queue.length} queued.`);
+  }
+
   async function visit(job) {
     state.crawled++;
+    J({ t: "v", u: job.url });
     await throttle.gate();   // wait out any active rate-limit backoff window
     await limiter();
     let r;
@@ -919,10 +996,12 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
       const msg = String(e.message || e);
       if (linkDisposition(0, msg) === "blocked") {
         state.blocked.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
+        J({ t: "b", u: job.url, r: msg, k: "internal", src: job.parent });
         logLine(`${new Date().toISOString()} BLOCKED ${job.url} :: ${msg} :: found on ${job.parent}`);
         console.log(`  ?  ${job.url} — ${msg} (uncertain; found on ${job.parent})`);
       } else {
         state.errors.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
+        J({ t: "e", u: job.url, r: msg, k: "internal", src: job.parent });
         logLine(`${new Date().toISOString()} ERR ${job.url} :: ${msg} :: found on ${job.parent}`);
         console.log(`  x  ${job.url} — ${msg}  (found on ${job.parent})`);
       }
@@ -942,6 +1021,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
         return;
       }
       state.errors.push({ url: job.url, reason: `rate limited (HTTP ${r.status}, gave up after ${cfg.maxRetries} retries)`, source: job.parent, kind: "internal" });
+      J({ t: "e", u: job.url, r: `rate limited (HTTP ${r.status})`, k: "internal", src: job.parent });
       logLine(`${new Date().toISOString()} ERR ${job.url} :: HTTP ${r.status} (gave up after ${cfg.maxRetries} retries) :: found on ${job.parent}`);
       console.log(`  x  [${r.status}] ${job.url} — gave up after ${cfg.maxRetries} retries`);
       return;
@@ -952,10 +1032,12 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
       // server blocked our automated fetch rather than a truly dead page.
       if (linkDisposition(r.status, null) === "blocked") {
         state.blocked.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
+        J({ t: "b", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
         logLine(`${new Date().toISOString()} BLOCKED ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
         console.log(`  ?  [${r.status}] ${job.url}  (uncertain; found on ${job.parent})`);
       } else {
         state.errors.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
+        J({ t: "e", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
         logLine(`${new Date().toISOString()} ERR ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
         console.log(`  x  [${r.status}] ${job.url}  (found on ${job.parent})`);
       }
@@ -973,10 +1055,14 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     } else {
       // Non-parseable binary (image/etc.) — record it as reachable, no links.
       state.pages.push({ url: job.url, title: "(non-HTML: " + (r.contentType || "?") + ")", status: r.status, depth: job.depth, internal: 0, external: 0 });
+      J({ t: "k", u: job.url, s: r.status, d: job.depth, ct: r.contentType || "" });
       logLine(`${new Date().toISOString()} SKIP ${job.url} :: ${r.contentType || "non-HTML"}`);
       return;
     }
     let internalFound = 0, externalFound = 0;
+    // When journaling, collect this page's discovered link targets so a resume can
+    // rebuild the frontier + referrers + external/oos maps without re-crawling it.
+    const inT = [], exT = [], ooT = [];
     for (const link of links) {
       if (link.protocol !== "http:" && link.protocol !== "https:") continue;
       if (sameDomain(link.hostname, startHost, cfg.includeSubdomains)) {
@@ -987,11 +1073,13 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
           internalFound++;
           const norm = normalize(link.href);
           addRef(norm, job.url);
+          if (journal.on) inT.push(norm);
           if (job.depth < cfg.maxDepth && seen.tryAdd(norm)) state.queue.push({ url: norm, depth: job.depth + 1, parent: job.url });
         } else {
           // Same domain but outside the chosen subsection: record, never follow.
           if (!state.outOfScope.has(link.href)) state.outOfScope.set(link.href, { url: link.href });
           addRef(link.href, job.url);
+          if (journal.on) ooT.push(link.href);
         }
       } else {
         // External domain: record only. Never followed — the crawl stops here,
@@ -999,9 +1087,11 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
         externalFound++;
         if (!state.external.has(link.href)) state.external.set(link.href, { url: link.href, host: link.hostname, status: null });
         addRef(link.href, job.url);
+        if (journal.on) exT.push([link.href, link.hostname]);
       }
     }
     state.pages.push({ url: job.url, title, status: r.status, depth: job.depth, internal: internalFound, external: externalFound });
+    J({ t: "p", u: job.url, s: r.status, d: job.depth, ti: title, in: inT, ex: exT, oo: ooT });
     logLine(`${new Date().toISOString()} OK d${job.depth} ${r.status} ${job.url} int=${internalFound} ext=${externalFound} extTotal=${state.external.size}`);
     console.log(`  ok [d${job.depth}] ${job.url}  (${internalFound} int, ${externalFound} ext)`);
   }
@@ -1279,7 +1369,9 @@ function sitePath(out, i, host) {
   for (let i = 0; i < sites.length; i++) {
     logger.line(`# === site ${i + 1}/${sites.length} ${sites[i].url} ===`);
     console.log(`\n=== Site ${i + 1}/${sites.length}: ${sites[i].url} ===`);
-    const siteCfg = Object.assign({}, cfg, { startUrl: sites[i].url, out: sites[i].reportFile, json: "" });
+    // Per-site resume journal, derived from --state like the per-site report from --out.
+    const perState = cfg.state ? sitePath(cfg.state, i, sites[i].host) : "";
+    const siteCfg = Object.assign({}, cfg, { startUrl: sites[i].url, out: sites[i].reportFile, json: "", state: perState, resume: cfg.resume ? perState : "" });
     const state = await crawl(siteCfg, allow, logger, (st) => { sites[i].state = st; sites[i].partial = true; writeIndex(true); });
     sites[i].state = state; sites[i].partial = false;
     writeOutputs(state, siteCfg, allow, false);   // final per-site report

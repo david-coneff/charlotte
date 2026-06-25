@@ -27,8 +27,14 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added an **Expand/Collapse-all toggle** for the
-  External-links tab's per-domain sections (2026-06-25, AD-011 — scoped to
+- **last_completed_step**: Added **resumable crawls** — `--state FILE` writes an
+  append-only JSONL journal (discoveries + completions, synchronous so a `kill -9` is
+  safe) and `--resume FILE` replays it to rebuild the frontier + results and continue
+  with **zero re-crawl** (single + multi-site; 2026-06-25, AD-012). Verified by a real
+  SIGKILL mid-crawl and a truncation test (final coverage identical to uninterrupted,
+  no page crawled twice). **Next on this feature:** poison-URL quarantine (the journal
+  already records `v` attempt events) and a GUI "Resume" command on error. Earlier work:
+  the External-links expand/collapse toggle (2026-06-25, AD-011 — scoped to
   `#panel-external`, label re-syncs to state, DOM-stub verified). Recent prior work: GUI
   multi-domain defaults via `crawl-gui-domains.txt` (AD-010); report/output layer split
   into a sibling **`report.js`** (AD-009; `crawl.js` 1,861→1,301 lines, output

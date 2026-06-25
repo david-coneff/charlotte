@@ -175,3 +175,31 @@ persistence.
 **Verification:** DOM-stub test — initial "Collapse all", click collapses all →
 "Expand all", click expands all → "Collapse all", and it still bulk-collapses after a
 manual section change; a 6-domain fixture renders 6 sections plus the toggle.
+
+## AD-012: Resumable crawls via an append-only journal (`--state` / `--resume`)
+**Date:** 2026-06-25
+**Decision:** Add `--state FILE` (write an append-only JSONL journal of discoveries +
+completions, flushed synchronously) and `--resume FILE` (replay it to rebuild the
+frontier + results + seen-set, skip everything already done, and continue). Each
+crawled page's event carries its discovered link targets (internal / external / oos)
+so a resume reconstructs the frontier and the full report **without re-crawling**.
+Multi-site runs get a per-site journal derived from `--state`, like the per-site
+reports from `--out`.
+**Rationale / how it meets the goal:** the crawler never persisted the frontier, so a
+stop meant starting over. The operator asked for resume that "appends from the
+stopping point and doesn't duplicate effort." An append-only journal (vs periodic
+full-state snapshots) matches that exactly: synchronous appends survive a hard
+`kill -9` with at most a torn last line (skipped on replay); replay marks every
+completed URL done and re-queues only the unfinished frontier — zero re-crawl, and
+append-once I/O scales better than repeatedly rewriting a snapshot on a huge crawl.
+**Implementation:** events `meta` / `v` (visiting) / `p` (page + its links) / `k`
+(non-HTML) / `e` (error) / `b` (blocked), one JSON per line; replay reuses the live
+`addRef` + `seen.tryAdd` so the rebuilt frontier/referrers match the original.
+`--resume` keeps appending (with `r` resume markers), so a run can be interrupted and
+resumed repeatedly.
+**Verification:** (1) truncation — resume from a 1-page stub reproduced the full crawl
+exactly, zero re-visits; (2) real `SIGKILL` mid 122-page crawl — resume continued from
+~46 done to coverage identical to an uninterrupted run, 0 pages crawled twice, torn
+tail tolerated; (3) multi-site — per-site journals, resume skips finished sites.
+**Still to come (tracked):** poison-URL quarantine (the `v` events are recorded for
+it) and a GUI "Resume" command on error.

@@ -27,7 +27,20 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added a **Share your testing verdicts** toolbar (2026-06-25, AD-030)
+- **last_completed_step**: Made the in-report **allowlist export UI opt-in / off by default**
+  (2026-06-25, AD-031). The pick checkboxes + Select-all + **Export to allowlist…** / **Copy lines**
+  on the two Errors tabs now appear only with the new `--allowlist-export` flag (`cfg.allowlistExport`;
+  GUI Options checkbox *Allowlist export tools in report (legacy)*, unchecked by default) — the fix
+  tracker and Broken/Working verdict tools have superseded it. Reading an allowlist as **input**
+  (`--allowlist FILE`) and the **Suppressed** tab are unchanged; only the report's *export* affordance
+  is suppressed. Column widths were made class-based (`.pickcol`/`.tscell`/`.tcol`/`.urlcol`) so the
+  table holds with or without the pick column (header/row counts verified in sync both ways). Touches
+  report.js + cli.js (`--allowlist-export`/`--no-…`, help) + crawl-gui.hta (checkbox wired into all
+  three command builders; generic config-file support). Verified; existing triage/share/fix-tracker
+  tests still pass.
+  (Prior step — AD-030 — added the Share-your-testing-verdicts toolbar.)
+
+- **prior_step**: Added a **Share your testing verdicts** toolbar (2026-06-25, AD-030)
   because triage verdicts live in localStorage and don't travel when the report `.html` is emailed.
   Above the tabs (final report, shown only when there's something to triage): **💾 Save shareable
   copy** bakes the current Broken/Working verdicts + timestamps into a new self-contained report

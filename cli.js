@@ -42,6 +42,7 @@ function parseArgs(argv) {
     out: "crawl-report.html",
     json: "",
     paginate: false,                 // client-side paginate report tables (1000 rows/page); off = render all at once
+    allowlistExport: false,          // in-report allowlist EXPORT UI (pick boxes + "Export to allowlist…"); off by default (superseded by fix tracker). --allowlist input is unaffected.
     state: "",                       // resume journal path ("" = off); --state FILE to enable
     resume: "",                      // replay this journal, then continue ("" = fresh crawl)
     recheckFrom: "",                 // re-check the broken links in this JSON report, then rewrite --out/--json
@@ -112,6 +113,8 @@ function parseArgs(argv) {
       case "--json": cfg.json = next(); break;
       case "--paginate": cfg.paginate = true; break;
       case "--no-paginate": cfg.paginate = false; break;
+      case "--allowlist-export": cfg.allowlistExport = true; break;
+      case "--no-allowlist-export": cfg.allowlistExport = false; break;
       case "--state": cfg.state = next(); break;
       case "--resume": cfg.resume = next(); if (!cfg.state) cfg.state = cfg.resume; break;
       case "--recheck-from": cfg.recheckFrom = next(); break;
@@ -217,6 +220,10 @@ Reconstruct a partitioned log into one composite stream:
                           time with Prev/Next paging (all rows stay embedded; keeps
                           very large reports responsive). Off by default = render
                           every row at once.
+  --allowlist-export      Re-enable the in-report allowlist EXPORT UI (per-link pick
+                          boxes + “Export to allowlist…” / “Copy lines” on the Errors
+                          tabs). Off by default — the fix tracker and Broken/Working
+                          tools supersede it. (Does not affect reading --allowlist.)
   -h, --help              Show this help
 `);
 }

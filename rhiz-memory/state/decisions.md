@@ -674,3 +674,32 @@ replace + reload + host-mismatch/garbage rejection; shareable-copy seed injected
 single seed, strip-on-reshare; seed primes empty / doesn't clobber existing; no-localStorage seed
 fallback display) + the seed `<`-escape round-trip checked against a `</script>`-bearing URL. Existing
 triage (38) + fix-tracker export (6) still pass; all 7 embedded scripts parse; report.js parses.
+
+## AD-031: Allowlist EXPORT UI in the report is now opt-in (off by default)
+**Date:** 2026-06-25
+**Decision:** The in-report **allowlist export** affordance (per-link pick checkboxes + Select-all +
+**Export to allowlist…** / **Copy lines** on the two Errors tabs) is now **off by default** and gated
+behind a new `--allowlist-export` flag (`cfg.allowlistExport`, default false). It's superseded by the
+fix tracker and the Broken/Working verdict tools. Reading an allowlist as **input** (`--allowlist
+FILE`) and the **Suppressed** tab are unchanged — only the report's *export* UI is suppressed.
+- **report.js:** `const showAllow = showPick && !!cfg.allowlistExport`. The pick `<td>`/`<th>` (now
+  `.pickcol`), the Select-all, and the allowlist buttons in `exportBar` render only when `showAllow`;
+  the **fix tracker** button stays. `pickHelp` drops its "First box selects… allowlist" sentence when
+  off. The self-guarding allowlist IIFE (`if(!all.length) return`) needed no change — with no pick
+  boxes it simply no-ops.
+- **Column CSS made class-based** so the layout holds with or without the pick column: replaced the
+  positional `.haspick`/`.blkpick` `nth-child` width rules with `.pickcol` / `.tscell` / `.tcol` /
+  `.urlcol`; `.notbroken`/`.confirmed` exclusions switched `:not(:first-child)` → `:not(.pickcol)`.
+  Header `<th>` and row `<td>` add/drop the pick column together (same `showAllow`), so counts stay in
+  sync (verified 6/6 default, 7/7 opt-in).
+- **cli.js:** `--allowlist-export` / `--no-allowlist-export`; default false; help text added.
+- **crawl-gui.hta:** new Options checkbox `id="allowlistExport"` (unchecked by default), pushed as
+  `--allowlist-export` in all three command builders (crawl / re-check / rebuild). `loadGuiConfig` is
+  generic so `allowlistExport = true` works from `crawl-gui-config.txt`; doc comment updated.
+**Rationale:** the operator: the allowlist export "seemed initially important but we've created more
+robust tools" — keep the allowlist **import** wiring, suppress the report **export** UI by default.
+**Verification:** default report has no pickbox/Select-all/Export-to-allowlist but keeps fix tracker +
+Broken/Working + Last-tested + share toolbar; `--allowlist-export` restores them; header/row column
+counts in sync both ways; CLI flag toggles correctly and `--allowlist` input still parses; HTA JScript
+parses with the checkbox + 3 builder pushes; existing triage (38) / share (19) / fix-tracker (6) tests
+still pass; report.js + cli.js parse.

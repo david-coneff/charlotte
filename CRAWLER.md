@@ -436,6 +436,14 @@ tool bounds the other growth vectors so RAM stays predictable:
   selection, the allowlist export, and the fix-tracker export all still act on every
   row, not just the visible page. Without it, all rows render at once (fine up to a few
   thousand; slower in the browser beyond that).
+- **`--allowlist-export`** (off by default; GUI: *Allowlist export tools in report
+  (legacy)*) re-enables the in-report **allowlist export** UI on the two Errors tabs —
+  the per-link pick checkboxes, the **Select all**, and the **Export to allowlist…** /
+  **Copy lines** buttons. It's off by default because the **fix tracker** and the
+  **Broken/Working** verdict tools have superseded it for triage. This is purely about the
+  report's *export* affordance; the crawler still **reads** an allowlist via `--allowlist`
+  regardless (that's the input side, unchanged). The **Suppressed** tab — which shows what
+  the input allowlist hid — is also always present.
 - **`--max-urls N`** is a hard backstop on how many distinct URLs are remembered.
   It defaults to `max-pages × 50`; when you crawl with `--max-pages none` on a very
   large site, set `--max-urls` (e.g. `--max-urls 500000`) to cap memory explicitly.
@@ -522,11 +530,13 @@ still broken. The metrics are in the JSON as `summary.linkInstances` /
 counts plus grand totals. Also shown: blocked, suppressed, requests, and the crawl
 **Runtime**. The report is branded **Charlotte** with a 🕸️ favicon (visible on the browser tab).
 
-The two **Errors** tabs are built for triage. Each row has an **allowlist** box (select
-links to suppress in future scans, then **Export to allowlist…** / **Copy lines** — see
-[Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports)) plus two
-**mutually-exclusive** verdict boxes: **Broken** (a manual check confirms it really is
-dead) and **Working** (it actually loads). They start with *neither* ticked — every link
+The two **Errors** tabs are built for triage. Each row has two **mutually-exclusive**
+verdict boxes: **Broken** (a manual check confirms it really is dead) and **Working** (it
+actually loads). *(With `--allowlist-export`, an additional **allowlist** pick box and a
+**Select all** appear to the left — select links, then **Export to allowlist…** / **Copy
+lines** — see
+[Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports). That
+export UI is **off by default**; the verdict and fix-tracker tools below have replaced it.)* They start with *neither* ticked — every link
 the crawler flagged is **assumed broken and already counted**, so you only ever *subtract*
 from the header by ticking **Working**; ticking **Broken** just records that you've
 confirmed one by hand (it was counting anyway). Ticking either box marks the link tested —

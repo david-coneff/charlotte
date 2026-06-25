@@ -16,10 +16,13 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": 
 
 // Standalone "fix tracker" document. The crawl report fills the "__DATA__"
 // placeholder with a JSON island ({host, generatedAt, internal[], external[],
-// ticked{}}) and downloads it. The tracker renders itself from that island:
-// two tabs (internal/external), one row per referrer→broken-link pair, each with
-// an editable checkbox whose state persists in the opener's localStorage — so a
-// fixer can keep working across sessions. Authored with no backticks / no ${} /
+// ticked{}}) and downloads it; each link object also carries its manual verdict
+// (v: 'broken'|'working'|'') and last-tested timestamp (ts), baked from the report.
+// The tracker renders itself from that island: two tabs (internal/external), one row
+// per referrer→broken-link pair, each with a Fixed checkbox, a main-report-style
+// Broken/Working verdict pair (mutually exclusive, auto-stamping the Last-tested time,
+// synced per URL), all persisted in the opener's localStorage — so a fixer can keep
+// working across sessions. Authored with no backticks / no ${} /
 // no backslashes so it embeds cleanly inside the report's template + script.
 // Report links open in a NEW WINDOW (not a new tab), docked to whichever side of the
 // crawl-report window has more room and reusing one "charlotteLink" window, so checking
@@ -43,6 +46,9 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 td a{color:var(--accent);text-decoration:none}td a:hover{text-decoration:underline}td{overflow-wrap:anywhere}
 .tablewrap{max-height:72vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
 .c{width:54px;text-align:center}.c input{width:16px;height:16px;cursor:pointer}
+.v{width:54px;text-align:center}.v input{width:16px;height:16px;cursor:pointer}
+.ts{width:118px;white-space:nowrap;color:var(--muted);font-size:11px}
+.notelbl{display:flex;align-items:center;gap:6px;flex:1;min-width:240px;color:var(--muted);font-size:12px}
 .grp{border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
 .grphead{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel2);flex-wrap:wrap}
 .grphead .ref{font-weight:600;overflow-wrap:anywhere}.grphead .cnt{color:var(--muted);font-size:12px}
@@ -72,7 +78,7 @@ var DATA = "__DATA__";
   // owns a whole page, so its broken links sit together under a single contact note.
   function groups(list){
     var map={}, order=[], i, j;
-    for(i=0;i<list.length;i++){var e=list[i],r=e.refs||[];for(j=0;j<r.length;j++){var ref=r[j];if(!map.hasOwnProperty(ref)){map[ref]=[];order.push(ref);}map[ref].push({broken:e.url,reason:e.reason});}}
+    for(i=0;i<list.length;i++){var e=list[i],r=e.refs||[];for(j=0;j<r.length;j++){var ref=r[j];if(!map.hasOwnProperty(ref)){map[ref]=[];order.push(ref);}map[ref].push({broken:e.url,reason:e.reason,v:e.v||'',ts:e.ts||''});}}
     order.sort();
     for(i=0;i<order.length;i++)map[order[i]].sort(function(a,b){return a.broken<b.broken?-1:a.broken>b.broken?1:0;});
     return {order:order,map:map};
@@ -81,35 +87,51 @@ var DATA = "__DATA__";
   function stored(k){try{return localStorage.getItem(NS+k);}catch(e){return null;}}
   function save(k,v){try{if(v)localStorage.setItem(NS+k,'1');else localStorage.removeItem(NS+k);}catch(e){}}
   function initChecked(ref,broken){var k=pkey(ref,broken),s=stored(k);if(s!=null)return s==='1';return !!(DATA.ticked&&DATA.ticked[k]);}
-  // Notes are PER REFERRER PAGE (who to contact to fix that page).
+  // Notes are PER REFERRER PAGE (free-form: who to contact, status, anything).
   function storedNote(ref){try{return localStorage.getItem(NS+'n:'+ref);}catch(e){return null;}}
   function saveNote(ref,v){try{if(v)localStorage.setItem(NS+'n:'+ref,v);else localStorage.removeItem(NS+'n:'+ref);}catch(e){}}
   function initNote(ref){var s=storedNote(ref);if(s!=null)return s;return (DATA.notes&&DATA.notes[ref])||'';}
+  // Per-BROKEN-URL manual verdict (Broken/Working) + last-tested timestamp, mirroring the main
+  // report. Baked in at export from the report's localStorage; editable + persisted here too.
+  function storedV(url){try{return localStorage.getItem(NS+'vd:'+url);}catch(e){return null;}}
+  function saveV(url,v){try{if(v)localStorage.setItem(NS+'vd:'+url,v);else localStorage.removeItem(NS+'vd:'+url);}catch(e){}}
+  function initVerdict(url,baked){var s=storedV(url);if(s!=null)return s;return baked||'';}
+  function storedT(url){try{return localStorage.getItem(NS+'vt:'+url);}catch(e){return null;}}
+  function saveT(url,t){try{if(t)localStorage.setItem(NS+'vt:'+url,t);else localStorage.removeItem(NS+'vt:'+url);}catch(e){}}
+  function initTs(url,baked){var s=storedT(url);if(s!=null)return s;return baked||'';}
+  function nowStr(){var d=new Date();function p(x){return (x<10?'0':'')+x;}return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
+  function rowsForUrl(url){var all=document.querySelectorAll('tr[data-broken]'),out=[],i;for(i=0;i<all.length;i++){if(all[i].getAttribute('data-broken')===url)out.push(all[i]);}return out;}
+  // Set the verdict for a URL everywhere it appears (a URL can be linked from several pages):
+  // ticking one box clears the other, stamps the time (or clears it when no verdict remains).
+  function setVerdict(url,v){saveV(url,v);saveT(url,v?nowStr():'');var t=initTs(url,''),rs=rowsForUrl(url),i;for(i=0;i<rs.length;i++){var tr=rs[i],vb=tr.querySelector('.vb'),vo=tr.querySelector('.vo'),ts=tr.querySelector('.ts');if(vb)vb.checked=(v==='broken');if(vo)vo.checked=(v==='working');if(ts)ts.textContent=t;}}
   function render(which){
     var list=(which==='int')?(DATA.internal||[]):(DATA.external||[]),g=groups(list),i,j;
     if(!g.order.length)return '<p class="muted">No '+(which==='int'?'internal':'external')+' broken links recorded. 🎉</p>';
     var html='';
     for(i=0;i<g.order.length;i++){
       var ref=g.order[i],links=g.map[ref],rows='';
-      for(j=0;j<links.length;j++){var bk=links[j],ck=initChecked(ref,bk.broken);
-        rows+='<tr'+(ck?' class="done"':'')+' data-ref="'+esc(ref)+'" data-broken="'+esc(bk.broken)+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td>'+cell(bk.broken)+'</td><td class="muted">'+esc(bk.reason)+'</td></tr>';}
-      html+='<div class="grp"><div class="grphead"><span class="ref">'+cell(ref)+'</span><span class="cnt">'+links.length+' broken link'+(links.length===1?'':'s')+'</span><span class="grow"></span><input type="text" class="pnote" data-ref="'+esc(ref)+'" placeholder="who to contact to fix this page…" value="'+esc(initNote(ref))+'"></div><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th>Broken link it points to</th><th>Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
+      for(j=0;j<links.length;j++){var bk=links[j],ck=initChecked(ref,bk.broken),vd=initVerdict(bk.broken,bk.v),tv=initTs(bk.broken,bk.ts);
+        rows+='<tr'+(ck?' class="done"':'')+' data-ref="'+esc(ref)+'" data-broken="'+esc(bk.broken)+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td class="ts">'+esc(tv)+'</td><td class="v"><input type="checkbox" class="vb"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></td><td class="v"><input type="checkbox" class="vo"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></td><td>'+cell(bk.broken)+'</td><td class="muted">'+esc(bk.reason)+'</td></tr>';}
+      html+='<div class="grp"><div class="grphead"><span class="ref">'+cell(ref)+'</span><span class="cnt">'+links.length+' broken link'+(links.length===1?'':'s')+'</span><span class="grow"></span><label class="notelbl">Notes <input type="text" class="pnote" data-ref="'+esc(ref)+'" placeholder="notes…" value="'+esc(initNote(ref))+'"></label></div><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ts">Last tested</th><th class="v">Broken</th><th class="v">Working</th><th>Broken link it points to</th><th>Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
     }
     return html;
   }
   function count(which){var list=(which==='int')?(DATA.internal||[]):(DATA.external||[]),g=groups(list),done=0,total=0,i,j;for(i=0;i<g.order.length;i++){var ref=g.order[i],links=g.map[ref];for(j=0;j<links.length;j++){total++;if(initChecked(ref,links[j].broken))done++;}}return {done:done,total:total,pages:g.order.length};}
   function progress(){var a=count('int'),b=count('ext');document.getElementById('prog').textContent='Fixed: internal '+a.done+'/'+a.total+' · external '+b.done+'/'+b.total;}
   function wire(){
-    var boxes=document.querySelectorAll('.fx'),notes=document.querySelectorAll('.pnote'),i;
+    var boxes=document.querySelectorAll('.fx'),notes=document.querySelectorAll('.pnote'),vbs=document.querySelectorAll('.vb'),vos=document.querySelectorAll('.vo'),i;
     for(i=0;i<boxes.length;i++){boxes[i].addEventListener('change',function(){var tr=this.parentNode.parentNode,k=pkey(tr.getAttribute('data-ref'),tr.getAttribute('data-broken'));save(k,this.checked);tr.className=this.checked?'done':'';progress();});}
     for(i=0;i<notes.length;i++){notes[i].addEventListener('input',function(){saveNote(this.getAttribute('data-ref'),this.value);});}
+    // Broken/Working verdict boxes: mutually exclusive, auto-stamp the time, synced per URL.
+    for(i=0;i<vbs.length;i++){vbs[i].addEventListener('change',function(){var tr=this.parentNode.parentNode;setVerdict(tr.getAttribute('data-broken'),this.checked?'broken':'');});}
+    for(i=0;i<vos.length;i++){vos[i].addEventListener('change',function(){var tr=this.parentNode.parentNode;setVerdict(tr.getAttribute('data-broken'),this.checked?'working':'');});}
   }
   function fill(){document.getElementById('panel-int').innerHTML=render('int');document.getElementById('panel-ext').innerHTML=render('ext');wire();progress();}
   var tabs=document.querySelectorAll('.tab'),i;
   for(i=0;i<tabs.length;i++){tabs[i].addEventListener('click',function(){var t=this.getAttribute('data-t'),j;for(j=0;j<tabs.length;j++)tabs[j].className='tab'+(tabs[j]===this?' active':'');document.getElementById('panel-int').className=(t==='int')?'':'hidden';document.getElementById('panel-ext').className=(t==='ext')?'':'hidden';});}
   document.getElementById('reset').addEventListener('click',function(){if(!window.confirm('Clear all ticks in this tracker?'))return;var lists=(DATA.internal||[]).concat(DATA.external||[]),g=groups(lists),i,j;for(i=0;i<g.order.length;i++){var ref=g.order[i],links=g.map[ref];for(j=0;j<links.length;j++)save(pkey(ref,links[j].broken),false);}fill();});
   var ci=count('int'),ce=count('ext');
-  document.getElementById('sub').textContent=(DATA.host||'')+' · generated '+(DATA.generatedAt||'')+' · '+(ci.pages+ce.pages)+' referrer page(s), '+(ci.total+ce.total)+' broken-link instance(s) · ticks & notes saved in this browser';
+  document.getElementById('sub').textContent=(DATA.host||'')+' · generated '+(DATA.generatedAt||'')+' · '+(ci.pages+ce.pages)+' referrer page(s), '+(ci.total+ce.total)+' broken-link instance(s) · ticks, verdicts & notes saved in this browser';
   fill();
 })();
 </script>
@@ -611,6 +633,11 @@ ${trackerEmbed}
     data.internal=data.internal.concat(pickConf(data.blockedInt));
     data.external=data.external.concat(pickConf(data.blockedExt));
     delete data.blockedInt; delete data.blockedExt;
+    // Carry each broken link's manual verdict (Broken/Working) + last-tested timestamp from the
+    // report's localStorage into the tracker, so the standalone file shows them and can keep editing.
+    function lg(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+    function annotate(list){ for(var q=0;q<list.length;q++){ var u=list[q].url; var vb=lg('cwbroken:'+HOST+':'+u)==='1', vo=lg('cwok:'+HOST+':'+u)==='1'; list[q].v=vb?'broken':(vo?'working':''); list[q].ts=lg('cwts:'+HOST+':'+u)||''; } }
+    annotate(data.internal); annotate(data.external);
     var ticked={}, fb=document.querySelectorAll('.fixbox'), j;
     for(j=0;j<fb.length;j++){ if(fb[j].checked){ ticked[fb[j].getAttribute('data-ref')+NL+fb[j].getAttribute('data-broken')]=1; } }
     data.ticked=ticked;

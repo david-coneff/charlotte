@@ -703,3 +703,34 @@ Broken/Working + Last-tested + share toolbar; `--allowlist-export` restores them
 counts in sync both ways; CLI flag toggles correctly and `--allowlist` input still parses; HTA JScript
 parses with the checkbox + 3 builder pushes; existing triage (38) / share (19) / fix-tracker (6) tests
 still pass; report.js + cli.js parse.
+
+## AD-032: Fix tracker carries last-tested timestamp + main-report-style verdict UI
+**Date:** 2026-06-25
+**Decision:** The exported fix tracker now mirrors the main report's triage on each broken-link row:
+a **Last tested** timestamp and a mutually-exclusive **Broken / Working** verdict pair, alongside the
+existing **Fixed** box. The per-page note field is retitled from "who to contact…" to a generic
+**Notes**.
+- **Export (exportTracker):** after the internal/external lists are finalized, `annotate()` reads each
+  link's `cwbroken:`/`cwok:`/`cwts:` from the report's localStorage and bakes `v` ('broken'|'working'|
+  '') + `ts` (the timestamp) onto each link object in the data island.
+- **Tracker template:** `groups()` carries `v`/`ts` into each (ref→broken) row; `render()` adds the
+  `Last tested` / `Broken` / `Working` columns (pre-set from `v`/`ts`); new helpers `initVerdict`/
+  `initTs`/`saveV`/`saveT`/`nowStr`/`rowsForUrl`/`setVerdict` persist in the tracker's own `cwfix:host:`
+  namespace (`vd:`+url, `vt:`+url). `wire()` wires the `.vb`/`.vo` boxes.
+- **Behavior matches the main report:** ticking Broken or Working is mutually exclusive, **auto-stamps
+  the time** (or clears it when no verdict remains), and — because a URL can be linked from several
+  referrer pages (so it appears in several rows) — the verdict + timestamp are **synced per URL** across
+  all its rows. On open, a localStorage override wins over the baked value (so edits persist), exactly
+  like the `Fixed`/notes pattern.
+- **Notes:** placeholder "who to contact to fix this page…" → "notes…", with a visible **Notes** label;
+  footer text now "ticks, verdicts & notes saved in this browser".
+**Constraints honored:** the tracker template stays backtick-free / `${}`-free / backslash-free (it's
+embedded in the report's own template literal and script) — verified.
+**Rationale:** the operator wanted the last-check timestamp to travel into the tracker and the verdict
+marking to match the main report's style, with the note field simply titled "Notes".
+**Verification:** 15/15 DOM-stub assertions via a minimal innerHTML-parsing harness — export bakes
+v/ts onto each link; the tracker renders the baked timestamp + pre-checks Broken; toggling Working is
+mutually exclusive, stamps a fresh `YYYY-MM-DD HH:MM`, persists `vd:`/`vt:`, and **syncs both referrer
+rows** of the same URL; unticking clears verdict + timestamp; the Notes field is retitled. The tracker
+document's 2 embedded scripts parse; report.js parses; existing triage (38) / share (19) / tracker-export
+(6) suites still pass (the old `/`,`/a` tracker-render test is stale fixture data, not a regression).

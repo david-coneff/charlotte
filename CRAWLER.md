@@ -555,11 +555,16 @@ repositioning.
 Each broken link also lists the pages it was **found on**, each with its own checkbox.
 **🔧 Export fix tracker** (always available — you don't have to tick anything first)
 saves a **standalone HTML checklist grouped by referrer page**: one section per page that
-has broken links, with a single **who-to-contact note** for that page (one person usually
-owns it) and its broken links listed beneath, each with an editable **Fixed** box. Links
-you marked *Working* are excluded. Two tabs (internal/external) styled like this
-report; ticks and notes **persist in the browser** (localStorage), so it can be worked
-through and handed off over time.
+has broken links, with a free-form **Notes** field for that page and its broken links
+listed beneath. Each link row has an editable **Fixed** box plus — mirroring the main
+report — a **Last tested** timestamp and a mutually-exclusive **Broken / Working** verdict
+pair. The verdict and timestamp are **baked in from the report** at export time, and stay
+editable in the tracker: ticking Broken or Working auto-fills the timestamp, the boxes are
+exclusive, and because a link can be reached from several pages the verdict is **synced per
+URL** across every row it appears in. Links you marked *Working* in the report are excluded
+from the export. Two tabs (internal/external) styled like this report; **ticks, verdicts,
+and notes persist in the browser** (localStorage), so it can be worked through and handed
+off over time.
 
 #### Sharing your verdicts
 

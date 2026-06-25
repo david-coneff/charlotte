@@ -27,7 +27,19 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Made the in-report **allowlist export UI opt-in / off by default**
+- **last_completed_step**: Brought the main report's triage onto the **fix tracker** (2026-06-25,
+  AD-032). Each broken-link row in the exported tracker now has a **Last tested** timestamp and a
+  mutually-exclusive **Broken / Working** verdict pair (matching the main report), beside the existing
+  **Fixed** box. The verdict + timestamp are **baked into the tracker's data island at export** (read
+  from the report's `cwbroken:`/`cwok:`/`cwts:` localStorage) and stay editable in the standalone file
+  (persisted in its own `cwfix:host:` namespace under `vd:`/`vt:`): ticking auto-stamps the time, the
+  boxes are exclusive, and the verdict is **synced per URL** across every referrer row it appears in.
+  The per-page note field was retitled from "who to contact…" to a generic **Notes**. The tracker
+  template stays backtick/`${}`/backslash-free. Verified with 15/15 DOM-stub assertions (a minimal
+  innerHTML parser lets the real tracker wiring run); existing triage/share/tracker-export suites pass.
+  (Prior step — AD-031 — made the in-report allowlist export UI opt-in / off by default.)
+
+- **prior_step**: Made the in-report **allowlist export UI opt-in / off by default**
   (2026-06-25, AD-031). The pick checkboxes + Select-all + **Export to allowlist…** / **Copy lines**
   on the two Errors tabs now appear only with the new `--allowlist-export` flag (`cfg.allowlistExport`;
   GUI Options checkbox *Allowlist export tools in report (legacy)*, unchecked by default) — the fix

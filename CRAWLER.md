@@ -567,21 +567,31 @@ in. Links you marked *Working* in the report are excluded from the export. Two t
 persist in the browser** (localStorage), so it can be worked through and handed off over
 time.
 
-Because that state lives in localStorage (not the file), the tracker has its **own share
-toolbar** — the same idea as the report's (below): **⬇ Export** writes the whole tracker
-state (every Fixed tick + Fixed-on time, verdict + last-tested time, and note) as a JSON
-file; **⬆ Import** loads such a file (merging by entry, then reloading); and **💾 Save copy**
-downloads a **self-contained copy of the tracker with all of that baked in** — email that
-single file and the recipient opens it with your progress already in place. Imports are
+Like the report, the tracker **auto-saves** to localStorage as you work — reopen the same
+tracker file in the same browser and your progress is intact, no Save step needed. And like
+the report, that state doesn't ride along if you just email the file, so the tracker has its
+**own share toolbar** — the same idea as the report's (below): **⬇ Export** writes the whole
+tracker state (every Fixed tick + Fixed-on time, verdict + last-tested time, and note) as a
+JSON file; **⬆ Import** loads such a file (merging by entry, then reloading); and **💾 Save
+copy** downloads a **self-contained copy of the tracker with all of that baked in** — email
+that single file and the recipient opens it with your progress already in place. Imports are
 checked to the same site, and a saved copy still displays where `file://` storage is locked
 down.
 
-#### Sharing your verdicts
+#### Saving and sharing your verdicts
 
-Your Broken/Working ticks and **Last tested** timestamps are stored in **your browser's
-localStorage**, *not* inside the report file — so if you simply email the `.html`, the
-recipient opens a blank-triage copy (nothing travels). A **Share your testing verdicts**
-toolbar (above the tabs, on the final report) carries them across:
+**Your triage auto-saves — there's no "Save" button to forget.** Every tick, verdict,
+timestamp, and note is written to your browser's **localStorage** the moment you make it, so
+reopening the *same* report in the *same* browser brings it all back exactly as you left it.
+You do **not** need to export or bake anything just to keep your work. (Note a hard browser
+rule: a web page **cannot** write back to its own `.html` on disk — so this automatic browser
+storage, or a download you trigger, are the only places that state can live. There's no way to
+silently re-save the report file in place.) The tools below are needed **only to move that
+state somewhere else** — another machine or browser, or a teammate.
+
+Because that state lives in localStorage and *not* inside the report file, simply emailing the
+`.html` gives the recipient a blank-triage copy (nothing travels). A **Share your testing
+verdicts** toolbar (above the tabs, on the final report) carries it across:
 
 - **💾 Save shareable copy** — downloads a *new* self-contained report HTML with your current
   verdicts and timestamps **baked in** (as a `window.__CW_SEED__` island). Email that single

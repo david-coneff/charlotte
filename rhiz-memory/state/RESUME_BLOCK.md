@@ -27,7 +27,19 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added a **"Fixed on" timestamp** and **shareable state** to the fix
+- **last_completed_step**: Clarified the **save/persistence model** in the docs (2026-06-25, AD-034).
+  The operator asked for a plain "Save" button / general auto-save instead of baking a state HTML.
+  Decision: **keep the current model, add no new save mechanism** — state already auto-saves to
+  localStorage (reopen the same file in the same browser → work intact), a page can't write back to
+  its own `.html` (browser sandbox), and the only "real" save-to-file option (File System Access API)
+  is Chromium-only with permission prompts; operator chose to keep it simple. Docs-only change:
+  CRAWLER.md section renamed to **"Saving and sharing your verdicts"** with a lead paragraph spelling
+  out auto-save + the no-in-place-save constraint + that Export/Import/Save-copy are only for *moving*
+  state; same note mirrored into the tracker share paragraph. No code change. (See AD-034 for the
+  File System Access path if ever revisited.)
+  (Prior step — AD-033 — added the tracker's "Fixed on" timestamp + shareable state.)
+
+- **prior_step**: Added a **"Fixed on" timestamp** and **shareable state** to the fix
   tracker (2026-06-25, AD-033). The Fixed box now stamps its own date/time when ticked (clears on
   untick; key `cwfix:host:ft:`+pkey). The tracker also gained a **share toolbar** that mirrors the
   crawl report's: **⬇ Export** writes the whole tracker state (fixes + Fixed-on times, verdicts +

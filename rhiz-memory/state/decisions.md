@@ -765,3 +765,26 @@ reloads + rejects wrong-host; Save copy injects one escaped seed before `</head>
 won't clobber existing — plus an explicit `</script>`-in-key/value round-trip through the seed escape.
 Template stays constraint-clean; both tracker scripts parse; report.js parses; existing triage (38) /
 share (19) / tracker-export (6) / tracker-verdict (15) suites still pass.
+
+## AD-034: Keep auto-save-to-localStorage; no File System Access "Save to file" (docs-only)
+**Date:** 2026-06-25
+**Decision:** The operator asked whether the report/tracker could have a plain "Save" button or
+general auto-save instead of baking a state-laden HTML. Outcome: **keep the current model; add no
+new save mechanism** — only clarify it in the docs.
+**Why (the constraints that drove it):**
+- State **already auto-saves**: every tick/verdict/timestamp/note writes to `localStorage`
+  immediately, so reopening the same file in the same browser restores everything with no Save step.
+- A page **cannot write back to its own `.html`** on disk (browser sandbox), so in-place "save the
+  report file" is impossible. The only on-disk paths are browser storage (automatic) or a
+  user-triggered download (the existing Export JSON / "Save copy").
+- The one real "Save to a file + auto-save" option is the **File System Access API**
+  (`showSaveFilePicker`, persisted handle in IndexedDB) — but it's **Chromium-only**, needs a
+  click + permission grant, and can't auto-load on open without a user gesture. Offered it (plus an
+  "overwrite the report HTML in place" variant); operator chose **neither** — keep it simple.
+**Action taken:** CRAWLER.md "Sharing your verdicts" → renamed **"Saving and sharing your verdicts"**
+with a lead paragraph stating triage auto-saves, that a page can't re-save its own file, and that the
+Export/Import/Save-copy tools are only for *moving* state elsewhere. Mirrored a one-line auto-save note
+into the fix-tracker share paragraph. No code change.
+**If revisited:** implement File System Access as an additive, feature-detected enhancement (a
+"Save to file…" button writing a JSON sidecar + auto-save to a remembered handle), with the current
+Export/Import as the universal fallback — do not remove localStorage auto-save.

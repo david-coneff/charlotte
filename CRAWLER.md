@@ -648,6 +648,28 @@ With no such file, the GUI opens with one empty row as before. A ready-to-edit
 **`crawl-gui-domains.txt.example`** ships alongside — rename it (drop `.example`) and
 fill in your sites.
 
+### Default options (optional)
+
+To open the GUI with your **preferred settings** (not just the built-in defaults), put a
+**`crawl-gui-config.txt`** next to `crawl-gui.hta` — one **`key = value`** per line, where
+the key is a form field's id. Checkboxes take `true`/`false`; `#` starts a comment; unknown
+keys are skipped. It's read on launch and overrides that field's default:
+
+```
+concurrency  = 4
+rps          = 5
+checkExternal = false
+noPages      = true        # crawl every page
+paginate     = true        # 1,000-links-per-page report (on by default in the GUI)
+```
+
+Keys mirror the form: `maxPages`, `maxDepth`, `concurrency`, `delay`, `rps`, `timeout`,
+`checkpoint`, `userAgent`, `pathPrefix`, `allowlist`, `out`, `json`, `log`, `workDir`,
+`scope` (domain/path/custom), `seen` (memory/compact/disk), and the toggles `noPages`,
+`noDepth`, `includeSub`, `checkExternal`, `recheck`, `scanDocs`, `browser`, `paginate`.
+A documented **`crawl-gui-config.txt.example`** ships alongside. (Report **pagination is on
+by default** in the GUI; set `paginate = false` here to turn it off.)
+
 ### Use it
 
 1. Double-click `crawl-gui.hta`.

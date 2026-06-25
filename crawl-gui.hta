@@ -84,7 +84,7 @@
     <div class="row">
       <label class="f">&nbsp;</label>
       <button class="sec" type="button" onclick="addUrlRow('')">+ Add another site</button>
-      <span class="hint">each site is crawled sequentially with the same settings below · defaults load from crawl-gui-domains.txt</span>
+      <span class="hint">each site is crawled sequentially with the same settings below · default URLs load from crawl-gui-domains.txt · option defaults from crawl-gui-config.txt</span>
     </div>
     <div class="row">
       <label class="f" for="scope">Crawl scope</label>
@@ -125,7 +125,7 @@
       &nbsp;&nbsp;
       <input type="checkbox" id="browser" checked onclick="onBrowserToggle()"> <span class="muted">Browser mode (desktop UA, fewer false dead links)</span>
       &nbsp;&nbsp;
-      <input type="checkbox" id="paginate" onclick="updatePreview()"> <span class="muted">Paginate report (1,000 links/page)</span>
+      <input type="checkbox" id="paginate" checked onclick="updatePreview()"> <span class="muted">Paginate report (1,000 links/page)</span>
     </div>
     <div class="row">
       <label class="f" for="userAgent">User-Agent</label>
@@ -383,6 +383,38 @@ function seedUrls() {
     }
   } catch (e) {}
   if (seeded === 0) addUrlRow("https://");           // keep the original single blank row
+}
+
+// ---- optional crawl-gui-config.txt next to this file: override the form defaults
+//      (any field's saved default) without editing the GUI. One "key = value" per line;
+//      key is a field id (e.g. maxPages, concurrency, delay, rps, timeout, paginate,
+//      checkExternal, browser, scanDocs, recheck, includeSub, noPages, noDepth, scope,
+//      pathPrefix, seen, allowlist, out, json, log, checkpoint, userAgent, workDir).
+//      Checkboxes take true/false (or 1/0, yes/no, on/off). '#' starts a comment; blank
+//      lines ignored. Unknown keys are skipped. (Start URLs come from crawl-gui-domains.txt.)
+function loadGuiConfig() {
+  var applied = 0;
+  try {
+    var txt = readFile(scriptDir + "\\crawl-gui-config.txt");
+    if (txt === "") return 0;
+    var lines = txt.split(/\r\n|\r|\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var line = trim(lines[i]);
+      if (line === "" || line.charAt(0) === "#") continue;
+      var eq = line.indexOf("=");
+      if (eq < 0) continue;
+      var key = trim(line.substring(0, eq));
+      var v = trim(line.substring(eq + 1));
+      var c = v.indexOf(" #");                       // strip an inline " # comment"
+      if (c >= 0) v = trim(v.substring(0, c));
+      var el = $(key);
+      if (!el) continue;                             // unknown field id — skip
+      if (el.type === "checkbox") el.checked = /^(1|true|yes|on)$/i.test(v);
+      else el.value = v;                             // text input or <select>
+      applied++;
+    }
+  } catch (e) {}
+  return applied;
 }
 
 // Enable/disable dependent fields: "no limit" greys out the depth box, and the
@@ -841,7 +873,8 @@ window.onerror = function (msg, url, line) {
 // ---- boot ----
 initPaths();
 seedUrls();              // pre-fill Start URL rows from crawl-gui-domains.txt (else one blank row)
-toggleInputs();
+loadGuiConfig();         // override form defaults from crawl-gui-config.txt (if present)
+toggleInputs();          // sync dependent fields AFTER the config may have changed them
 updatePreview();
 updateResumeBtn();       // enable "Resume" if a journal from a prior crawl is present
 </script>

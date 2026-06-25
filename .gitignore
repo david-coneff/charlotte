@@ -20,6 +20,8 @@ crawl-gui-pause.flag
 crawl-gui-tune.json
 # GUI default Start URLs — your personal list (the .example template stays tracked)
 crawl-gui-domains.txt
+# GUI default options — your personal overrides (the .example template stays tracked)
+crawl-gui-config.txt
 # crawl-render.js (browser second-opinion) outputs
 crawl-render.json
 render-report.html

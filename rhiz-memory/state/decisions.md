@@ -531,3 +531,24 @@ a second (inst 2) → 6; unticking Tested clears Broken and drops the header bac
 stub: a confirmed internal blocked link lands in `tracker.internal` alongside the real errors, an
 unconfirmed external one is excluded, and `blockedInt`/`blockedExt` are stripped from the output.
 A real 403 fixture renders the Tested/Broken columns + `blkpick` table; all five report scripts parse.
+
+## AD-026: GUI — pagination on by default + a config file for option defaults
+**Date:** 2026-06-25
+**Decision:** (a) Make the GUI's **Paginate report** checkbox **checked by default** (the CLI
+default stays off; this only changes the GUI's preset). (b) Add **`crawl-gui-config.txt`**:
+an optional file next to `crawl-gui.hta` with `key = value` lines that override the form's
+default values on launch. `loadGuiConfig()` reads it from `scriptDir` (after `seedUrls()`,
+before `toggleInputs()`/`updatePreview()`), and for each line sets the element whose id is the
+key — `.checked` for checkboxes (true/1/yes/on), `.value` for text inputs and `<select>`s;
+unknown ids are skipped. A documented `crawl-gui-config.txt.example` ships; the real file is
+gitignored (like `crawl-gui-domains.txt`).
+**Rationale:** the operator wanted paginated reports by default from the GUI and a way to
+persist their preferred GUI settings without editing the HTA. Keying the config on field ids
+makes it fully generic (every field is supported with no per-field code) and self-consistent
+with the form. It's read after URL seeding and before the dependent-field sync so a config that
+sets e.g. `noPages`/`scope` is reflected correctly. Start URLs stay in the separate
+`crawl-gui-domains.txt`.
+**Verification:** the HTA JScript parses; a stub run of `loadGuiConfig` against a sample config
+applies 6 known keys and skips an unknown one — toggling checkboxes (paginate/noPages/browser),
+text inputs (concurrency/rps, with and without spaces around `=`), and the `seen` `<select>`.
+`paginate` now renders `checked`.

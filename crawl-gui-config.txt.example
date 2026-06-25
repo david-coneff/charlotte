@@ -1,0 +1,50 @@
+# crawl-gui-config.txt — default OPTIONS for crawl-gui.hta
+#
+# Rename this file to "crawl-gui-config.txt" (drop the .example) and keep it next to
+# crawl-gui.hta. When the GUI opens, each "key = value" line below overrides that
+# field's built-in default — so the form comes up with YOUR preferred settings.
+# (Default Start URLs live separately, in crawl-gui-domains.txt.)
+#
+# Rules:
+#   - one "key = value" per line; key is a form field id (see the list below)
+#   - checkboxes take  true / false  (also 1/0, yes/no, on/off)
+#   - blank lines and lines starting with #  are ignored
+#   - an inline " # comment" after a value is trimmed
+#   - unknown keys are skipped
+#
+# ---- numbers / text ----
+# maxPages    = 200                          # max pages (only used when noPages = false)
+# maxDepth    = 3                            # max link depth (only used when noDepth = false)
+# concurrency = 2                            # requests in flight at once
+# delay       = 250                          # ms each worker waits between requests
+# rps         = 2                            # global requests/sec cap (0 = no cap)
+# timeout     = 20000                        # per-request timeout (ms)
+# checkpoint  = 25                           # rewrite report every N pages (0 = off)
+# userAgent   = charlotte-crawler/1.0 (+local)
+# pathPrefix  =                              # confine to this path (needs scope = custom)
+# allowlist   = crawl-allowlist.txt
+# out         = crawl-report.html
+# json        =                              # also write JSON here (blank = none)
+# log         = crawl-progress.log
+# workDir     =                              # output folder (blank = this file's folder)
+#
+# ---- choices ----
+# scope       = domain                       # domain | path | custom
+# seen        = memory                       # memory | compact | disk
+#
+# ---- checkboxes (true / false) ----
+# noPages      = true                        # crawl every page (no page limit)
+# noDepth      = true                        # follow links to any depth (no depth limit)
+# includeSub   = true                        # treat subdomains as internal
+# checkExternal= true                        # verify external links resolve
+# recheck      = true                        # re-test failed links once at the end
+# scanDocs     = true                        # scan links inside PDF/Office documents
+# browser      = true                        # browser-mode UA (fewer false dead links)
+# paginate     = true                        # paginate the report (1,000 links/page)
+#
+# Example — a fast, unlimited crawl that does NOT verify external links:
+#
+# noPages      = true
+# checkExternal= false
+# concurrency  = 4
+# rps          = 5

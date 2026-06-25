@@ -27,8 +27,13 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Manual-testing triage on the **Blocked** tab (2026-06-25,
-  AD-025) — Tested + **Broken** (confirm) boxes (opposite default from Errors' "Not broken":
+- **last_completed_step**: GUI defaults (2026-06-25, AD-026) — report **pagination is
+  now on by default** in the GUI (CLI default unchanged), and a new **`crawl-gui-config.txt`**
+  (next to the HTA) overrides any form field's default on launch via `key = value` lines keyed
+  by field id (`loadGuiConfig()` sets `.checked` for checkboxes, `.value` for text/select;
+  unknown keys skipped). Documented `.example` ships; the real file is gitignored like
+  `crawl-gui-domains.txt`. JScript parses; a stub run applied 6 keys correctly. Before that:
+  Manual-testing triage on the **Blocked** tab (2026-06-25, AD-025) — Tested + **Broken** (confirm) boxes (opposite default from Errors' "Not broken":
   blocked links are presumed uncertain, you opt IN to broken). Confirming one **adds** its
   instances to the live **Broken link instances** header and routes it into the fix tracker
   by its existing **Kind** (internal/external) — so no need to split the tab. Live counter +

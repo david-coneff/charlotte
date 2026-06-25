@@ -734,3 +734,34 @@ mutually exclusive, stamps a fresh `YYYY-MM-DD HH:MM`, persists `vd:`/`vt:`, and
 rows** of the same URL; unticking clears verdict + timestamp; the Notes field is retitled. The tracker
 document's 2 embedded scripts parse; report.js parses; existing triage (38) / share (19) / tracker-export
 (6) suites still pass (the old `/`,`/a` tracker-render test is stale fixture data, not a regression).
+
+## AD-033: Fix tracker — "Fixed on" timestamp + shareable state (export/import + bake-a-copy)
+**Date:** 2026-06-25
+**Decision:** Two additions to the standalone fix tracker, both mirroring the main report:
+1. **"Fixed on" timestamp** — a new column that auto-fills the local date/time (`YYYY-MM-DD HH:MM`)
+   when a row's **Fixed** box is ticked, and clears when unticked. Per (referrer→broken) pair, like the
+   Fixed flag (key `cwfix:host:ft:`+pkey). Row order: Fixed · Fixed on · Last tested · Broken · Working
+   · link · reason. Tracker widened 1100→1280px; the `done` strikethrough now skips the control/time
+   cells (`:not(.v):not(.ft):not(.ts)`).
+2. **Shareable state** — a tracker share toolbar (⬇ Export / ⬆ Import / 💾 Save copy) port of the
+   report's AD-030: `collectState()` snapshots every `cwfix:host:` key (fixes + ft + verdicts + vt +
+   notes); Export downloads it as JSON; Import validates app+host and merges (then `location.reload()`);
+   Save copy serializes the page, strips any prior seed, and injects
+   `<script>window.__CW_TRK_SEED__={…}</script>` before `</head>`. On open `seedFromCopy()` primes
+   localStorage from the seed unless the browser already has state; storage reads (`rawGet`) fall back
+   to the seed when localStorage is unavailable, so a baked copy still displays read-only.
+**Constraint:** the tracker template is embedded in the report's own template literal + script, so it
+must stay **backtick-free / `${}`-free / backslash-free**. The seed's `<`→`<` escape is therefore
+done with `String.fromCharCode(92)` (no literal backslash) via `.split('<').join(BS+'u003c')`, the
+`<script>`/`</script>` tags via `'<scr'+'ipt>'` concatenation, and the doctype newline via the existing
+`NL=String.fromCharCode(10)`. Verified the emitted template contains no backtick/`${`/backslash.
+**Storage refactor:** `stored*`/`save*` now route through `rawGet`/`rawSet` (localStorage-or-seed) and a
+new `storedFt`/`saveFt`/`initFt` pair; semantics unchanged for existing keys.
+**Rationale:** the operator wanted a timestamp on the Fixed checkbox and the same share mechanics the
+crawl report has (JSON import/export + a self-contained HTML with state preloaded).
+**Verification:** 18/18 DOM-stub assertions via the innerHTML-parsing harness — Fixed tick stamps/
+persists/clears the Fixed-on cell; Export captures the cwfix: state scoped to host; Import merges +
+reloads + rejects wrong-host; Save copy injects one escaped seed before `</head>`; seed primes empty /
+won't clobber existing — plus an explicit `</script>`-in-key/value round-trip through the seed escape.
+Template stays constraint-clean; both tracker scripts parse; report.js parses; existing triage (38) /
+share (19) / tracker-export (6) / tracker-verdict (15) suites still pass.

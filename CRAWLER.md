@@ -556,15 +556,25 @@ Each broken link also lists the pages it was **found on**, each with its own che
 **🔧 Export fix tracker** (always available — you don't have to tick anything first)
 saves a **standalone HTML checklist grouped by referrer page**: one section per page that
 has broken links, with a free-form **Notes** field for that page and its broken links
-listed beneath. Each link row has an editable **Fixed** box plus — mirroring the main
-report — a **Last tested** timestamp and a mutually-exclusive **Broken / Working** verdict
-pair. The verdict and timestamp are **baked in from the report** at export time, and stay
-editable in the tracker: ticking Broken or Working auto-fills the timestamp, the boxes are
-exclusive, and because a link can be reached from several pages the verdict is **synced per
-URL** across every row it appears in. Links you marked *Working* in the report are excluded
-from the export. Two tabs (internal/external) styled like this report; **ticks, verdicts,
-and notes persist in the browser** (localStorage), so it can be worked through and handed
-off over time.
+listed beneath. Each link row has an editable **Fixed** box — which stamps its own **Fixed
+on** date/time when you tick it — plus, mirroring the main report, a **Last tested**
+timestamp and a mutually-exclusive **Broken / Working** verdict pair. The verdict and
+last-tested time are **baked in from the report** at export time and stay editable: ticking
+Broken or Working auto-fills the timestamp, the boxes are exclusive, and because a link can
+be reached from several pages the verdict is **synced per URL** across every row it appears
+in. Links you marked *Working* in the report are excluded from the export. Two tabs
+(internal/external) styled like this report; **fixes, verdicts, timestamps, and notes
+persist in the browser** (localStorage), so it can be worked through and handed off over
+time.
+
+Because that state lives in localStorage (not the file), the tracker has its **own share
+toolbar** — the same idea as the report's (below): **⬇ Export** writes the whole tracker
+state (every Fixed tick + Fixed-on time, verdict + last-tested time, and note) as a JSON
+file; **⬆ Import** loads such a file (merging by entry, then reloading); and **💾 Save copy**
+downloads a **self-contained copy of the tracker with all of that baked in** — email that
+single file and the recipient opens it with your progress already in place. Imports are
+checked to the same site, and a saved copy still displays where `file://` storage is locked
+down.
 
 #### Sharing your verdicts
 

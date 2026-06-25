@@ -27,7 +27,22 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Brought the main report's triage onto the **fix tracker** (2026-06-25,
+- **last_completed_step**: Added a **"Fixed on" timestamp** and **shareable state** to the fix
+  tracker (2026-06-25, AD-033). The Fixed box now stamps its own date/time when ticked (clears on
+  untick; key `cwfix:host:ft:`+pkey). The tracker also gained a **share toolbar** that mirrors the
+  crawl report's: **⬇ Export** writes the whole tracker state (fixes + Fixed-on times, verdicts +
+  last-tested times, notes) as JSON; **⬆ Import** loads such a file (merges by entry, then reloads,
+  host-checked); **💾 Save copy** bakes the state into a self-contained HTML via a
+  `window.__CW_TRK_SEED__` island injected before `</head>` (primed on open by `seedFromCopy()`;
+  `rawGet` falls back to the seed where `file://` storage is blocked). Because the tracker template is
+  embedded in the report's template literal it must stay backtick/`${}`/**backslash**-free, so the
+  seed's `<`→escape uses `String.fromCharCode(92)` rather than a literal backslash. Verified with 18/18
+  DOM-stub assertions (innerHTML-parsing harness) incl. a `</script>`-in-key/value round-trip; template
+  stays constraint-clean; existing triage/share/tracker suites pass.
+  (Prior step — AD-032 — brought the main report's Broken/Working verdict + Last-tested timestamp onto
+  the tracker.)
+
+- **prior_step**: Brought the main report's triage onto the **fix tracker** (2026-06-25,
   AD-032). Each broken-link row in the exported tracker now has a **Last tested** timestamp and a
   mutually-exclusive **Broken / Working** verdict pair (matching the main report), beside the existing
   **Fixed** box. The verdict + timestamp are **baked into the tracker's data island at export** (read

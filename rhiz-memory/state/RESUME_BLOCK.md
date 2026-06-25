@@ -27,7 +27,14 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added opt-in client-side report pagination (2026-06-25,
+- **last_completed_step**: Uncapped + paginated the "found on" referrer list
+  (2026-06-25, AD-019) — removed the `REF_CAP` (500) cap so every page that links to a
+  broken URL is listed in the HTML report (no more "+N more — see JSON"); the AD-018
+  `--paginate` pager now also pages each broken link's nested referrer list (1,000/page
+  inside its `<details>`). Embedded fix-tracker payload carries every referrer too.
+  Verified with a fixture where `/broken` has 1,501 referrers (all listed in default and
+  paginated modes; nested-subtable pager DOM-stub passes; main-table paging not
+  regressed; default report unchanged but for one CSS comment line). Before that: Added opt-in client-side report pagination (2026-06-25,
   AD-018) — an off-by-default `--paginate` flag (+ GUI checkbox "Paginate report
   (1,000 links/page)") shows each large report table **1,000 rows at a time** with
   Prev/Next + a Go-to-page box, so a report with tens of thousands of links stays

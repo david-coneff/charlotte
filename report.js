@@ -7,7 +7,6 @@
 const fs = require("fs");
 
 const REF_PREVIEW = 3;             // referrers shown inline in the external/out-of-scope tables
-const REF_CAP = 500;              // max referrers listed in a broken-link's nested table
 const RENDER_CAP = Infinity;       // render every row in the HTML (no per-table cap); data is also in --json/--log
 const PAGE_SIZE = 1000;            // rows per page when client-side pagination is enabled (cfg.paginate / --paginate)
 const BRAND = "Charlotte";         // report branding — the project / repo name
@@ -139,9 +138,8 @@ function buildReport(state, cfg, allow, partial) {
     if (!arr.length && fallback) arr = /^https?:\/\//i.test(fallback) ? [fallback] : [];
     if (!arr.length) return esc(fallback || "—");
     if (arr.length === 1) return link(arr[0]);
-    const rows = arr.slice(0, REF_CAP).map((r) => `<tr><td>${link(r)}</td></tr>`).join("");
-    const more = arr.length > REF_CAP ? `<tr><td class="muted">+${arr.length - REF_CAP} more — see JSON output</td></tr>` : "";
-    return `<details><summary>${arr.length} pages link here</summary><div class="tablewrap" style="max-height:220px;margin-top:6px"><table class="subtable"><tbody>${rows}${more}</tbody></table></div></details>`;
+    const rows = arr.map((r) => `<tr><td>${link(r)}</td></tr>`).join("");
+    return `<details><summary>${arr.length} pages link here</summary><div class="tablewrap" style="max-height:220px;margin-top:6px"><table class="subtable"><tbody>${rows}</tbody></table></div></details>`;
   };
   // Cap rows rendered per table so a huge crawl can't build a multi-hundred-MB
   // HTML string (and stress GC). Full data is always in --json / --log.
@@ -177,9 +175,8 @@ function buildReport(state, cfg, allow, partial) {
   const refCellFix = (brokenUrl, fallback) => {
     const arr = refsAll(brokenUrl, fallback);
     if (arr.length === 1) return reffix(arr[0], brokenUrl);
-    const rows = arr.slice(0, REF_CAP).map((r) => `<tr><td>${reffix(r, brokenUrl)}</td></tr>`).join("");
-    const more = arr.length > REF_CAP ? `<tr><td class="muted">+${arr.length - REF_CAP} more — see JSON output</td></tr>` : "";
-    return `<details><summary>${arr.length} pages link here</summary><div class="tablewrap" style="max-height:220px;margin-top:6px"><table class="subtable"><tbody>${rows}${more}</tbody></table></div></details>`;
+    const rows = arr.map((r) => `<tr><td>${reffix(r, brokenUrl)}</td></tr>`).join("");
+    return `<details><summary>${arr.length} pages link here</summary><div class="tablewrap" style="max-height:220px;margin-top:6px"><table class="subtable"><tbody>${rows}</tbody></table></div></details>`;
   };
   // Error rows WITH a leading checkbox — only on the two "Errors" tabs. Each box
   // carries the data to render an allowlist line (url + reason + a representative
@@ -192,8 +189,7 @@ function buildReport(state, cfg, allow, partial) {
   // until something is ticked). The select-all lives in the table header cell.
   const exportBar = (scope) => `<div class="exportbar"><span class="selcount" data-scope="${scope}">0 selected</span><span class="grow"></span><button type="button" class="btn copybtn" data-scope="${scope}" disabled>⧉ Copy lines</button><button type="button" class="btn exportbtn" data-scope="${scope}" disabled>⬇ Export to allowlist…</button><span class="vsep"></span><button type="button" class="btn trackbtn" title="Save an editable checklist (with notes) of every referrer → broken-link pair, internal + external, as a standalone HTML">🔧 Export fix tracker</button></div>`;
   // Embedded fix-tracker payload + self-rendering template (final report only).
-  const refsCapped = (url, fallback) => refsAll(url, fallback).slice(0, REF_CAP);
-  const brokenFor = (arr) => arr.slice(0, RENDER_CAP).map((e) => ({ url: e.url, reason: e.reason, refs: refsCapped(e.url, e.source) }));
+  const brokenFor = (arr) => arr.slice(0, RENDER_CAP).map((e) => ({ url: e.url, reason: e.reason, refs: refsAll(e.url, e.source) }));
   const trackerData = { host: state.startHost, generatedAt: state.startedAt, internal: brokenFor(activeInt), external: brokenFor(activeExt) };
   const trackerLiteral = JSON.stringify(TRACKER_TEMPLATE).replace(/</g, "\\u003c");
   const brokenLiteral = JSON.stringify(trackerData).replace(/</g, "\\u003c");
@@ -235,6 +231,8 @@ function buildReport(state, cfg, allow, partial) {
 
   // Optional client-side pagination (--paginate). All rows stay embedded; this only
   // shows PAGE_SIZE at a time (with Prev/Next/jump) so a huge report stays responsive.
+  // Applies to every data table — including each broken link's nested "found on"
+  // referrer list (which is otherwise uncapped, however many pages link there).
   // Display-only: selection/export read every row regardless of which page is shown.
   const pagerScript = cfg.paginate ? `<script>(function(){
   var PAGE_SIZE=${PAGE_SIZE};
@@ -263,7 +261,7 @@ function buildReport(state, cfg, allow, partial) {
     tw.parentNode.insertBefore(bar,tw);
     show(0);
   }
-  var t=document.querySelectorAll('.tablewrap > table:not(.subtable)'),i;
+  var t=document.querySelectorAll('.tablewrap > table'),i;
   for(i=0;i<t.length;i++){ setup(t[i]); }
 })();</script>
 ` : "";
@@ -312,7 +310,7 @@ function buildReport(state, cfg, allow, partial) {
  html.tab-internal .tab[data-tab="internal"],html.tab-external .tab[data-tab="external"],html.tab-outscope .tab[data-tab="outscope"],html.tab-errint .tab[data-tab="errint"],html.tab-errext .tab[data-tab="errext"],html.tab-blockd .tab[data-tab="blockd"],html.tab-suppressed .tab[data-tab="suppressed"]{background:var(--accent);color:#06121f;border-color:var(--accent)}
  .subtable{width:100%;border-collapse:collapse}.subtable td{padding:4px 8px;border-bottom:1px solid var(--border)}
  details summary{color:var(--accent)}
- /* Client-side pagination bar (only present with --paginate, above tables over a page in size). */
+ /* Client-side pagination bar (only present with --paginate, above any table over a page in size, incl. nested referrer lists). */
  .pager{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}.pager .grow{flex:1}.pager .pglabel{font-size:12px}
  .pager .pgjump{width:64px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font:inherit;font-size:12px}
 </style>

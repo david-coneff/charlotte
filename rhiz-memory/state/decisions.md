@@ -342,3 +342,28 @@ table shows exactly 1,000/page, label "Page 1 of 3 · rows 1–1,000 of 2,500", 
 1,000–1,999, Next→rows 2,000–2,499 with Next disabled, Prev and the jump box both correct;
 tables of 1,000 and 500 rows get no pager. `report.js`/`cli.js` syntax-check; the GUI HTA's
 JScript parses and the checkbox + both command-builders (crawl + re-check) are wired.
+
+## AD-019: Uncap the "found on" referrer list + paginate it
+**Date:** 2026-06-25
+**Decision:** Remove the `REF_CAP` (500) cap on the nested "found on" referrer table under
+each broken link. Every page that links to a broken URL is now listed in the HTML (no more
+"+N more — see JSON" row), in `refCell` (plain Errors/Blocked tables), `refCellFix` (the
+checkbox Errors tabs), and the embedded fix-tracker payload (`brokenFor`/`refsAll`) so the
+exported tracker matches what's shown. The `REF_CAP` constant is deleted. The AD-018 pager
+now also covers these nested lists: its selector dropped `:not(.subtable)` → `.tablewrap >
+table`, so with `--paginate` a referrer list over 1,000 rows pages 1,000 at a time inside
+its `<details>` (small lists just scroll in the existing 220px box).
+**Rationale:** an operator wanted no cap on how many referrers are reachable *in the page*
+(not only the JSON). Removing the cap is unconditional (consistent with AD-017 for the main
+tables); pagination of these lists rides the same `--paginate` toggle as the main tables
+(AD-018), so one flag governs all pagination. Display-only again, so the existing fix
+checkboxes / fix-tracker export keep working across pages. The embedded tracker payload now
+carries every referrer too (a sitewide-broken link can make that large — the accepted
+"completeness over size" tradeoff from AD-017; `--paginate` keeps rendering responsive).
+**Verification:** a fixture where `/broken` is linked from 1,501 pages — the report embeds
+all 1,501 referrer rows (counted by `data-ref=`) in both default and `--paginate` modes,
+with no cap note; the fix-tracker payload carries all 1,501. DOM-stub on the extracted
+pager: a 1,501-row nested `.subtable` inside a 3-row main table gets its own pager (1,000 on
+page 1, Next → the remaining 501) while the 3-row main table gets none. AD-018's main-table
+paging still passes; the default (no `--paginate`) report is unchanged except the one CSS
+comment line. `report.js` syntax-checks (REF_CAP fully removed).

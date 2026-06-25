@@ -378,10 +378,13 @@ tool bounds the other growth vectors so RAM stays predictable:
   machine-readable source of truth.
 - **`--paginate`** (off by default; GUI: *Paginate report (1,000 links/page)*) keeps
   every row embedded but shows tables **1,000 rows at a time** with Prev/Next/Go-to
-  paging, so a report with tens of thousands of links opens and scrolls smoothly. It
-  is display-only — selection, the allowlist export, and the fix-tracker export all
-  still act on every row, not just the visible page. Without it, all rows render at
-  once (fine up to a few thousand; slower in the browser beyond that).
+  paging, so a report with tens of thousands of links opens and scrolls smoothly. This
+  includes each broken link's nested **"found on" referrer list**, which is otherwise
+  uncapped — every page that links to a broken URL is listed (a sitewide link can have
+  thousands), and with `--paginate` you page through them. It is display-only —
+  selection, the allowlist export, and the fix-tracker export all still act on every
+  row, not just the visible page. Without it, all rows render at once (fine up to a few
+  thousand; slower in the browser beyond that).
 - **`--max-urls N`** is a hard backstop on how many distinct URLs are remembered.
   It defaults to `max-pages × 50`; when you crawl with `--max-pages none` on a very
   large site, set `--max-urls` (e.g. `--max-urls 500000`) to cap memory explicitly.

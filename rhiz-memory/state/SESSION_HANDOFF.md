@@ -75,6 +75,7 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] Completed the resume feature (AD-015): poison-URL quarantine (session-based) + truncate-on-fresh + GUI **Resume crawl** button. Verified.
   - [x] Partitioned `crawl.js` further (1,013→625 lines) into `cli.js` (arg parsing/help) / `netutil.js` (rate-limit, backoff, robots-delay, url helpers) / `recheck.js` (`--recheck-from` mode) (AD-016); byte-identical report + JSON vs pre-split, help/die/recheck/multi-site/resume verified. The ~450-line crawl engine stays in `crawl.js` as the irreducible core.
   - [x] Removed the report's per-table render cap (AD-017): `RENDER_CAP` 5,000→`Infinity`, so the HTML renders every row instead of truncating at 5,000 (full data was/is also in JSON). Verified a 6,000-link fixture renders all 6,000 rows; small reports unaffected.
+  - [x] Opt-in client-side report pagination (AD-018): off-by-default `--paginate` (+ GUI checkbox) shows large tables 1,000 rows/page with Prev/Next/jump; display-only (export/selection still act on every row). DOM-stub verified across pages; default report unchanged but for 3 inert CSS lines.
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

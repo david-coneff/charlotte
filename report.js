@@ -9,6 +9,7 @@ const fs = require("fs");
 const REF_PREVIEW = 3;             // referrers shown inline in the external/out-of-scope tables
 const REF_CAP = 500;              // max referrers listed in a broken-link's nested table
 const RENDER_CAP = Infinity;       // render every row in the HTML (no per-table cap); data is also in --json/--log
+const PAGE_SIZE = 1000;            // rows per page when client-side pagination is enabled (cfg.paginate / --paginate)
 const BRAND = "Charlotte";         // report branding — the project / repo name
 const BRAND_ICON = "🕸️";           // spiderweb glyph: favicon + report header
 
@@ -232,6 +233,41 @@ function buildReport(state, cfg, allow, partial) {
        <p class="muted">Reconstruct the full log: <code>node crawl.js --merge-logs ${esc(state.logManifest || "")}</code></p></div>`
     : "";
 
+  // Optional client-side pagination (--paginate). All rows stay embedded; this only
+  // shows PAGE_SIZE at a time (with Prev/Next/jump) so a huge report stays responsive.
+  // Display-only: selection/export read every row regardless of which page is shown.
+  const pagerScript = cfg.paginate ? `<script>(function(){
+  var PAGE_SIZE=${PAGE_SIZE};
+  function rows(tb){ var o=[],c=tb.children,i; for(i=0;i<c.length;i++){ if(c[i].tagName==='TR') o.push(c[i]); } return o; }
+  function el(t,c,x){ var e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e; }
+  function setup(table){
+    var tb=table.tBodies[0]; if(!tb) return;
+    var rw=rows(tb); if(rw.length<=PAGE_SIZE) return;
+    var pages=Math.ceil(rw.length/PAGE_SIZE), cur=-1, tw=table.parentNode;
+    var bar=el('div','pager'), prev=el('button','btn','\\u2039 Prev'), next=el('button','btn','Next \\u203a');
+    prev.type='button'; next.type='button';
+    var label=el('span','muted pglabel'), grow=el('span','grow'), jl=el('span','muted','Go to'), jump=el('input','pgjump');
+    jump.type='number'; jump.min='1'; jump.max=String(pages);
+    bar.appendChild(prev); bar.appendChild(next); bar.appendChild(label); bar.appendChild(grow); bar.appendChild(jl); bar.appendChild(jump);
+    function show(p){
+      p=Math.max(0,Math.min(pages-1,p)); if(p===cur) return; cur=p;
+      var start=cur*PAGE_SIZE, end=Math.min(rw.length,start+PAGE_SIZE), i;
+      for(i=0;i<rw.length;i++){ rw[i].style.display=(i>=start&&i<end)?'':'none'; }
+      label.textContent='Page '+(cur+1)+' of '+pages+' \\u00b7 rows '+(start+1).toLocaleString()+'\\u2013'+end.toLocaleString()+' of '+rw.length.toLocaleString();
+      prev.disabled=(cur===0); next.disabled=(cur===pages-1); jump.value=String(cur+1);
+      if(tw) tw.scrollTop=0;
+    }
+    prev.addEventListener('click',function(){ show(cur-1); });
+    next.addEventListener('click',function(){ show(cur+1); });
+    jump.addEventListener('change',function(){ var v=parseInt(jump.value,10); if(!isNaN(v)) show(v-1); });
+    tw.parentNode.insertBefore(bar,tw);
+    show(0);
+  }
+  var t=document.querySelectorAll('.tablewrap > table:not(.subtable)'),i;
+  for(i=0;i<t.length;i++){ setup(t[i]); }
+})();</script>
+` : "";
+
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} · Crawl report — ${esc(state.startHost)}</title>
@@ -276,6 +312,9 @@ function buildReport(state, cfg, allow, partial) {
  html.tab-internal .tab[data-tab="internal"],html.tab-external .tab[data-tab="external"],html.tab-outscope .tab[data-tab="outscope"],html.tab-errint .tab[data-tab="errint"],html.tab-errext .tab[data-tab="errext"],html.tab-blockd .tab[data-tab="blockd"],html.tab-suppressed .tab[data-tab="suppressed"]{background:var(--accent);color:#06121f;border-color:var(--accent)}
  .subtable{width:100%;border-collapse:collapse}.subtable td{padding:4px 8px;border-bottom:1px solid var(--border)}
  details summary{color:var(--accent)}
+ /* Client-side pagination bar (only present with --paginate, above tables over a page in size). */
+ .pager{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}.pager .grow{flex:1}.pager .pglabel{font-size:12px}
+ .pager .pgjump{width:64px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font:inherit;font-size:12px}
 </style>
 <script>(function(){try{var n=(location.hash||'').substring(1);if(!n){try{n=localStorage.getItem('charlotteTab')||'';}catch(e){}}if(n)document.documentElement.className='tab-'+n;}catch(e){}})();</script>
 </head><body>
@@ -505,7 +544,7 @@ ${trackerEmbed}
   var d=dets(), i; for(i=0;i<d.length;i++){ d[i].addEventListener('toggle', sync); }
   sync();
 })();</script>
-</body></html>`;
+${pagerScript}</body></html>`;
 }
 
 // Write the report HTML and (optionally) JSON from current state. Used both for

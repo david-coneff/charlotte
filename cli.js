@@ -40,6 +40,7 @@ function parseArgs(argv) {
     suggest: "crawl-allowlist.suggested.txt",
     out: "crawl-report.html",
     json: "",
+    paginate: false,                 // client-side paginate report tables (1000 rows/page); off = render all at once
     state: "",                       // resume journal path ("" = off); --state FILE to enable
     resume: "",                      // replay this journal, then continue ("" = fresh crawl)
     recheckFrom: "",                 // re-check the broken links in this JSON report, then rewrite --out/--json
@@ -106,6 +107,8 @@ function parseArgs(argv) {
       case "--suggest": cfg.suggest = next(); break;
       case "--out": cfg.out = next(); break;
       case "--json": cfg.json = next(); break;
+      case "--paginate": cfg.paginate = true; break;
+      case "--no-paginate": cfg.paginate = false; break;
       case "--state": cfg.state = next(); break;
       case "--resume": cfg.resume = next(); if (!cfg.state) cfg.state = cfg.resume; break;
       case "--recheck-from": cfg.recheckFrom = next(); break;
@@ -198,6 +201,10 @@ Reconstruct a partitioned log into one composite stream:
   --suggest FILE          Write editable broken-link list (default crawl-allowlist.suggested.txt)
   --out FILE              Output report HTML             (default crawl-report.html)
   --json FILE             Also write raw JSON results
+  --paginate              In the HTML report, show large tables 1,000 rows at a
+                          time with Prev/Next paging (all rows stay embedded; keeps
+                          very large reports responsive). Off by default = render
+                          every row at once.
   -h, --help              Show this help
 `);
 }

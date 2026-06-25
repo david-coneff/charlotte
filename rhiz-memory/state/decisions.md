@@ -315,3 +315,30 @@ for very large crawls.
 **Verification:** a fixture page with 6,000 external links now renders all 6,000 rows in
 the HTML (was 5,000) with no cap note, JSON still lists 6,000; a normal small crawl is
 unaffected (no cap note, correct output); `report.js` syntax-checks.
+
+## AD-018: Opt-in client-side report pagination (`--paginate`, 1,000/page)
+**Date:** 2026-06-25
+**Decision:** Add an off-by-default `--paginate` flag (cfg.paginate; GUI checkbox
+"Paginate report (1,000 links/page)") that makes the HTML report show each large table
+**1,000 rows at a time** with Prev/Next + a "Go to page" box. Implemented in `report.js`
+as a small ES5 IIFE (gated on `cfg.paginate`) that finds every main data table
+(`.tablewrap > table:not(.subtable)`), and for any with >`PAGE_SIZE` (1,000) rows inserts
+a `.pager` bar and toggles row `display`. The pager CSS is always present (3 inert lines);
+the pager *script* is emitted only with `--paginate`.
+**Rationale:** complements AD-017 (which made the HTML include *all* rows). All rows stay
+embedded — pagination is **display-only**, so it pages over the real DOM rows. That's the
+key design choice: selection, allowlist export, and fix-tracker export all keep working
+because they read every `.pickbox`/`.fixbox` regardless of which page is shown (verified
+in the report's existing export JS). A data-driven virtual table would have forced
+re-implementing all row/checkbox/referrer markup in client JS and broken those exports.
+Hiding rows still bounds layout/paint/scroll cost to 1,000 rows, which is what makes a
+50k-row report responsive. Off by default keeps the default report a single flat table
+(unchanged but for the 3 inert CSS lines). Applies per-table, so a single huge external
+host-group paginates within its `<details>`; small tables (≤1,000) get no pager.
+**Verification:** with `--paginate`, a 6,000-link report embeds the pager script and all
+6,000 rows; without it, no pager script and (timestamps aside) byte-identical to the
+committed report bar the 3 CSS lines. DOM-stub tests on the extracted pager JS: a 2,500-row
+table shows exactly 1,000/page, label "Page 1 of 3 · rows 1–1,000 of 2,500", Next→rows
+1,000–1,999, Next→rows 2,000–2,499 with Next disabled, Prev and the jump box both correct;
+tables of 1,000 and 500 rows get no pager. `report.js`/`cli.js` syntax-check; the GUI HTA's
+JScript parses and the checkbox + both command-builders (crawl + re-check) are wired.

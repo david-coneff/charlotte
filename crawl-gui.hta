@@ -124,6 +124,8 @@
       <input type="checkbox" id="scanDocs" checked onclick="updatePreview()"> <span class="muted">Scan links inside documents (PDF/Office)</span>
       &nbsp;&nbsp;
       <input type="checkbox" id="browser" checked onclick="onBrowserToggle()"> <span class="muted">Browser mode (desktop UA, fewer false dead links)</span>
+      &nbsp;&nbsp;
+      <input type="checkbox" id="paginate" onclick="updatePreview()"> <span class="muted">Paginate report (1,000 links/page)</span>
     </div>
     <div class="row">
       <label class="f" for="userAgent">User-Agent</label>
@@ -266,6 +268,7 @@ function buildArgs() {
   if (!$("recheck").checked)      a.push("--no-recheck");
   if (!$("scanDocs").checked)     a.push("--no-scan-docs");
   if ($("browser").checked)       a.push("--browser");
+  if ($("paginate").checked)      a.push("--paginate");
   // In browser mode, the default UA box means "use the built-in browser UA" — so
   // only pass --user-agent when it's non-empty AND not the unchanged default.
   var uaVal = val("userAgent");
@@ -303,6 +306,7 @@ function buildRecheckCommand() {
   if (uaVal !== "" && !($("browser").checked && uaVal === "charlotte-crawler/1.0 (+local)")) a.push("--user-agent " + q(uaVal));
   if (val("allowlist") !== "")   a.push("--allowlist " + q(val("allowlist")));
   if (val("out") !== "")         a.push("--out " + q(val("out")));
+  if ($("paginate").checked)     a.push("--paginate");
   a.push("--json " + q(jsonName));
   return "node " + q(jsPath) + " " + a.join(" ");
 }

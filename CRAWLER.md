@@ -376,6 +376,12 @@ tool bounds the other growth vectors so RAM stays predictable:
   each row, so its size grows with the crawl (~280 bytes/link — e.g. ~1.7 MB for
   6,000 links, ~28 MB for 100,000). For very large crawls the JSON stays the compact,
   machine-readable source of truth.
+- **`--paginate`** (off by default; GUI: *Paginate report (1,000 links/page)*) keeps
+  every row embedded but shows tables **1,000 rows at a time** with Prev/Next/Go-to
+  paging, so a report with tens of thousands of links opens and scrolls smoothly. It
+  is display-only — selection, the allowlist export, and the fix-tracker export all
+  still act on every row, not just the visible page. Without it, all rows render at
+  once (fine up to a few thousand; slower in the browser beyond that).
 - **`--max-urls N`** is a hard backstop on how many distinct URLs are remembered.
   It defaults to `max-pages × 50`; when you crawl with `--max-pages none` on a very
   large site, set `--max-urls` (e.g. `--max-urls 500000`) to cap memory explicitly.

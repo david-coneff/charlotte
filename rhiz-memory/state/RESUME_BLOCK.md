@@ -27,7 +27,15 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Removed the report's per-table render cap (2026-06-25,
+- **last_completed_step**: Added opt-in client-side report pagination (2026-06-25,
+  AD-018) — an off-by-default `--paginate` flag (+ GUI checkbox "Paginate report
+  (1,000 links/page)") shows each large report table **1,000 rows at a time** with
+  Prev/Next + a Go-to-page box, so a report with tens of thousands of links stays
+  responsive. All rows stay embedded; pagination is **display-only**, so selection, the
+  allowlist export, and the fix-tracker export still act on every row. Verified by
+  DOM-stub (2,500-row table pages 1,000 at a time, Next/Prev/jump correct; ≤1,000-row
+  tables get no pager); default report is unchanged but for 3 inert CSS lines. Before
+  that: Removed the report's per-table render cap (2026-06-25,
   AD-017) — `RENDER_CAP` 5,000→`Infinity` in `report.js`, so the HTML report renders
   **every** row in each table instead of truncating at 5,000 (the overflow used to be
   JSON-only). An operator hit this; they chose to remove the cap and accept larger HTML

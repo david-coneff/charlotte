@@ -23,11 +23,12 @@ function loadStateFromJson(file) {
   const pages = j.internalPages || [];
   let startHost = "";
   try { startHost = new URL((pages[0] && pages[0].url) || (errors[0] && errors[0].url) || "http://localhost/").hostname; } catch { /* ignore */ }
+  const runtimeMs = j.summary && Number.isFinite(j.summary.runtimeMs) ? j.summary.runtimeMs : null;
   return {
     startHost, pathPrefix: (j.scope && j.scope !== "(whole domain)") ? j.scope : "",
     pages, external, outOfScope, refs, errors, blocked,
-    retries: 0, crawlDelay: 0, crawled: pages.length, queue: [],
-    startedAt: j.crawledAt || new Date().toISOString(), startedMs: Date.now(),
+    retries: (j.summary && j.summary.retries) || 0, crawlDelay: 0, crawled: pages.length, queue: [],
+    startedAt: j.crawledAt || new Date().toISOString(), startedMs: Date.now(), runtimeMs,
     logParts: [], logManifest: "", logSingleFile: true,
   };
 }
@@ -132,4 +133,52 @@ async function runRecheckMulti(cfg, allow, j) {
   if (cfg.json) console.log(`JSON:    ${cfg.json}`);
 }
 
-module.exports = { runRecheck, loadStateFromJson };
+// --rebuild-from entry point. Regenerate the HTML report(s) from a prior --json report
+// using THIS version's report features — no crawl, no network, no re-probe. Lets an old
+// crawl's data get a fresh report with new features instead of re-crawling. Handles a
+// single-site report JSON and a multi-site index JSON (rebuilds from per-site JSONs).
+async function runRebuild(cfg, allow) {
+  if (!fs.existsSync(cfg.rebuildFrom)) { console.error("Error: --rebuild-from file not found: " + cfg.rebuildFrom); process.exit(1); }
+  let j;
+  try { j = JSON.parse(fs.readFileSync(cfg.rebuildFrom, "utf8")); }
+  catch (e) { console.error("Error: --rebuild-from is not valid JSON: " + (e.message || e)); process.exit(1); }
+  if (Array.isArray(j.sites)) { await runRebuildMulti(cfg, allow, j); return; }
+
+  const state = loadStateFromJson(cfg.rebuildFrom);
+  state.finishedMs = Date.now();
+  if (!cfg.startUrl) cfg.startUrl = "http://" + state.startHost + "/ (rebuild)";
+  writeOutputs(state, cfg, allow, false);
+  console.log(`Rebuilt report from ${cfg.rebuildFrom}: ${state.pages.length} pages, ${state.external.size} external, ${state.errors.length} errors.`);
+  console.log(`Report:  ${cfg.out}`);
+  if (cfg.json) console.log(`JSON:    ${cfg.json}`);
+}
+
+async function runRebuildMulti(cfg, allow, j) {
+  const dir = path.dirname(cfg.rebuildFrom);
+  const sites = [], missing = [];
+  for (const s of (j.sites || [])) {
+    const jf = s.jsonFile ? path.join(dir, s.jsonFile) : "";
+    if (!jf || !fs.existsSync(jf)) { missing.push(s.host || s.url || "?"); continue; }
+    let state;
+    try { state = loadStateFromJson(jf); } catch { missing.push(s.host || s.url || "?"); continue; }
+    state.finishedMs = Date.now();
+    sites.push({ url: s.url, host: s.host, state, partial: false, reportFile: s.reportFile || "", jsonFile: s.jsonFile || "", reportPath: s.reportFile ? path.join(dir, s.reportFile) : "", jsonPath: jf });
+  }
+  if (missing.length) {
+    console.error(`Rebuild: ${missing.length} of ${(j.sites || []).length} site(s) have no per-site JSON next to the index (${missing.join(", ")}) — they can't be rebuilt without re-crawling.`);
+  }
+  if (!sites.length) { console.error("Rebuild: no per-site JSONs found — nothing was changed."); process.exit(1); }
+  for (const s of sites) {
+    const perCfg = Object.assign({}, cfg, { out: s.reportPath, json: s.jsonPath, startUrl: s.url });
+    writeOutputs(s.state, perCfg, allow, false);
+    console.log(`  rebuilt ${s.host} -> ${s.reportFile}`);
+  }
+  const startedAt = j.crawledAt || new Date().toISOString();
+  try { fs.writeFileSync(cfg.out, buildIndexReport(sites, cfg, allow, false, startedAt)); } catch (e) { console.error("Index write failed: " + (e.message || e)); }
+  if (cfg.json) { try { writeCombinedJson(sites, cfg, allow); } catch (e) { console.error("Combined JSON write failed: " + (e.message || e)); } }
+  console.log(`\nRebuilt ${sites.length} site report(s) + index.`);
+  console.log(`Index:   ${cfg.out}`);
+  if (cfg.json) console.log(`JSON:    ${cfg.json}`);
+}
+
+module.exports = { runRecheck, runRebuild, loadStateFromJson };

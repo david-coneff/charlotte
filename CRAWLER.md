@@ -244,6 +244,22 @@ and rebuilds the index + each per-site report. A multi-site crawl writes those p
 JSONs automatically; if you re-check an older index that predates them, it tells you to
 re-run the crawl once rather than touching the report.
 
+### Rebuilding a report from saved data (`--rebuild-from`)
+
+Upgraded Charlotte and want the new report features on a crawl you already ran — without
+repeating a multi-hour crawl? Rebuild the HTML straight from the JSON:
+
+```bash
+node crawl.js --rebuild-from crawl-report.json --out crawl-report.html --json crawl-report.json
+```
+
+It reconstructs the report from the saved data and re-renders it with **this version's**
+report features — no crawl, no network, no re-probe. It also re-emits the JSON (adding any
+new summary fields). Multi-site: point it at the *index* JSON and it rebuilds every
+per-site report (from the per-site JSONs) plus the index. The GUI exposes this as a
+**Rebuild report** button. (Crawl *runtime* is preserved for reports written by this
+version onward; reports from older versions that didn't record it show ~0s.)
+
 ### Browser second-opinion for suspect links (`crawl-render.js`)
 
 `crawl.js` checks links with plain HTTP (HEAD, then GET) and a real browser

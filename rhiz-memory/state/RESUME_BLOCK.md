@@ -27,7 +27,15 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added a broken-link **triage workflow** to the report
+- **last_completed_step**: Added **`--rebuild-from`** + a GUI **Rebuild report** button
+  (2026-06-25, AD-024): regenerate the HTML report from a prior `--json` (single-site or a
+  multi-site index, via its per-site JSONs) using the current report.js — **no crawl, no
+  network** — so an old crawl gets new report features without re-crawling (the operator's
+  3-hour-crawl case). It's `--recheck-from` minus the re-probe; reuses `loadStateFromJson` +
+  `buildIndexReport`/`writeCombinedJson`. `summary.runtimeMs` is now stored and restored so
+  rebuilds preserve the crawl runtime. Verified: an old-style JSON (new fields stripped)
+  rebuilds into a full new-feature HTML; multi-site rebuilds index + per-site reports; GUI
+  JScript parses. Before that: Added a broken-link **triage workflow** to the report
   (2026-06-25, AD-023, all in report.js): the fix tracker now **groups by referrer page**
   (one who-to-contact note per page); the Errors tabs get **Tested** + **Not broken**
   boxes with a **live counter** ("Manually tested X / N · confirmed broken Y · not broken

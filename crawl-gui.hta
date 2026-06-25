@@ -161,6 +161,7 @@
     <button class="sec" id="stopBtn" onclick="stopCrawl()" disabled>Stop</button>
     <button class="sec" id="reportBtn" onclick="openReport()">Open crawl report</button>
     <button class="sec" id="recheckBtn" onclick="recheckLinks()" title="Re-probe only the broken links from the last crawl, using the current settings (e.g. request rate). The report's broken-link list is corrected and de-duplicated.">Re-check broken links</button>
+    <button class="sec" id="rebuildBtn" onclick="rebuildReport()" title="Regenerate the HTML report from the last crawl's data (crawl-gui-report.json) using this version of Charlotte — no re-crawl. Use it after updating Charlotte to get new report features on an old crawl.">Rebuild report</button>
     <button class="sec" id="resumeBtn" onclick="startCrawl(true)" disabled title="Continue an interrupted crawl from where it stopped — it does not re-crawl pages already done. Available after a crawl is stopped or errors out.">Resume crawl</button>
     <button class="sec" onclick="openFolder()">Open output folder</button>
     <button class="sec" onclick="copyCommand()">Copy command</button>
@@ -196,7 +197,7 @@ var logPath = "";     // temp log file for the current run
 var batPath = "";     // temp batch file for the current run
 var timer = null;
 var running = false;
-var runMode = "crawl";  // "crawl" | "recheck" — tailors the live status / finish messages
+var runMode = "crawl";  // "crawl" | "recheck" | "rebuild" — tailors the live status / finish messages
 var startMs = 0;        // crawl start time (ms)
 var lastCount = 0;      // pages counted at last change
 var lastChangeMs = 0;   // when the count last increased (for stuck detection)
@@ -308,6 +309,18 @@ function buildRecheckCommand() {
   if (val("allowlist") !== "")   a.push("--allowlist " + q(val("allowlist")));
   if (val("out") !== "")         a.push("--out " + q(val("out")));
   if ($("paginate").checked)     a.push("--paginate");
+  a.push("--json " + q(jsonName));
+  return "node " + q(jsPath) + " " + a.join(" ");
+}
+
+// Command for "Rebuild report": regenerate the HTML from the last crawl's JSON using
+// this version's report features — no crawl, no network. Just data -> fresh HTML.
+function buildRebuildCommand() {
+  var jsonName = val("json") || "crawl-gui-report.json";
+  var a = ["--rebuild-from " + q(jsonName)];
+  if (val("allowlist") !== "") a.push("--allowlist " + q(val("allowlist")));
+  if (val("out") !== "")       a.push("--out " + q(val("out")));
+  if ($("paginate").checked)   a.push("--paginate");
   a.push("--json " + q(jsonName));
   return "node " + q(jsPath) + " " + a.join(" ");
 }
@@ -437,6 +450,7 @@ function startCrawl(resume) {
   $("recent").innerHTML = "";
   $("startBtn").disabled = true;
   $("recheckBtn").disabled = true;
+  $("rebuildBtn").disabled = true;
   $("resumeBtn").disabled = true;
   $("pauseBtn").disabled = false;
   $("pauseBtn").innerHTML = "Pause";
@@ -497,7 +511,7 @@ function recheckLinks() {
   runMode = "recheck";
   $("liveout").value = "Re-checking the broken links from the last crawl with the current settings…";
   $("recent").innerHTML = "";
-  $("startBtn").disabled = true; $("recheckBtn").disabled = true; $("resumeBtn").disabled = true;
+  $("startBtn").disabled = true; $("recheckBtn").disabled = true; $("rebuildBtn").disabled = true; $("resumeBtn").disabled = true;
   $("pauseBtn").disabled = true; $("stopBtn").disabled = true;
   running = true; isPaused = false; startMs = new Date().getTime(); lastCount = 0; lastChangeMs = startMs;
   resetLiveState();
@@ -507,6 +521,40 @@ function recheckLinks() {
   setStatus("Re-checking broken links with the current settings…", "muted");
   try { shell.Run('cmd /c ""' + batPath + '""', 0, false); }
   catch (e) { running = false; $("startBtn").disabled = false; $("recheckBtn").disabled = false; setActivity("error", true); setStatus("Couldn't launch re-check — " + e.message + ". Use “Copy command”.", "bad"); return; }
+  timer = window.setInterval(poll, 500);
+}
+
+// Rebuild the HTML report from the last crawl's JSON (no re-crawl) — to apply new
+// report features to an old crawl's data.
+function rebuildReport() {
+  if (running) return;
+  if (!fso.FileExists(jsPath)) { setStatus("crawl.js not found at " + jsPath, "bad"); return; }
+  var workDir = val("workDir") || scriptDir;
+  if (!fso.FolderExists(workDir)) { setStatus("Output folder does not exist: " + workDir, "bad"); return; }
+  var jsonName = val("json") || "crawl-gui-report.json";
+  var jsonAbs = isAbsolute(jsonName) ? jsonName : (workDir + "\\" + jsonName);
+  if (!fso.FileExists(jsonAbs)) { setStatus("No report JSON to rebuild from (" + jsonName + "). Run a crawl first — it writes one automatically.", "bad"); return; }
+
+  var logName = val("log") || "crawl-gui-run.log";
+  livePath = isAbsolute(logName) ? logName : (workDir + "\\" + logName);
+  errPath  = workDir + "\\crawl-gui-err.log";
+  batPath  = workDir + "\\crawl-gui-run.bat";
+
+  var bat = "@echo off\r\ncd /d " + q(workDir) + "\r\n" + buildRebuildCommand() + " > " + q(errPath) + " 2>&1\r\necho DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
+  try { deleteIfExists(livePath); writeFile(batPath, bat); }
+  catch (e) { setStatus("Couldn't write helper files to " + workDir + " — " + e.message + ". Click “Copy command” and run it in a terminal.", "bad"); return; }
+
+  runMode = "rebuild";
+  $("liveout").value = "Rebuilding the HTML report from the last crawl's data…";
+  $("recent").innerHTML = "";
+  $("startBtn").disabled = true; $("recheckBtn").disabled = true; $("resumeBtn").disabled = true; $("rebuildBtn").disabled = true;
+  $("pauseBtn").disabled = true; $("stopBtn").disabled = true;
+  running = true; isPaused = false; startMs = new Date().getTime(); lastCount = 0; lastChangeMs = startMs;
+  resetLiveState();
+  setActivity("rebuilding report&hellip;", false);
+  setStatus("Rebuilding the report from existing data — no re-crawl…", "muted");
+  try { shell.Run('cmd /c ""' + batPath + '""', 0, false); }
+  catch (e) { running = false; $("startBtn").disabled = false; $("recheckBtn").disabled = false; $("rebuildBtn").disabled = false; setActivity("error", true); setStatus("Couldn't launch rebuild — " + e.message + ". Use “Copy command”.", "bad"); return; }
   timer = window.setInterval(poll, 500);
 }
 
@@ -685,8 +733,8 @@ function poll() {
   }
 
   var done = (gDoneCode !== null);
-  if (!done && runMode === "recheck") {
-    setActivity("re-checking links&hellip;", false);
+  if (!done && runMode !== "crawl") {
+    setActivity(runMode === "rebuild" ? "rebuilding report&hellip;" : "re-checking links&hellip;", false);
   } else if (!done) {
     var siteTag = gSiteN ? " (site " + gSiteI + "/" + gSiteN + ")" : "";
     if (isPaused) setActivity("paused" + siteTag, true);
@@ -701,7 +749,7 @@ function poll() {
   } else {
     window.clearInterval(timer); timer = null; running = false; isPaused = false;
     $("startBtn").disabled = false;
-    $("recheckBtn").disabled = false;
+    $("recheckBtn").disabled = false; $("rebuildBtn").disabled = false;
     updateResumeBtn();
     $("pauseBtn").disabled = true; $("pauseBtn").innerHTML = "Pause";
     $("stopBtn").disabled = true;
@@ -710,6 +758,7 @@ function poll() {
       $("reportBtn").disabled = false;
       setActivity("finished", false);
       if (runMode === "recheck") setStatus("Re-check complete — the report’s broken-link list has been updated. Click “Open crawl report”.", "ok");
+      else if (runMode === "rebuild") setStatus("Report rebuilt from existing data — this version's report features are now applied. Click “Open crawl report”.", "ok");
       else setStatus("Done — " + gCrawled + " crawled (" + gGood + " good, " + gBroken + " broken" + (gBlocked ? ", " + gBlocked + " blocked/uncertain" : "") + ") in " + fmtTime(secs) + ". Click “Open crawl report”.", "ok");
     } else if (gDoneCode === 130) {
       $("reportBtn").disabled = false;

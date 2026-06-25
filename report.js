@@ -132,7 +132,9 @@ function buildReport(state, cfg, allow, partial) {
   // Crawl runtime — frozen at completion (state.finishedMs) for the final report;
   // counts up from the start while a partial report is still being written.
   const startedMs = state.startedMs || Date.parse(state.startedAt) || Date.now();
-  const elapsedMs = Math.max(0, (state.finishedMs || Date.now()) - startedMs);
+  // Prefer a runtime carried in from a prior report (so --rebuild-from preserves it);
+  // otherwise measure it live from the start/finish stamps.
+  const elapsedMs = Number.isFinite(state.runtimeMs) ? state.runtimeMs : Math.max(0, (state.finishedMs || Date.now()) - startedMs);
   const fmtDur = (ms) => {
     const s = Math.round(ms / 1000);
     if (s < 60) return s + "s";
@@ -652,7 +654,7 @@ function writeOutputs(state, cfg, allow, partial) {
     fs.writeFileSync(cfg.json, JSON.stringify({
       crawledAt: state.startedAt, partial: !!partial, scope: state.pathPrefix || "(whole domain)",
       log: { manifest: state.logManifest || "", singleFile: !!state.logSingleFile, parts: state.logParts || [] },
-      summary: { pagesCrawled: state.pages.length, queued: state.queue.length, externalLinks: state.external.size, linkInstances: state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0), brokenLinkInstances: active.reduce((n, e) => n + (refsOf(e.url).length || 1), 0), outOfScope: state.outOfScope.size, errorsInternal: active.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: active.filter((e) => e.kind === "external").length, blocked: (state.blocked || []).length, suppressed: suppressed.length },
+      summary: { pagesCrawled: state.pages.length, queued: state.queue.length, externalLinks: state.external.size, linkInstances: state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0), brokenLinkInstances: active.reduce((n, e) => n + (refsOf(e.url).length || 1), 0), outOfScope: state.outOfScope.size, errorsInternal: active.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: active.filter((e) => e.kind === "external").length, blocked: (state.blocked || []).length, suppressed: suppressed.length, retries: state.retries || 0, runtimeMs: Number.isFinite(state.runtimeMs) ? state.runtimeMs : Math.max(0, (state.finishedMs || Date.now()) - (state.startedMs || Date.parse(state.startedAt) || Date.now())) },
       internalPages: state.pages,
       externalLinks: [...state.external.values()].map((e) => ({ url: e.url, host: e.host, status: e.status, foundOn: refsOf(e.url) })),
       outOfScopeLinks: [...state.outOfScope.values()].map((e) => ({ url: e.url, foundOn: refsOf(e.url) })),

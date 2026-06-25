@@ -482,3 +482,26 @@ left-report (left=1200,w=1360), left of a right-report (left=0), usable when max
 reusing "charlotteLink". A real crawl: `summary.brokenLinkInstances=7` for a 6-referrer +
 1-referrer pair; multi-site index totals 14 (7+7). All five report scripts parse; `report.js`
 syntax-checks.
+
+## AD-024: Rebuild a report from saved JSON (`--rebuild-from`) + GUI button
+**Date:** 2026-06-25
+**Decision:** Add `--rebuild-from FILE`: regenerate the HTML report from a prior `--json`
+report using the CURRENT report.js — no crawl, no network, no re-probe. It's `--recheck-from`
+minus the re-probe step, reusing `loadStateFromJson` + (for multi-site) the per-site-JSON
+machinery and `buildIndexReport`/`writeCombinedJson`. Single-site: load state → `writeOutputs`.
+Multi-site index JSON: rebuild each per-site report from its per-site JSON + rebuild the index
+(errors safely if per-site JSONs are absent). Also re-emits the JSON so new `summary` fields
+appear. To preserve the crawl **runtime** across rebuilds, `summary.runtimeMs` (+ `retries`) is
+now written and `loadStateFromJson` restores it (`buildReport` prefers `state.runtimeMs`); old
+reports lacking it show ~0s. GUI: a **Rebuild report** button mirrors the Re-check button
+(`buildRebuildCommand` + `rebuildReport()` + `runMode==='rebuild'`).
+**Rationale:** the operator upgraded Charlotte and wanted new report features (broken-instances
+stat, manual-testing boxes, grouped tracker, …) on a 3-hour crawl without re-crawling. The JSON
+already holds all the data, so re-rendering is instant. `parseArgs` was taught that
+`--rebuild-from` (like `--recheck-from`) needs no start URL.
+**Verification:** stripped the new summary fields from a real report's JSON (simulating an old
+version), deleted the HTML, ran `--rebuild-from` → the rebuilt HTML has the broken-instances
+stat (7), Tested/Not-broken columns, the grouped tracker, and the side-window handler, with the
+page/error data intact and the JSON re-emitted with the new fields. Multi-site rebuild
+regenerates the index + per-site HTML. `crawl.js`/`cli.js`/`recheck.js`/`report.js`
+syntax-check; the GUI HTA JScript parses and the rebuild button/command/state are wired.

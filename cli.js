@@ -45,6 +45,7 @@ function parseArgs(argv) {
     state: "",                       // resume journal path ("" = off); --state FILE to enable
     resume: "",                      // replay this journal, then continue ("" = fresh crawl)
     recheckFrom: "",                 // re-check the broken links in this JSON report, then rewrite --out/--json
+    rebuildFrom: "",                 // rebuild the HTML report from this JSON (no crawl, no re-probe)
   };
   const num = (v, name) => { const n = Number(v); if (!Number.isFinite(n)) die("Invalid number for " + name + ": " + v); return n; };
   const a = argv.slice(2);
@@ -114,12 +115,13 @@ function parseArgs(argv) {
       case "--state": cfg.state = next(); break;
       case "--resume": cfg.resume = next(); if (!cfg.state) cfg.state = cfg.resume; break;
       case "--recheck-from": cfg.recheckFrom = next(); break;
+      case "--rebuild-from": cfg.rebuildFrom = next(); break;
       default:
         if (arg.startsWith("-")) die("Unknown option: " + arg);
         else cfg.startUrls.push(arg);
     }
   }
-  if (!cfg.startUrls.length && !cfg.recheckFrom) die("Missing start URL.\n");
+  if (!cfg.startUrls.length && !cfg.recheckFrom && !cfg.rebuildFrom) die("Missing start URL.\n");
   for (const u of cfg.startUrls) { try { new URL(u); } catch { die("Invalid start URL: " + u); } }
   cfg.startUrl = cfg.startUrls[0];
   // --browser implies the desktop-Chrome UA unless the user set one explicitly.
@@ -161,6 +163,10 @@ Options:
                           (using the current rate / timeout / --browser etc.), correct
                           the record (drop links that now resolve), and rewrite
                           --out / --json. No re-crawl.
+  --rebuild-from FILE     Rebuild the HTML report from a prior --json report with this
+                          version's report features — no crawl, no network. Use it to
+                          regenerate an old report with new report features. Also
+                          rebuilds a multi-site index from its per-site JSONs.
   --log FILE              Live append-only progress log  (default crawl-progress.log)
   --log-max-bytes N       Roll to a new log part at this size, 0 = single file
                                                         (default 5242880 = 5 MB)

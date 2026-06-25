@@ -44,7 +44,7 @@ const { makeSeenStore } = require("./seen.js");
 const { request, probe, linkDisposition } = require("./fetch.js");
 const { parseArgs, die } = require("./cli.js");
 const { sleep, normalize, sameDomain, makeRateLimiter, parseRetryAfter, makeThrottle, fetchCrawlDelay } = require("./netutil.js");
-const { runRecheck } = require("./recheck.js");
+const { runRecheck, runRebuild } = require("./recheck.js");
 
 
 // ----------------------------- allowlist -----------------------------
@@ -594,6 +594,9 @@ function sitePath(out, i, host) {
   const cfg = parseArgs(process.argv);
   const allowPatterns = loadAllowlist(cfg.allowlist);
   const allow = compileAllow(allowPatterns);
+
+  // ---- rebuild mode: regenerate the HTML report from a prior JSON (no crawl) ----
+  if (cfg.rebuildFrom) { await runRebuild(cfg, allow); return; }
 
   // ---- re-check mode: re-probe only the flagged links from a prior report ----
   if (cfg.recheckFrom) { await runRecheck(cfg, allow); return; }

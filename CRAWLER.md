@@ -498,7 +498,7 @@ tabbed sections:
 - **Out of scope** — _(only when a scope/prefix is set)_ same-domain links outside the subsection: recorded, not crawled.
 - **Broken · internal** — broken internal destinations (HTTP 404/410, bad requests) — yours to fix.
 - **Broken · external** — unreachable external destinations (when `--check-external` is on) — a link to fix or remove.
-- **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them. Each row has the same triage boxes as the **Broken** tabs, but with the opposite default: a **Tested** box and a **Broken** box that *confirms* an uncertain link really is dead. Confirming one **adds** it to the **Broken hyperlink instances** count (live) and to the **fix tracker** — routed to internal or external by its **Kind** — so the blocked tab feeds the same cleanup workflow without needing to be split into two tabs.
+- **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them. Each row has the same two mutually-exclusive boxes as the **Broken** tabs — **Broken** and **Working** — but with the opposite default: blocked links start *uncertain and uncounted*, so ticking **Broken** *confirms* one really is dead and **adds** it to the **Broken hyperlink instances** count (live) and to the **fix tracker** — routed to internal or external by its **Kind** — while **Working** just records that it loads. (Leave both unticked to keep it uncertain.) That feeds the same cleanup workflow without needing to split the tab in two.
 - **Suppressed** — broken links hidden via the allowlist, kept separately so you can still audit them.
 
 Across the top sits a row of **headline numbers**, split into two ideas a one-line legend
@@ -515,32 +515,36 @@ spells out:
   These counts run much larger — one destination linked from 500 pages is **1 destination
   but 500 instances**.
 
-**Broken hyperlink instances** **updates live** as you mark links *Not broken* (Broken tabs)
+**Broken hyperlink instances** **updates live** as you mark links *Working* (Broken tabs)
 or confirm *Broken* (Blocked tab), so after manual triage the header reflects what's actually
 still broken. The metrics are in the JSON as `summary.linkInstances` /
 `summary.brokenLinkInstances` (field names unchanged), and the multi-site index shows per-site
 counts plus grand totals. Also shown: blocked, suppressed, requests, and the crawl
 **Runtime**. The report is branded **Charlotte** with a 🕸️ favicon (visible on the browser tab).
 
-The two **Errors** tabs are built for triage. Each row has three boxes: an **allowlist**
-box (select links to suppress in future scans, then **Export to allowlist…** / **Copy
-lines** — see
-[Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports)); a
-**Tested** box (you've manually checked it); and a **Not broken** box (the manual test
-showed it actually works). A **live counter** per tab tracks how far testing has
-gotten — *"Manually tested X / N · confirmed broken Y · not broken Z"* — and **Not
-broken** links are dropped from the fix tracker, so one false positive (a sitewide link
-the crawler flagged but that works by hand) can't flood it with thousands of rows.
-Tested / Not-broken ticks persist in the browser. Clicking any link opens it in a **new
-window docked to the side** of the report (whichever side has more room, reusing one
-window), so checking a link never covers your report or needs repositioning.
+The two **Errors** tabs are built for triage. Each row has an **allowlist** box (select
+links to suppress in future scans, then **Export to allowlist…** / **Copy lines** — see
+[Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports)) plus two
+**mutually-exclusive** verdict boxes: **Broken** (a manual check confirms it really is
+dead) and **Working** (it actually loads). They start with *neither* ticked — every link
+the crawler flagged is **assumed broken and already counted**, so you only ever *subtract*
+from the header by ticking **Working**; ticking **Broken** just records that you've
+confirmed one by hand (it was counting anyway). Ticking either box marks the link tested —
+there's no separate "Tested" box — and ticking one unticks the other; clear both to return
+a row to the default. A **live counter** per tab tracks progress — *"Manually tested X / N
+· confirmed broken Y · confirmed working Z"* — and **Working** links are dropped from the
+fix tracker, so one false positive (a sitewide link the crawler flagged but that works by
+hand) can't flood it with thousands of rows. Ticks persist in the browser. Clicking any
+link opens it in a **new window docked to the side** of the report (whichever side has
+more room, reusing one window), so checking a link never covers your report or needs
+repositioning.
 
 Each broken link also lists the pages it was **found on**, each with its own checkbox.
 **🔧 Export fix tracker** (always available — you don't have to tick anything first)
 saves a **standalone HTML checklist grouped by referrer page**: one section per page that
 has broken links, with a single **who-to-contact note** for that page (one person usually
 owns it) and its broken links listed beneath, each with an editable **Fixed** box. Links
-you marked *Not broken* are excluded. Two tabs (internal/external) styled like this
+you marked *Working* are excluded. Two tabs (internal/external) styled like this
 report; ticks and notes **persist in the browser** (localStorage), so it can be worked
 through and handed off over time.
 

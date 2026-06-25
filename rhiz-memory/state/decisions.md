@@ -576,3 +576,41 @@ External`) are kept as-is so `--recheck-from` / `--rebuild-from` / external cons
 instances / Broken hyperlink instances / Broken · internal / Broken · external) and the legend;
 the old labels are gone; the JSON `summary` keys are unchanged; multi-site index relabeled too;
 all five report scripts parse.
+
+## AD-028: Unified Broken/Working triage — explicit "Broken" confirm, mutually exclusive
+**Date:** 2026-06-25
+**Decision:** Replace the per-row triage controls on all three tabs (Errors · internal,
+Errors · external, Blocked · uncertain) with **two mutually-exclusive checkboxes** — **Broken**
+(confirms the link is dead) and **Working** (confirms it loads). The standalone **Tested** box is
+removed; "tested" is now implied by either verdict being ticked. Ticking one box unticks the
+other; clearing both returns the row to its default. Checkboxes (not radio buttons) so the user
+can clear both.
+- **Counting is unchanged in spirit:** Errors links are **assumed broken and counted by default**;
+  only ticking **Working** subtracts them from `Broken hyperlink instances`. Ticking **Broken** on
+  an Errors row is a no-op for the count (it was already counted) — it just records a hand-confirm.
+  The Blocked tab keeps the opposite default (uncertain / not counted): ticking **Broken** adds it,
+  **Working** just records it loads.
+- **One wiring path:** the two former IIFE functions (`wire`/`update` for Errors + `wireBlocked`/
+  `updateBlocked`) collapse into a single `wire(scope)` / `update(scope)` over
+  `SCOPES=['errint','errext','blockd']`; `recomputeBroken()` keeps the Errors-vs-Blocked split via
+  `ERRS=['errint','errext']` (okbox-unchecked) + `blockd` (brokenbox-checked).
+- **Persistence:** `cwbroken:` / `cwok:` localStorage keys (the old `cwtest:` key is dropped). On
+  load, **Broken wins** if both keys are somehow set (defensive; clears the stray `cwok:`).
+- **Counter wording:** unified to *"Manually tested: T / N · confirmed broken: B · confirmed
+  working: W"* on every tab (T = B + W).
+- **Fix-tracker export:** the okbox exclusion is now scoped to `#panel-errint .okbox,
+  #panel-errext .okbox` (Blocked "Working" ticks must not gate the tracker; blocked links enter it
+  only when confirmed Broken). Blocked-Broken inclusion via `pickConf` is unchanged.
+- Column headers Tested/Not-broken → **Broken/Working** on Errors; Tested/Broken → **Broken/Working**
+  on Blocked. Help text + tooltips rewritten. Row classes `confirmed` (Broken) / `notbroken`
+  (Working) unchanged.
+**Rationale:** the operator wanted the header to start from "everything flagged is broken" and only
+*subtract* on a confirmed-working manual check — which the Errors tabs already did — plus an explicit
+**Broken** box to mark a hand-confirmed dead link, mutually exclusive with Working but still
+clearable to "untriaged". Folding the redundant **Tested** box into the verdict pair (chosen over
+keeping all three) is cleaner and makes all three tabs share one UI and one code path.
+**Verification:** synthetic-state report builds; 30/30 DOM-stub assertions pass — default counts,
+Working subtracts, Broken re-adds via mutual exclusivity, Blocked opt-in adds, both-clear returns to
+default, `cwbroken:`/`cwok:` persistence round-trips, broken-wins tie-guard on reload; partial report
+emits no triage boxes (auto-refresh safe); fix-tracker export excludes Working-marked errors, keeps
+others, adds confirmed-Broken blocked links routed by kind; report.js + embedded IIFE both parse.

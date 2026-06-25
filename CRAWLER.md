@@ -219,6 +219,24 @@ link flips back to *reachable*). Each correction is logged
 (`# recheck <url> was=error now=ok`). On by default; disable with `--no-recheck`
 (or the GUI's "Re-test failed links once at the end" toggle).
 
+### Re-checking broken links later (`--recheck-from`)
+
+The second pass above runs *once*, right after the crawl. If you suspect the broken
+links were just a flaky connection, you can re-check them **on demand** — later, when
+the network is stable — without re-crawling the whole site:
+
+```bash
+node crawl.js --recheck-from crawl-report.json --rps 2 --out crawl-report.html --json crawl-report.json
+```
+
+It loads the broken (and blocked) links from a prior `--json` report, re-probes **only
+those** with whatever settings you pass now (rate, timeout, `--browser`, …), and
+rewrites the report with the record **corrected and de-duplicated**: links that now
+resolve are dropped, anything still broken stays, allowlisted entries are preserved,
+and each link appears once. Point `--out` / `--json` at the original files to update
+them in place. (The GUI exposes this as a **Re-check broken links** button that uses
+the form's current settings.)
+
 ### Browser second-opinion for suspect links (`crawl-render.js`)
 
 `crawl.js` checks links with plain HTTP (HEAD, then GET) and a real browser

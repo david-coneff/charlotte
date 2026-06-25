@@ -68,6 +68,7 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] GUI loads multiple default Start URLs from `crawl-gui-domains.txt` (AD-010); parsing verified
   - [x] External-links tab: Expand/Collapse-all toggle for the per-domain sections (AD-011); verified
   - [x] Resumable crawls: `--state` journal + `--resume` (single + multi-site), SIGKILL-resume verified with zero re-crawl (AD-012). Poison-URL quarantine + GUI Resume button still pending.
+  - [x] Bugfix: Pause now honored during external-check + second-pass loops (verified). `--recheck-from` re-checks broken links on demand with current settings, correcting + deduping the record (AD-013). GUI buttons (Resume, Re-check) pending.
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

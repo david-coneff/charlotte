@@ -203,3 +203,27 @@ exactly, zero re-visits; (2) real `SIGKILL` mid 122-page crawl — resume contin
 tail tolerated; (3) multi-site — per-site journals, resume skips finished sites.
 **Still to come (tracked):** poison-URL quarantine (the `v` events are recorded for
 it) and a GUI "Resume" command on error.
+
+## AD-013: Re-check broken links on demand (`--recheck-from`)
+**Date:** 2026-06-25
+**Decision:** Add `--recheck-from <report.json>`: load a prior crawl's state from its
+JSON, re-probe only the flagged links (active broken + blocked) with the *current*
+settings (rate / timeout / `--browser` / concurrency), and rewrite `--out` / `--json`
+with the broken-link record **corrected and de-duplicated** — links that now resolve
+are dropped, still-broken stay, allowlisted (suppressed) errors are preserved, and
+each URL appears once. No re-crawl. (Also fixed: Pause was ignored during the
+external-check and second-pass loops — they now honor the pause file like the main
+worker.)
+**Rationale:** the built-in second pass runs once, immediately. The operator wanted to
+re-verify suspected-transient failures *later*, when the connection is stable, against
+only those links — and to have the report's broken-link record corrected (not
+duplicated) when they do. Reusing the existing probe / disposition logic keeps the
+classification identical to a live crawl.
+**Implementation:** `loadStateFromJson` rebuilds pages / external / oos / refs / errors
+/ blocked (refs from each entry's `foundOn`); `runRecheck` de-dupes the flagged set by
+URL, probes each once (internal via GET, external via HEAD→GET), reclassifies, and
+writes via the shared `writeOutputs`.
+**Verification:** stateful fixture (links 404 on the first crawl, 200 on re-check) —
+re-check dropped the two recovered links, kept the always-404 one, collapsed an
+injected duplicate error to a single entry, and preserved the crawled pages. **GUI
+"Re-check broken links" button still to come.**

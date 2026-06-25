@@ -27,7 +27,10 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Partitioned `crawl.js` (1,480→998 lines) into leaf modules
+- **last_completed_step**: Completed the resume feature (2026-06-25, AD-015) — poison-URL
+  quarantine (a page that crashes the crawler across ≥2 resume sessions is blocked, not
+  retried), truncate-on-fresh journals, and a GUI **Resume crawl** button (verified).
+  Before that: Partitioned `crawl.js` (1,480→998 lines) into leaf modules
   **`parse.js`** (link extraction) / **`fetch.js`** (HTTP) / **`log.js`** (log+journal) /
   **`seen.js`** (dedup) — byte-preserving; a deterministic crawl is byte-identical (HTML
   + JSON) vs the pre-split version, resume/multi-site/recheck verified (2026-06-25,

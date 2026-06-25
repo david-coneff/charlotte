@@ -351,6 +351,12 @@ gets its own journal (`crawl-state.1-host.jsonl`, …), just like the per-site
 reports, so a resume skips sites already finished and continues the one that was
 in progress.
 
+If a specific page **crashes the crawler** every time, resume won't loop on it: a
+URL that aborted the process across two resumes without ever completing is
+**quarantined** (recorded as blocked) instead of retried yet again. And the Windows
+GUI has a **Resume crawl** button — it writes the journal automatically and continues
+the interrupted run for you.
+
 The journal grows with the crawl (it records the discovered link graph), so it's
 opt-in via `--state` and independent of the report/log checkpoints above.
 

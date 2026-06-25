@@ -159,6 +159,7 @@
     <button class="sec" id="stopBtn" onclick="stopCrawl()" disabled>Stop</button>
     <button class="sec" id="reportBtn" onclick="openReport()">Open crawl report</button>
     <button class="sec" id="recheckBtn" onclick="recheckLinks()" title="Re-probe only the broken links from the last crawl, using the current settings (e.g. request rate). The report's broken-link list is corrected and de-duplicated.">Re-check broken links</button>
+    <button class="sec" id="resumeBtn" onclick="startCrawl(true)" disabled title="Continue an interrupted crawl from where it stopped — it does not re-crawl pages already done. Available after a crawl is stopped or errors out.">Resume crawl</button>
     <button class="sec" onclick="openFolder()">Open output folder</button>
     <button class="sec" onclick="copyCommand()">Copy command</button>
   </div>
@@ -278,6 +279,7 @@ function buildArgs() {
   // The GUI tails this single (un-partitioned) progress log for live stats.
   a.push("--log " + q(val("log") || "crawl-gui-run.log"));
   a.push("--log-max-bytes 0");
+  a.push("--state crawl-gui-state.jsonl");   // resume journal — lets the Resume button continue an interrupted crawl
   if (val("checkpoint") !== "")  a.push("--checkpoint " + q(val("checkpoint")));
   return a.join(" ");
 }
@@ -380,12 +382,13 @@ function escHtml(s) {
 }
 
 // ---- run ----
-function startCrawl() {
+function startCrawl(resume) {
   if (running) return;
   if (getUrls().length === 0) {
     setStatus("Enter at least one start URL.", "bad"); return;
   }
   if (!fso.FileExists(jsPath)) { setStatus("crawl.js not found at " + jsPath, "bad"); return; }
+  if (resume && !journalExists()) { setStatus("No saved crawl to resume — run a crawl first.", "bad"); return; }
   runMode = "crawl";
   var workDir = val("workDir") || scriptDir;
   if (!fso.FolderExists(workDir)) { setStatus("Output folder does not exist: " + workDir, "bad"); return; }
@@ -404,7 +407,8 @@ function startCrawl() {
   // The batch runs node (with control files), sends node's own console to the
   // err log, and appends a DONE_<exitcode> marker to the live log we poll.
   var runCmd = buildCommand() +
-    " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath);
+    " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath) +
+    (resume ? " --resume crawl-gui-state.jsonl" : "");
   var bat = "";
   bat += "@echo off\r\n";
   bat += "cd /d " + q(workDir) + "\r\n";
@@ -426,6 +430,7 @@ function startCrawl() {
   $("recent").innerHTML = "";
   $("startBtn").disabled = true;
   $("recheckBtn").disabled = true;
+  $("resumeBtn").disabled = true;
   $("pauseBtn").disabled = false;
   $("pauseBtn").innerHTML = "Pause";
   $("stopBtn").disabled = false;
@@ -485,7 +490,7 @@ function recheckLinks() {
   runMode = "recheck";
   $("liveout").value = "Re-checking the broken links from the last crawl with the current settings…";
   $("recent").innerHTML = "";
-  $("startBtn").disabled = true; $("recheckBtn").disabled = true;
+  $("startBtn").disabled = true; $("recheckBtn").disabled = true; $("resumeBtn").disabled = true;
   $("pauseBtn").disabled = true; $("stopBtn").disabled = true;
   running = true; isPaused = false; startMs = new Date().getTime(); lastCount = 0; lastChangeMs = startMs;
   resetLiveState();
@@ -500,6 +505,17 @@ function recheckLinks() {
 
 function isAbsolute(p) { return /^[A-Za-z]:\\/.test(p) || p.indexOf("\\\\") === 0; }
 function deleteIfExists(p) { try { if (fso.FileExists(p)) fso.DeleteFile(p); } catch (e) {} }
+// True when a resume journal (crawl-gui-state*.jsonl) from a continuable crawl exists.
+function journalExists() {
+  try {
+    var workDir = val("workDir") || scriptDir;
+    if (!fso.FolderExists(workDir)) return false;
+    var en = new Enumerator(fso.GetFolder(workDir).Files);
+    for (; !en.atEnd(); en.moveNext()) { if (/^crawl-gui-state.*\.jsonl$/i.test(String(en.item().Name))) return true; }
+  } catch (e) {}
+  return false;
+}
+function updateResumeBtn() { if ($("resumeBtn")) $("resumeBtn").disabled = (running || !journalExists()); }
 
 // ---- Stop / Pause via control files (the crawler watches for these) ----
 function stopCrawl() {
@@ -664,6 +680,7 @@ function poll() {
     window.clearInterval(timer); timer = null; running = false; isPaused = false;
     $("startBtn").disabled = false;
     $("recheckBtn").disabled = false;
+    updateResumeBtn();
     $("pauseBtn").disabled = true; $("pauseBtn").innerHTML = "Pause";
     $("stopBtn").disabled = true;
     deleteIfExists(stopPath); deleteIfExists(pausePath);
@@ -755,6 +772,7 @@ initPaths();
 seedUrls();              // pre-fill Start URL rows from crawl-gui-domains.txt (else one blank row)
 toggleInputs();
 updatePreview();
+updateResumeBtn();       // enable "Resume" if a journal from a prior crawl is present
 </script>
 </body>
 </html>

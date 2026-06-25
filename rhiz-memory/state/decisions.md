@@ -251,3 +251,23 @@ property.
 behavior-preserving: a deterministic crawl produces a **byte-identical** HTML report
 *and* JSON vs. the committed pre-split `crawl.js`; the resume round-trip still matches;
 `--help`, multi-site, and `--recheck-from` all work; all six files syntax-check.
+
+## AD-015: Complete the resume feature — poison-URL quarantine + GUI Resume button
+**Date:** 2026-06-25
+**Decision:** Finish AD-012's resume feature. (a) **Poison-URL quarantine:** on resume,
+a URL visited (`v`) in ≥2 separate sessions (delimited by the journal's `r` markers)
+without ever completing is recorded as **blocked** ("quarantined — crashes the
+crawler") instead of re-queued — so a page that deterministically kills the process
+can't loop crash → resume → crash. (b) A fresh `--state` run now **truncates** the
+journal first, so it never appends across separate crawls. (c) GUI **Resume crawl**
+button: every GUI crawl writes `crawl-gui-state.jsonl`, and Resume re-runs the same
+command with `--resume`; the button is enabled whenever a journal is present.
+**Rationale:** quarantine is *session*-based, not raw `v`-count, so legitimate
+rate-limit retries within one session don't trigger it — only genuine cross-resume
+crashes do (a URL is re-attempted once, then quarantined). Truncate-on-fresh makes the
+GUI's always-on journal safe.
+**Verification:** a hand-crafted poison journal (a URL with `v` in two sessions, no
+completion) resumes with that URL quarantined to blocked and not re-crawled; a normal
+single-session in-flight URL is still re-attempted (no false quarantine); two fresh
+`--state` runs leave a single `meta` line (truncated). GUI JScript syntax + Resume
+wiring verified (the `.hta` is Windows-only, not run here).

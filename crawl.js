@@ -447,7 +447,10 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
   // header; on --resume we append to the existing file (its meta is already there).
   const journal = makeJournal(cfg.state);
   const J = journal.ev;
-  if (journal.on && !cfg.resume) J({ t: "meta", v: 1, run: runId, startUrl: cfg.startUrl, scope: pathPrefix || "", depth: cfg.maxDepth === Infinity ? null : cfg.maxDepth, subs: !!cfg.includeSubdomains, startedAt: state.startedAt });
+  if (journal.on && !cfg.resume) {
+    try { fs.writeFileSync(cfg.state, ""); } catch { /* ignore */ }   // fresh journal: don't append to a previous run's
+    J({ t: "meta", v: 1, run: runId, startUrl: cfg.startUrl, scope: pathPrefix || "", depth: cfg.maxDepth === Infinity ? null : cfg.maxDepth, subs: !!cfg.includeSubdomains, startedAt: state.startedAt });
+  }
   const logLine = (s) => logger.line(s);
 
   // Record that `ref` (a page) links to `target`. Every DISTINCT referrer is
@@ -467,6 +470,8 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
   if (cfg.resume) {
     const doneSet = new Set();            // URLs already terminally processed (skip these)
     const enq = new Map();                // url -> {depth, parent}: everything that entered the frontier
+    const vSessions = new Map();          // url -> Set of resume-session indices it was attempted (visited) in
+    let session = 0, quarantined = 0;     // poison-URL detection: attempted across >=2 sessions, never completed
     const consider = (target, parentUrl, parentDepth) => {
       addRef(target, parentUrl);
       if (parentDepth < cfg.maxDepth && seen.tryAdd(target) && !enq.has(target)) enq.set(target, { depth: parentDepth + 1, parent: parentUrl });
@@ -478,7 +483,9 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
       if (!ln) continue;
       let e; try { e = JSON.parse(ln); } catch { continue; }
       if (e.t === "meta") { if (!meta) meta = e; continue; }
-      if (e.t !== "p" && e.t !== "k" && e.t !== "e" && e.t !== "b") continue;  // "v"/"r"/unknown: ignored here
+      if (e.t === "r") { session++; continue; }                                // resume boundary marker
+      if (e.t === "v") { let s = vSessions.get(e.u); if (!s) { s = new Set(); vSessions.set(e.u, s); } s.add(session); continue; }
+      if (e.t !== "p" && e.t !== "k" && e.t !== "e" && e.t !== "b") continue;  // unknown: ignored here
       if (doneSet.has(e.u)) continue;     // idempotent: a URL completes at most once
       doneSet.add(e.u);
       replayed++;
@@ -498,13 +505,22 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     if (meta && meta.startUrl && meta.startUrl !== cfg.startUrl) console.log(`Note: resume journal was for ${meta.startUrl}; now crawling ${cfg.startUrl}.`);
     // Frontier = everything that entered the queue but never completed.
     state.queue = [];
-    for (const [u, info] of enq) { if (!doneSet.has(u)) state.queue.push({ url: u, depth: info.depth, parent: info.parent }); }
+    for (const [u, info] of enq) {
+      if (doneSet.has(u)) continue;
+      const sess = vSessions.get(u);
+      if (sess && sess.size >= 2) {   // attempted in >=2 separate sessions, never completed: a page that crashes the crawler
+        state.blocked.push({ url: u, reason: `quarantined — aborted the crawler ${sess.size}× without completing (likely a page that crashes it)`, source: info.parent, kind: "internal" });
+        quarantined++;
+        continue;
+      }
+      state.queue.push({ url: u, depth: info.depth, parent: info.parent });
+    }
     // If the start URL was never reached (empty/partial journal), make sure it runs.
     const su = normalize(cfg.startUrl);
     if (!doneSet.has(su) && !enq.has(su)) state.queue.unshift({ url: su, depth: 0, parent: "(start)" });
     state.crawled = doneSet.size;
     J({ t: "r", at: new Date().toISOString() });   // mark this resume in the journal
-    console.log(`Resumed from ${cfg.resume}: ${replayed} already done, ${state.queue.length} queued.`);
+    console.log(`Resumed from ${cfg.resume}: ${replayed} already done, ${state.queue.length} queued${quarantined ? `, ${quarantined} quarantined (crashing page${quarantined === 1 ? "" : "s"})` : ""}.`);
   }
 
   async function visit(job) {

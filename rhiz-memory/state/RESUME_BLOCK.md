@@ -27,15 +27,15 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: GUI now loads **multiple default Start URLs** from an
-  optional `crawl-gui-domains.txt` beside `crawl-gui.hta` (2026-06-24, AD-010 — one URL
-  per line; each becomes a row; parsing verified; `.example` template ships). Before
-  that: extracted the report/output layer out of `crawl.js` into a sibling
-  **`report.js`** (AD-009) — `buildReport`/`writeOutputs`/`buildIndexReport`/
-  `writeCombinedJson` + caps/branding/`esc`; `crawl.js` 1,861→1,301 lines, report output
-  **byte-for-byte identical** to pre-split. Earlier: fix tracker (AD-008), report
-  features (AD-007), migration (AD-001…AD-006). All committed and pushed; broodforge
-  branch deletion remains an operator action (session is 403-blocked from it).
+- **last_completed_step**: Added an **Expand/Collapse-all toggle** for the
+  External-links tab's per-domain sections (2026-06-25, AD-011 — scoped to
+  `#panel-external`, label re-syncs to state, DOM-stub verified). Recent prior work: GUI
+  multi-domain defaults via `crawl-gui-domains.txt` (AD-010); report/output layer split
+  into a sibling **`report.js`** (AD-009; `crawl.js` 1,861→1,301 lines, output
+  byte-for-byte identical); the fix tracker (AD-008); report features (AD-007: allowlist
+  export, runtime, branding); and the migration (AD-001…AD-006). All committed and
+  pushed; broodforge branch deletion remains an operator action (session is 403-blocked
+  from it).
 
 - **resume_instructions**:
   1. Read `rhiz-memory/state/SESSION_HANDOFF.md` for full context.

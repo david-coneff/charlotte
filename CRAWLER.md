@@ -374,7 +374,7 @@ when pages are unlimited (it defaults to 1,000,000 with a notice otherwise). The
 tabbed sections:
 
 - **Internal pages** — every page crawled, with depth, title, status, and link counts.
-- **External links** — grouped by destination host, with the pages they were found on.
+- **External links** — grouped by destination host (each a collapsible section), with the pages they were found on. An **Expand all / Collapse all** toggle at the top of the tab opens or closes every domain section at once.
 - **Out of scope** — _(only when a scope/prefix is set)_ same-domain links outside the subsection: recorded, not crawled.
 - **Errors · internal** — broken internal pages (HTTP 404/410, bad requests) — yours to fix.
 - **Errors · external** — unreachable external links (when `--check-external` is on) — a link to fix or remove.

@@ -160,3 +160,18 @@ for consistency.
 **Verification:** the GUI's JScript block parses, and a multi-line sample yields N
 rows with inline comments trimmed and URL fragments preserved; empty/comment-only
 files yield 0 rows (→ the blank-row fallback).
+
+## AD-011: Expand/collapse-all toggle for the External-links domain sections
+**Date:** 2026-06-25
+**Decision:** The External-links tab renders one collapsible `<details>` per
+destination host; added a single **Expand all / Collapse all** toggle (with a domain
+count) at the top of that tab that opens or closes every section at once.
+**Rationale:** sites with many external domains made the tab long, and clicking each
+section is tedious. Scoped to `#panel-external` so it never touches the referrer
+`<details>` on the Errors tabs; the button label re-syncs to the real state (via
+`toggle` listeners, so manual section toggles keep it accurate), and programmatic
+open/close still flows through the report's existing localStorage open-state
+persistence.
+**Verification:** DOM-stub test — initial "Collapse all", click collapses all →
+"Expand all", click expands all → "Collapse all", and it still bulk-collapses after a
+manual section change; a 6-domain fixture renders 6 sections plus the toggle.

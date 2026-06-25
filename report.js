@@ -256,6 +256,7 @@ function buildReport(state, cfg, allow, partial) {
  .muted{color:var(--muted)}h2{font-size:15px;margin:0 0 12px}details summary{cursor:pointer;font-weight:600;padding:6px 0}
  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:#06121f;border-color:var(--accent)}
  .hidden{display:none}code{background:var(--panel2);padding:1px 5px;border-radius:4px}
+ .exptools{display:flex;align-items:center;gap:10px;margin:0 0 12px}
  /* Errors tables with a leading checkbox column: keep the box narrow, URL wide. */
  .haspick th:first-child,.haspick td:first-child{min-width:34px;width:34px;text-align:center}
  .haspick th:nth-child(2),.haspick td:nth-child(2){min-width:360px}
@@ -303,7 +304,7 @@ function buildReport(state, cfg, allow, partial) {
    <div class="tab" data-tab="suppressed">Suppressed (${suppressed.length})</div>
   </div>
   <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
-  <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
+  <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extToggle" data-mode="collapse">Collapse all</button><span class="muted" style="font-size:12px">${byHost.size} domain${byHost.size === 1 ? "" : "s"}</span></div>${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
   <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th>External URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeExt) : errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
@@ -484,6 +485,26 @@ ${trackerEmbed}
   for(var ti=0;ti<tb.length;ti++){ tb[ti].addEventListener('click', exportTracker); }
 })();
 </script>
+<script>(function(){
+  // External-links tab: one control to expand/collapse all the per-domain sections.
+  var P=document.getElementById('panel-external'), b=document.getElementById('extToggle');
+  if(!P||!b) return;
+  function dets(){ return P.getElementsByTagName('details'); }
+  function sync(){
+    var d=dets(), open=0, i;
+    for(i=0;i<d.length;i++){ if(d[i].open) open++; }
+    var allOpen = d.length>0 && open===d.length;
+    b.setAttribute('data-mode', allOpen?'collapse':'expand');
+    b.textContent = allOpen?'Collapse all':'Expand all';
+  }
+  b.addEventListener('click', function(){
+    var open = b.getAttribute('data-mode')!=='collapse';   // mode 'collapse' -> close all; else open all
+    var d=dets(), i; for(i=0;i<d.length;i++){ d[i].open=open; }
+    sync();
+  });
+  var d=dets(), i; for(i=0;i<d.length;i++){ d[i].addEventListener('toggle', sync); }
+  sync();
+})();</script>
 </body></html>`;
 }
 

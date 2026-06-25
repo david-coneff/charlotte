@@ -148,7 +148,7 @@ function buildReport(state, cfg, allow, partial) {
   // Total link INSTANCES: every link occurrence — internal AND external — summed across
   // all crawled pages, NOT deduped, so a link in a sitewide nav/footer counts once per
   // page it appears on (twice if it appears twice on a page). Distinct from the unique
-  // "Internal pages" / "External links" counts. page.internal/external are the raw
+  // "Internal pages" / "External destinations" counts. page.internal/external are the raw
   // per-page counts (extractLinks doesn't dedupe), so this is just their running sum.
   const linkInstances = state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0);
 
@@ -240,7 +240,7 @@ function buildReport(state, cfg, allow, partial) {
   const testBar = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · not broken: 0</span></div>`;
   // Blocked tab: just the fix-tracker button (no allowlist selection) + a live counter.
   const blockedBar = `<div class="exportbar"><span class="grow"></span><button type="button" class="btn trackbtn" title="Save the fix tracker — includes broken links plus the blocked links you've confirmed broken here, grouped by referrer page">🔧 Export fix tracker</button></div>`;
-  const blockedHelp = `<p class="muted" style="margin:2px 0 10px"><strong>Tested</strong> marks a link you've checked by hand; <strong>Broken</strong> confirms it really is broken — confirmed ones are added to the <strong>Broken link instances</strong> count and the fix tracker (routed internal/external by their kind). Ticks are saved in this browser.</p>`;
+  const blockedHelp = `<p class="muted" style="margin:2px 0 10px"><strong>Tested</strong> marks a link you've checked by hand; <strong>Broken</strong> confirms it really is broken — confirmed ones are added to the <strong>Broken hyperlink instances</strong> count and the fix tracker (routed internal/external by their kind). Ticks are saved in this browser.</p>`;
   const blockedCounter = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0</span></div>`;
   // Embedded fix-tracker payload + self-rendering template (final report only).
   const brokenFor = (arr) => arr.slice(0, RENDER_CAP).map((e) => ({ url: e.url, reason: e.reason, refs: refsAll(e.url, e.source) }));
@@ -394,27 +394,29 @@ function buildReport(state, cfg, allow, partial) {
 <p>${esc(cfg.startUrl)} · ${esc(state.startedAt)}<br>${esc(cfgLine)}</p>${banner}</header>
 <main>
  <div class="card"><div class="stats">
-  ${stat(state.pages.length, "Internal pages", "good")}
-  ${stat(state.external.size, "External links", "warn")}
-  ${stat(linkInstances.toLocaleString(), "Link instances", "", "Every link occurrence (internal + external) summed across all crawled pages — not deduplicated, so a link repeated in sitewide nav/footer counts once per page it appears on.")}
-  ${stat(`<span id="brokenInstN">${brokenInstances.toLocaleString()}</span>`, "Broken link instances", brokenInstances ? "bad" : "", "Occurrences of broken links — each broken link counted once per page that links to it (the cleanup workload). Updates live as you mark Errors “Not broken” or confirm Blocked links “Broken”.")}
+  ${stat(state.pages.length.toLocaleString(), "Internal pages", "good", "Unique same-domain pages crawled — distinct destinations on your own site.")}
+  ${stat(state.external.size.toLocaleString(), "External destinations", "warn", "Unique off-site URLs your pages link to. Usually far fewer than the hyperlink instances — one destination is typically linked from many pages.")}
+  ${stat(linkInstances.toLocaleString(), "Hyperlink instances", "", "Every hyperlink occurrence across all crawled pages (internal + external), NOT deduplicated — a destination linked from N pages counts N times. So this runs much larger than the unique destination counts.")}
+  ${stat(`<span id="brokenInstN">${brokenInstances.toLocaleString()}</span>`, "Broken hyperlink instances", brokenInstances ? "bad" : "", "Hyperlink instances that point at a broken destination — each broken destination counted once per page that links to it (the real cleanup workload). Updates live as you mark links “Not broken” or confirm Blocked links “Broken”.")}
   ${oosStat}
-  ${stat(activeInt.length, "Errors · internal", activeInt.length ? "bad" : "")}
-  ${stat(activeExt.length, "Errors · external", activeExt.length ? "bad" : "")}
+  ${stat(activeInt.length.toLocaleString(), "Broken · internal", activeInt.length ? "bad" : "", "Unique broken internal destinations — pages on your site that don't load.")}
+  ${stat(activeExt.length.toLocaleString(), "Broken · external", activeExt.length ? "bad" : "", "Unique broken external destinations — off-site URLs that don't resolve.")}
   ${stat(blocked.length, "Blocked · uncertain", blocked.length ? "warn" : "")}
   ${stat(suppressed.length, "Suppressed", "")}
   ${partial ? stat(state.queue.length, "Queued", "") : stat(state.crawled, "Requests", "")}
   ${stat(fmtDur(elapsedMs), partial ? "Runtime · so far" : "Runtime", "")}
- </div></div>
+ </div>
+ <p class="muted" style="margin:10px 2px 0;font-size:13px"><strong>Destinations</strong> are <em>unique</em> URLs (there are relatively few); <strong>instances</strong> count <em>every</em> hyperlink to them across all pages (there are many). One destination linked from 500 pages is <strong>1 destination</strong> but <strong>500 hyperlink instances</strong>.</p>
+ </div>
  <div class="card">
   <div class="tabs">
-   <div class="tab active" data-tab="internal">Internal pages (${state.pages.length})</div>
-   <div class="tab" data-tab="external">External links (${state.external.size})</div>
+   <div class="tab active" data-tab="internal">Internal pages (${state.pages.length.toLocaleString()})</div>
+   <div class="tab" data-tab="external">External destinations (${state.external.size.toLocaleString()})</div>
    ${oosTab}
-   <div class="tab" data-tab="errint">Errors · internal (${activeInt.length})</div>
-   <div class="tab" data-tab="errext">Errors · external (${activeExt.length})</div>
-   <div class="tab" data-tab="blockd">Blocked · uncertain (${blocked.length})</div>
-   <div class="tab" data-tab="suppressed">Suppressed (${suppressed.length})</div>
+   <div class="tab" data-tab="errint">Broken · internal (${activeInt.length.toLocaleString()})</div>
+   <div class="tab" data-tab="errext">Broken · external (${activeExt.length.toLocaleString()})</div>
+   <div class="tab" data-tab="blockd">Blocked · uncertain (${blocked.length.toLocaleString()})</div>
+   <div class="tab" data-tab="suppressed">Suppressed (${suppressed.length.toLocaleString()})</div>
   </div>
   <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table class="pagestbl"><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
   <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extToggle" data-mode="collapse">Collapse all</button><span class="muted" style="font-size:12px">${byHost.size} domain${byHost.size === 1 ? "" : "s"}</span></div>${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
@@ -745,7 +747,7 @@ function buildIndexReport(sites, cfg, allow, partial, startedAt) {
       const bi = biOf(st);
       status = s.partial ? `<span class="pill warn">crawling…</span>` : `<span class="pill ok">done</span>`;
       const file = s.reportFile.split(/[\\/]/).pop();
-      body = `<div class="nums"><span><b>${st.pages.length}</b> pages</span><span><b>${st.external.size}</b> external</span><span><b>${li.toLocaleString()}</b> link instances</span><span class="${bi ? "bad" : ""}"><b>${bi.toLocaleString()}</b> broken instances</span><span class="${ei ? "bad" : ""}"><b>${ei}</b> internal errors</span><span class="${ee ? "bad" : ""}"><b>${ee}</b> external errors</span><span><b>${bl}</b> blocked</span></div>
+      body = `<div class="nums"><span><b>${st.pages.length.toLocaleString()}</b> internal pages</span><span><b>${st.external.size.toLocaleString()}</b> external destinations</span><span><b>${li.toLocaleString()}</b> hyperlink instances</span><span class="${bi ? "bad" : ""}"><b>${bi.toLocaleString()}</b> broken hyperlink instances</span><span class="${ei ? "bad" : ""}"><b>${ei}</b> broken · internal</span><span class="${ee ? "bad" : ""}"><b>${ee}</b> broken · external</span><span><b>${bl}</b> blocked</span></div>
         <p><a href="${esc2(file)}">Open ${esc2(s.host)} report →</a></p>`;
     }
     return `<div class="card"><h2>${i + 1}. ${esc2(s.host)} ${status}</h2><p class="muted">${esc2(s.url)}</p>${body}</div>`;
@@ -763,7 +765,7 @@ function buildIndexReport(sites, cfg, allow, partial, startedAt) {
  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;vertical-align:middle}
  .pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.warn{background:rgba(251,191,36,.15);color:var(--warn)}.pill.skip{background:rgba(154,164,178,.15);color:var(--muted)}
 </style></head><body>
-<header><h1>Crawl report — ${sites.length} sites</h1><p>${esc2(startedAt)} · ${done}/${sites.length} done${partial ? " · crawling… (auto-updates)" : ""} · <b>${totalInstances.toLocaleString()}</b> total link instances · <b>${totalBroken.toLocaleString()}</b> broken instances</p></header>
+<header><h1>Crawl report — ${sites.length} sites</h1><p>${esc2(startedAt)} · ${done}/${sites.length} done${partial ? " · crawling… (auto-updates)" : ""} · <b>${totalInstances.toLocaleString()}</b> total hyperlink instances · <b>${totalBroken.toLocaleString()}</b> broken</p></header>
 <main>${cards}</main>
 ${refresh}${NEWWIN}
 </body></html>`;

@@ -494,26 +494,33 @@ when pages are unlimited (it defaults to 1,000,000 with a notice otherwise). The
 tabbed sections:
 
 - **Internal pages** — every page crawled, with depth, title, status, and link counts.
-- **External links** — grouped by destination host (each a collapsible section), with the pages they were found on. An **Expand all / Collapse all** toggle at the top of the tab opens or closes every domain section at once.
+- **External destinations** — the *unique* off-site URLs your pages link to, grouped by destination host (each a collapsible section), with the pages they were found on. An **Expand all / Collapse all** toggle at the top of the tab opens or closes every domain section at once.
 - **Out of scope** — _(only when a scope/prefix is set)_ same-domain links outside the subsection: recorded, not crawled.
-- **Errors · internal** — broken internal pages (HTTP 404/410, bad requests) — yours to fix.
-- **Errors · external** — unreachable external links (when `--check-external` is on) — a link to fix or remove.
-- **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them. Each row has the same triage boxes as the Errors tabs, but with the opposite default: a **Tested** box and a **Broken** box that *confirms* an uncertain link really is dead. Confirming one **adds** it to the **Broken link instances** count (live) and to the **fix tracker** — routed to internal or external by its **Kind** — so the blocked tab feeds the same cleanup workflow without needing to be split into two tabs.
+- **Broken · internal** — broken internal destinations (HTTP 404/410, bad requests) — yours to fix.
+- **Broken · external** — unreachable external destinations (when `--check-external` is on) — a link to fix or remove.
+- **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them. Each row has the same triage boxes as the **Broken** tabs, but with the opposite default: a **Tested** box and a **Broken** box that *confirms* an uncertain link really is dead. Confirming one **adds** it to the **Broken hyperlink instances** count (live) and to the **fix tracker** — routed to internal or external by its **Kind** — so the blocked tab feeds the same cleanup workflow without needing to be split into two tabs.
 - **Suppressed** — broken links hidden via the allowlist, kept separately so you can still audit them.
 
-Across the top sits a row of **headline numbers** — internal pages, external links,
-**Link instances**, **Broken link instances**, errors (internal/external), blocked,
-suppressed, requests, and the crawl **Runtime**. **Link instances** is the total number
-of link *occurrences* (internal + external) summed across every crawled page — **not
-deduplicated**, so a link repeated in a sitewide nav/footer counts once per page it
-appears on (distinct from "Internal pages" / "External links", which count *unique*
-targets). **Broken link instances** is the same idea for broken links only — each broken
-link counted once per page that links to it, i.e. the real cleanup workload (and the
-number of fix-tracker rows). It **updates live** as you mark links *Not broken* on the
-Errors tabs, so after manual triage the header reflects what's actually still broken.
-Both are in the JSON (`summary.linkInstances` / `summary.brokenLinkInstances`), and the
-multi-site index shows per-site counts plus grand totals. The report is branded
-**Charlotte** with a 🕸️ favicon (visible on the browser tab).
+Across the top sits a row of **headline numbers**, split into two ideas a one-line legend
+spells out:
+
+- **Destinations** — *unique* URLs, "where links point": **Internal pages** (distinct
+  same-domain pages crawled), **External destinations** (distinct off-site URLs), and the
+  broken ones (**Broken · internal**, **Broken · external**). These counts are relatively
+  small.
+- **Hyperlink instances** — *occurrences*, "how many links are on the pages": every `<a>`
+  across every crawled page (internal + external), **not deduplicated**, so a destination
+  linked from N pages counts N times. **Broken hyperlink instances** is the same for links
+  pointing at a broken destination (the real cleanup workload / number of fix-tracker rows).
+  These counts run much larger — one destination linked from 500 pages is **1 destination
+  but 500 instances**.
+
+**Broken hyperlink instances** **updates live** as you mark links *Not broken* (Broken tabs)
+or confirm *Broken* (Blocked tab), so after manual triage the header reflects what's actually
+still broken. The metrics are in the JSON as `summary.linkInstances` /
+`summary.brokenLinkInstances` (field names unchanged), and the multi-site index shows per-site
+counts plus grand totals. Also shown: blocked, suppressed, requests, and the crawl
+**Runtime**. The report is branded **Charlotte** with a 🕸️ favicon (visible on the browser tab).
 
 The two **Errors** tabs are built for triage. Each row has three boxes: an **allowlist**
 box (select links to suppress in future scans, then **Export to allowlist…** / **Copy

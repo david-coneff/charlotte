@@ -552,3 +552,27 @@ sets e.g. `noPages`/`scope` is reflected correctly. Start URLs stay in the separ
 applies 6 known keys and skips an unknown one — toggling checkboxes (paginate/noPages/browser),
 text inputs (concurrency/rps, with and without spaces around `=`), and the `seen` `<select>`.
 `paginate` now renders `checked`.
+
+## AD-027: Report wording — "destinations" (unique) vs "hyperlink instances" (occurrences)
+**Date:** 2026-06-25
+**Decision:** Relabel the report's headline numbers and tabs so the unique-vs-occurrence
+distinction is explicit (the operator's point: a *few* unique destinations but *many*
+instances of them being linked across pages). Display-only — JSON field names are unchanged.
+- "External links" → **External destinations** (stat + tab) — the unique off-site URLs.
+- "Link instances" → **Hyperlink instances**; "Broken link instances" → **Broken hyperlink
+  instances** — every `<a>` occurrence (not deduped).
+- "Errors · internal/external" → **Broken · internal/external** (stat + tab) — the internal/
+  external classification names the *destination*.
+- New one-line **legend** under the headline numbers: "Destinations are unique URLs (few);
+  instances count every hyperlink to them (many) — one destination linked from 500 pages is
+  1 destination but 500 hyperlink instances." Tooltips reworded to reinforce. Multi-site index
+  per-site nums + header relabeled to match; counts now `toLocaleString()`-formatted.
+**Rationale:** "External **links**" (a unique count) collided with "**Link** instances" (an
+occurrence count) — both said "link." Moving "link/hyperlink" onto only the occurrence metric,
+and "destination" onto the unique counts, resolves it; the legend states the relationship
+directly. JSON keys (`externalLinks`, `linkInstances`, `brokenLinkInstances`, `errorsInternal/
+External`) are kept as-is so `--recheck-from` / `--rebuild-from` / external consumers don't break.
+**Verification:** a real report shows the new labels (External destinations / Hyperlink
+instances / Broken hyperlink instances / Broken · internal / Broken · external) and the legend;
+the old labels are gone; the JSON `summary` keys are unchanged; multi-site index relabeled too;
+all five report scripts parse.

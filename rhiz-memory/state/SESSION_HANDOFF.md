@@ -73,6 +73,7 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
     button + poison-URL quarantine.
   - [x] Partitioned `crawl.js` (1,480→998 lines) into leaf modules `parse.js` / `fetch.js` / `log.js` / `seen.js` (AD-014); byte-identical report + JSON vs pre-split, resume/multi-site/recheck verified.
   - [x] Completed the resume feature (AD-015): poison-URL quarantine (session-based) + truncate-on-fresh + GUI **Resume crawl** button. Verified.
+  - [x] Partitioned `crawl.js` further (1,013→625 lines) into `cli.js` (arg parsing/help) / `netutil.js` (rate-limit, backoff, robots-delay, url helpers) / `recheck.js` (`--recheck-from` mode) (AD-016); byte-identical report + JSON vs pre-split, help/die/recheck/multi-site/resume verified. The ~450-line crawl engine stays in `crawl.js` as the irreducible core.
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

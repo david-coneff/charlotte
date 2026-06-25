@@ -271,3 +271,29 @@ completion) resumes with that URL quarantined to blocked and not re-crawled; a n
 single-session in-flight URL is still re-attempted (no false quarantine); two fresh
 `--state` runs leave a single `meta` line (truncated). GUI JScript syntax + Resume
 wiring verified (the `.hta` is Windows-only, not run here).
+
+## AD-016: Partition crawl.js further — cli / netutil / recheck modules
+**Date:** 2026-06-25
+**Decision:** Split three more cohesive seams out of `crawl.js` into sibling modules:
+**`cli.js`** (`parseArgs` + `printHelp` + `die` — argument parsing and `--help`),
+**`netutil.js`** (`sleep`, `normalize`, `sameDomain`, the rate limiter, Retry-After
+parsing, the adaptive-backoff throttle, and robots.txt crawl-delay), and **`recheck.js`**
+(`loadStateFromJson` + `runRecheck` — the `--recheck-from` mode). `crawl.js` `require`s
+them back. The dependency DAG stays clean and acyclic: `netutil ← fetch ← parse`;
+`recheck ← netutil, fetch, report`; `cli ← fetch` (for `BROWSER_UA`).
+**Rationale:** after AD-014 + the resume/quarantine work `crawl.js` was back to ~1,013
+lines. CLI parsing (~200 lines) was the single biggest non-engine block and is fully
+self-contained; the net/throttle helpers form a natural utility layer reused by both the
+engine and re-check; and `--recheck-from` is a distinct *mode*, not part of the live
+crawl. Extracting all three leaves `crawl.js` as the **crawl engine + its orchestration
+glue** (`main`, allowlist load/suggest, multi-site helpers) at **625 lines** — the
+remaining bulk is the ~450-line stateful engine, which is the irreducible core and was
+deliberately *not* split (its workers/throttle/journal close over shared state; splitting
+it would hurt readability, not help). As in AD-009/AD-014, plain `require()`, no bundler.
+A stale orphan comment (left over from AD-009's `buildIndexReport` move) was dropped.
+**Verification:** byte-preserving extraction (code sliced verbatim by script, with
+boundary asserts). A deterministic crawl produces a **byte-identical** HTML report *and*
+JSON vs. the committed pre-split `crawl.js` (only the run timestamps differ); `--help`,
+`die()` on a bad arg, `--recheck-from`, multi-site (per-site reports + index + combined
+JSON), and a resume round-trip all work; all four files (`crawl.js` + the 3 new) plus the
+existing modules syntax-check.

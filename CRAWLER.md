@@ -238,6 +238,12 @@ and each link appears once. Point `--out` / `--json` at the original files to up
 them in place. (The GUI exposes this as a **Re-check broken links** button that uses
 the form's current settings.)
 
+This works for a **multi-site** crawl too: point `--recheck-from` at the *index* JSON
+and it re-checks every site (from the per-site JSON files written next to the index)
+and rebuilds the index + each per-site report. A multi-site crawl writes those per-site
+JSONs automatically; if you re-check an older index that predates them, it tells you to
+re-run the crawl once rather than touching the report.
+
 ### Browser second-opinion for suspect links (`crawl-render.js`)
 
 `crawl.js` checks links with plain HTTP (HEAD, then GET) and a real browser

@@ -626,7 +626,7 @@ function writeCombinedJson(sites, cfg, allow) {
       const supp = [], act = [];
       for (const e of st.errors) (allow.some((re) => re.test(e.url)) ? supp : act).push(e);
       return {
-        url: s.url, host: s.host, status: s.partial ? "crawling" : "done", reportFile: s.reportFile.split(/[\\/]/).pop(),
+        url: s.url, host: s.host, status: s.partial ? "crawling" : "done", reportFile: s.reportFile.split(/[\\/]/).pop(), jsonFile: s.jsonFile ? s.jsonFile.split(/[\\/]/).pop() : "",
         summary: { pagesCrawled: st.pages.length, externalLinks: st.external.size, linkInstances: st.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0), errorsInternal: act.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: act.filter((e) => e.kind === "external").length, blocked: (st.blocked || []).length },
         errors: act.map((e) => errOut(st, e)),
         blocked: (st.blocked || []).map((e) => errOut(st, e)),

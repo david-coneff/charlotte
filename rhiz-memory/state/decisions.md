@@ -417,3 +417,28 @@ counts, so they're excluded — consistent with the Int/Ext columns. The sum is 
 = **10** (not the 5 unique), the HTML headline shows "10 Link instances", unique counts stay
 3 pages / 2 external. Multi-site: index header "20 total link instances", each card "10 link
 instances", combined JSON `10, 10`. A normal single-site report renders the stat ("12"). `report.js` syntax-checks.
+
+## AD-022: Fix `--recheck-from` on a multi-site index (was wiping the report)
+**Date:** 2026-06-25
+**Decision:** Make re-check handle a multi-site **index** JSON, not just a single-site report.
+Three parts: (1) a multi-site crawl now writes a full **per-site JSON** for each site
+(`siteCfg.json = sitePath(cfg.json, …)` instead of `""`); (2) `writeCombinedJson` records each
+site's `jsonFile`; (3) `runRecheck` detects `j.sites` and branches to `runRecheckMulti`, which
+loads each site's per-site JSON, re-probes its flagged links (shared `reprobe()` helper, also
+used by the single-site path), rewrites each per-site report + JSON, and rebuilds the combined
+index + JSON. If the per-site JSONs are absent (an index from before this change), it prints a
+clear "re-run the crawl once" message and exits **without writing** — so it can't destroy data.
+**Rationale:** the combined index JSON is `{ crawledAt, sites:[{summary, errors, blocked}] }` —
+it has no top-level `errors`, so the old `loadStateFromJson` read **zero** flagged links, then
+`writeOutputs` overwrote the index with an empty single-site report ("reset the counters to 0
+and immediately said it was done" — the operator's report, reproduced exactly). The GUI does a
+multi-site crawl whenever `crawl-gui-domains.txt` has >1 domain, so this hit real use. Per-site
+JSONs (full state) are needed because the combined JSON is only a summary — you can't faithfully
+rewrite a per-site HTML report from it. `reprobe()` was factored out of the old `runRecheck` so
+single- and multi-site share identical probe/classify/dedup logic.
+**Verification:** reproduced the wipe on a 2-site combined JSON (re-checked 0, errors reset to
+0). After the fix: single-site re-check unchanged (2 flagged → 2 still broken); multi-site
+re-check re-probes each site (4 still broken across 2 sites) and the per-site error counts stay
+2,2 (not wiped); the multi-site crawl writes `report.1-host.json` / `report.2-host.json` and the
+index JSON references them via `jsonFile`; an old index missing per-site JSONs errors with exit
+1 and leaves the file unchanged (2,2). `crawl.js`/`recheck.js`/`report.js` syntax-check.

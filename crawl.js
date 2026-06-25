@@ -621,7 +621,7 @@ function sitePath(out, i, host) {
   const startedAt = new Date().toISOString();
   const runId = `${startedAt.replace(/[-:]/g, "").replace(/\..+/, "")}-${Math.random().toString(16).slice(2, 8)}`;
   const logger = makeLogWriter(cfg, { run: runId, startUrl: cfg.startUrls.join(" "), startedAt });
-  const sites = cfg.startUrls.map((u, i) => ({ url: u, host: hostOf(u), state: null, partial: true, reportFile: sitePath(cfg.out, i, hostOf(u)) }));
+  const sites = cfg.startUrls.map((u, i) => ({ url: u, host: hostOf(u), state: null, partial: true, reportFile: sitePath(cfg.out, i, hostOf(u)), jsonFile: cfg.json ? sitePath(cfg.json, i, hostOf(u)) : "" }));
   const writeIndex = (partial) => { try { fs.writeFileSync(cfg.out, buildIndexReport(sites, cfg, allow, partial, startedAt)); if (cfg.json) writeCombinedJson(sites, cfg, allow); } catch { /* ignore */ } };
 
   console.log(`Crawling ${sites.length} sites sequentially -> index ${cfg.out}`);
@@ -632,7 +632,9 @@ function sitePath(out, i, host) {
     console.log(`\n=== Site ${i + 1}/${sites.length}: ${sites[i].url} ===`);
     // Per-site resume journal, derived from --state like the per-site report from --out.
     const perState = cfg.state ? sitePath(cfg.state, i, sites[i].host) : "";
-    const siteCfg = Object.assign({}, cfg, { startUrl: sites[i].url, out: sites[i].reportFile, json: "", state: perState, resume: cfg.resume ? perState : "" });
+    // Per-site JSON (full state) so re-check (--recheck-from on the index JSON) can
+    // re-probe each site and faithfully rewrite its report; the combined JSON references these.
+    const siteCfg = Object.assign({}, cfg, { startUrl: sites[i].url, out: sites[i].reportFile, json: sites[i].jsonFile, state: perState, resume: cfg.resume ? perState : "" });
     const state = await crawl(siteCfg, allow, logger, (st) => { sites[i].state = st; sites[i].partial = true; writeIndex(true); });
     sites[i].state = state; sites[i].partial = false;
     writeOutputs(state, siteCfg, allow, false);   // final per-site report

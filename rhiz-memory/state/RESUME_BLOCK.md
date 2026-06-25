@@ -27,7 +27,16 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added a **Link instances** headline metric (2026-06-25,
+- **last_completed_step**: Fixed `--recheck-from` on a multi-site **index** JSON
+  (2026-06-25, AD-022) — it was finding 0 flagged links and **wiping** the report to
+  zero errors ("reset the counters to 0"). The combined index JSON has no top-level
+  `errors` (they're under `sites[]`). Fix: multi-site crawls now write a full per-site
+  JSON per site; `runRecheck` detects `j.sites` and re-checks each site from its per-site
+  JSON, rewrites each per-site report, and rebuilds the index + combined JSON; a shared
+  `reprobe()` backs both paths; an index missing per-site JSONs errors safely (exit 1, no
+  write). Verified: reproduced the wipe, then confirmed single-site unchanged, multi-site
+  re-probes all sites without wiping, and the missing-JSON case errors cleanly. Before
+  that: Added a **Link instances** headline metric (2026-06-25,
   AD-021) — the total number of link *occurrences* (internal **and** external) summed
   across every crawled page, **not** deduplicated (a sitewide-nav link counts once per
   page it's on). Computed `Σ(page.internal+page.external)`; shown as a headline stat,

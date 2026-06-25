@@ -36,6 +36,11 @@
   .wrap { padding: 18px 22px; }
   h1 { font-size: 22px; margin: 0 0 3px; }
   .sub { color: #9aa4b2; font-size: 14px; margin: 0 0 16px; }
+  .tabbar { margin: 0 0 16px; border-bottom: 1px solid #2c3340; }
+  .tabbtn { background: transparent; color: #9aa4b2; border: 1px solid transparent; border-bottom: none; border-radius: 8px 8px 0 0; padding: 9px 18px; font-weight: 600; cursor: pointer; margin: 0 4px -1px 0; }
+  .tabbtn.active { background: #1a1e26; color: #e6e9ef; border-color: #2c3340; }
+  .tabpanel { display: none; }
+  .tabpanel.active { display: block; }
   fieldset { border: 1px solid #2c3340; border-radius: 8px; margin: 0 0 16px; padding: 14px 16px; }
   legend { color: #9aa4b2; font-size: 13px; text-transform: uppercase; letter-spacing: .05em; padding: 0 6px; }
   .row { margin: 9px 0; }
@@ -79,6 +84,12 @@
   <h1>Domain Crawler</h1>
   <p class="sub">A friendly front-end for crawl.js. Requires Node.js on your PATH.</p>
 
+  <div class="tabbar">
+    <button type="button" class="tabbtn active" id="tabbtn-settings" onclick="showTab('settings')">⚙ Settings</button>
+    <button type="button" class="tabbtn" id="tabbtn-run" onclick="showTab('run')">▶ Run &amp; monitor</button>
+  </div>
+
+  <div class="tabpanel active" id="tab-settings">
   <fieldset>
     <legend>Target</legend>
     <div class="row" style="align-items:flex-start">
@@ -152,7 +163,9 @@
     <div class="row"><label class="f" for="log">Progress log</label><input class="wide" type="text" id="log" value="crawl-progress.log" onkeyup="toggleInputs();updatePreview()"><span class="hint">live trail; partitioned into parts</span></div>
     <div class="row"><label class="f" for="checkpoint">Checkpoint (pages)</label><input class="n" type="text" id="checkpoint" value="25" onkeyup="updatePreview()"><span class="hint">snapshot report every N pages; 0 = off</span></div>
   </fieldset>
+  </div><!-- /tab-settings -->
 
+  <div class="tabpanel" id="tab-run">
   <div class="row"><span class="muted" style="font-size:13px">Command preview:</span></div>
   <div class="cmd" id="preview"></div>
 
@@ -187,6 +200,7 @@
 
   <div class="muted" style="font-size:13px;margin:8px 0 3px">Live log (the crawler's progress log):</div>
   <textarea id="liveout" readonly wrap="off"></textarea>
+  </div><!-- /tab-run -->
 </div>
 
 <script language="JScript">
@@ -479,6 +493,7 @@ function startCrawl(resume) {
     return;
   }
 
+  showTab("run");          // jump to the Run tab so the live log is visible
   $("liveout").value = "Launching crawler… live progress will appear here as pages are crawled.";
   $("recent").innerHTML = "";
   $("startBtn").disabled = true;
@@ -542,6 +557,7 @@ function recheckLinks() {
   catch (e) { setStatus("Couldn't write helper files to " + workDir + " — " + e.message + ". Click “Copy command” and run it in a terminal.", "bad"); return; }
 
   runMode = "recheck";
+  showTab("run");
   $("liveout").value = "Re-checking the broken links from the last crawl with the current settings…";
   $("recent").innerHTML = "";
   $("startBtn").disabled = true; $("recheckBtn").disabled = true; $("rebuildBtn").disabled = true; $("resumeBtn").disabled = true;
@@ -578,6 +594,7 @@ function rebuildReport() {
   catch (e) { setStatus("Couldn't write helper files to " + workDir + " — " + e.message + ". Click “Copy command” and run it in a terminal.", "bad"); return; }
 
   runMode = "rebuild";
+  showTab("run");
   $("liveout").value = "Rebuilding the HTML report from the last crawl's data…";
   $("recent").innerHTML = "";
   $("startBtn").disabled = true; $("recheckBtn").disabled = true; $("resumeBtn").disabled = true; $("rebuildBtn").disabled = true;
@@ -871,6 +888,16 @@ window.onerror = function (msg, url, line) {
   return true; // suppress the default error dialog
 };
 
+// Switch between the Settings and Run tabs (purely show/hide; no run state touched).
+function showTab(name) {
+  var t = ["settings", "run"], i;
+  for (i = 0; i < t.length; i++) {
+    var on = (t[i] === name);
+    var p = $("tab-" + t[i]); if (p) p.className = on ? "tabpanel active" : "tabpanel";
+    var b = $("tabbtn-" + t[i]); if (b) b.className = on ? "tabbtn active" : "tabbtn";
+  }
+}
+
 // ---- boot ----
 initPaths();
 seedUrls();              // pre-fill Start URL rows from crawl-gui-domains.txt (else one blank row)
@@ -878,6 +905,7 @@ loadGuiConfig();         // override form defaults from crawl-gui-config.txt (if
 toggleInputs();          // sync dependent fields AFTER the config may have changed them
 updatePreview();
 updateResumeBtn();       // enable "Resume" if a journal from a prior crawl is present
+showTab("settings");     // open on Settings; launching a run jumps to the Run tab
 </script>
 </body>
 </html>

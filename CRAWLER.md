@@ -371,9 +371,11 @@ tool bounds the other growth vectors so RAM stays predictable:
   instead of accumulating every referrer.
 - **Page bodies are read in chunks and released** after links are extracted; a
   per-page size cap (5 MB) prevents one huge page from spiking memory.
-- **The report caps rendered rows** (5,000 per table) so building the HTML can't
-  produce a multi-hundred-MB string — the full data is always in the JSON and the
-  log.
+- **The report renders every row** (no per-table cap) so nothing is dropped from
+  the HTML; the full data is also always in the JSON and the log. The HTML inlines
+  each row, so its size grows with the crawl (~280 bytes/link — e.g. ~1.7 MB for
+  6,000 links, ~28 MB for 100,000). For very large crawls the JSON stays the compact,
+  machine-readable source of truth.
 - **`--max-urls N`** is a hard backstop on how many distinct URLs are remembered.
   It defaults to `max-pages × 50`; when you crawl with `--max-pages none` on a very
   large site, set `--max-urls` (e.g. `--max-urls 500000`) to cap memory explicitly.

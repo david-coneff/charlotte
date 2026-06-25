@@ -297,3 +297,21 @@ JSON vs. the committed pre-split `crawl.js` (only the run timestamps differ); `-
 `die()` on a bad arg, `--recheck-from`, multi-site (per-site reports + index + combined
 JSON), and a resume round-trip all work; all four files (`crawl.js` + the 3 new) plus the
 existing modules syntax-check.
+
+## AD-017: Remove the report's per-table render cap
+**Date:** 2026-06-25
+**Decision:** Set `RENDER_CAP` (report.js) from `5000` to `Infinity` — the HTML report now
+renders **every** row in each table (internal pages, external links, errors, blocked,
+out-of-scope) instead of truncating at 5,000 with a "full set in the JSON" note. The
+`capNote` mechanism is left intact (it simply never triggers at `Infinity`), so a finite
+cap can be restored in one line if ever needed. `REF_CAP` (500 referrers per broken
+link's nested "found on" table) is unchanged.
+**Rationale:** an operator hit the 5,000-per-table cap and found links present only in the
+JSON, not the HTML. The cap was a file-size/browser-responsiveness guardrail, not a hard
+limit (the report inlines every row as markup). Asked, the operator chose to remove the
+default and accept larger HTML on big crawls. Cost is linear and modest (~280 bytes/link:
+~1.7 MB for 6,000 links, ~28 MB for 100,000); the JSON remains the compact source of truth
+for very large crawls.
+**Verification:** a fixture page with 6,000 external links now renders all 6,000 rows in
+the HTML (was 5,000) with no cap note, JSON still lists 6,000; a normal small crawl is
+unaffected (no cap note, correct output); `report.js` syntax-checks.

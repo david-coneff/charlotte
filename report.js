@@ -8,7 +8,7 @@ const fs = require("fs");
 
 const REF_PREVIEW = 3;             // referrers shown inline in the external/out-of-scope tables
 const REF_CAP = 500;              // max referrers listed in a broken-link's nested table
-const RENDER_CAP = 5000;           // max rows rendered per report table (full data stays in --json/--log)
+const RENDER_CAP = Infinity;       // render every row in the HTML (no per-table cap); data is also in --json/--log
 const BRAND = "Charlotte";         // report branding — the project / repo name
 const BRAND_ICON = "🕸️";           // spiderweb glyph: favicon + report header
 

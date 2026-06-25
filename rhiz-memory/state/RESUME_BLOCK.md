@@ -27,7 +27,12 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Partitioned `crawl.js` further (2026-06-25, AD-016) —
+- **last_completed_step**: Removed the report's per-table render cap (2026-06-25,
+  AD-017) — `RENDER_CAP` 5,000→`Infinity` in `report.js`, so the HTML report renders
+  **every** row in each table instead of truncating at 5,000 (the overflow used to be
+  JSON-only). An operator hit this; they chose to remove the cap and accept larger HTML
+  on big crawls (~280 bytes/link). Verified a 6,000-link fixture renders all 6,000 rows
+  with no cap note; small reports unaffected. Before that: Partitioned `crawl.js` further (2026-06-25, AD-016) —
   1,013→**625 lines** by extracting `cli.js` (arg parsing + `--help` + `die`),
   `netutil.js` (rate limiter, adaptive backoff, Retry-After + robots crawl-delay, url
   helpers), and `recheck.js` (the `--recheck-from` mode). Byte-preserving; a deterministic

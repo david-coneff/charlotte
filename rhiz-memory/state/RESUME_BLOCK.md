@@ -31,9 +31,9 @@ One-screen save-state for Charlotte's development continuity.
   second-pass loops (now honored like the main worker, verified), and added on-demand
   broken-link re-check `--recheck-from <report.json>` — re-probes just the flagged
   links with the current settings and rewrites the report with the record corrected +
-  de-duplicated (links that now resolve are dropped; AD-013, verified). **Pending GUI
-  work:** a "Re-check broken links" button and a "Resume" button, plus poison-URL
-  quarantine. Earlier: added **resumable crawls** — `--state FILE` writes an
+  de-duplicated (links that now resolve are dropped; AD-013, verified). Added the GUI
+  **Re-check broken links** button (JScript syntax-verified; the HTA is Windows-only and
+  wasn't run here). **Still pending:** a GUI "Resume" button and poison-URL quarantine. Earlier: added **resumable crawls** — `--state FILE` writes an
   append-only JSONL journal (discoveries + completions, synchronous so a `kill -9` is
   safe) and `--resume FILE` replays it to rebuild the frontier + results and continue
   with **zero re-crawl** (single + multi-site; 2026-06-25, AD-012). Verified by a real

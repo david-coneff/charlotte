@@ -225,5 +225,9 @@ URL, probes each once (internal via GET, external via HEAD→GET), reclassifies,
 writes via the shared `writeOutputs`.
 **Verification:** stateful fixture (links 404 on the first crawl, 200 on re-check) —
 re-check dropped the two recovered links, kept the always-404 one, collapsed an
-injected duplicate error to a single entry, and preserved the crawled pages. **GUI
-"Re-check broken links" button still to come.**
+injected duplicate error to a single entry, and preserved the crawled pages.
+**GUI:** added a **Re-check broken links** button — every crawl now writes a JSON
+(managed default `crawl-gui-report.json`) so the button has a source; it reuses the
+same launcher (bat + `DONE_` marker + poll), runs to completion with the form's
+current network settings, and shows "Re-check complete". JScript syntax + wiring
+verified; the `.hta` itself is Windows-only and wasn't run here.

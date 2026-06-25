@@ -209,7 +209,7 @@ function buildReport(state, cfg, allow, partial) {
   // by its kind) — while "Working" just records that it loads. data-inst = its referrer count.
   const blockedPickRows = (arr) => arr.slice(0, RENDER_CAP).map((e) => {
     const kind = (e.kind || "internal") === "external" ? "external" : "internal";
-    return `<tr data-url="${esc(e.url)}" data-inst="${brokenInstCount(e.url)}" data-kind="${kind}"><td class="tcol"><input type="checkbox" class="brokenbox" data-url="${esc(e.url)}" title="Manual check confirms it's broken — count it and add it to the fix tracker"></td><td class="tcol"><input type="checkbox" class="okbox" data-url="${esc(e.url)}" title="Manual check shows it works — leave it out of the broken count"></td><td>${link(e.url)}</td><td><span class="pill skip">${esc(e.reason)}</span></td><td>${kind}</td><td class="muted">${refCellFix(e.url, e.source)}</td></tr>`;
+    return `<tr data-url="${esc(e.url)}" data-inst="${brokenInstCount(e.url)}" data-kind="${kind}"><td class="tscell" title="Date & time you last marked this link Broken or Working (auto-filled)"></td><td class="tcol"><input type="checkbox" class="brokenbox" data-url="${esc(e.url)}" title="Manual check confirms it's broken — count it and add it to the fix tracker"></td><td class="tcol"><input type="checkbox" class="okbox" data-url="${esc(e.url)}" title="Manual check shows it works — leave it out of the broken count"></td><td>${link(e.url)}</td><td><span class="pill skip">${esc(e.reason)}</span></td><td>${kind}</td><td class="muted">${refCellFix(e.url, e.source)}</td></tr>`;
   }).join("");
   // All referrers of a broken link (full list; capped only at render/embed sites).
   const refsAll = (url, fallback) => {
@@ -231,7 +231,7 @@ function buildReport(state, cfg, allow, partial) {
   // referrer), so a selection can be exported as an allowlist appendage.
   const pickRows = (arr) => arr.slice(0, RENDER_CAP).map((e) => {
     const src = refsOf(e.url)[0] || e.source || "(start)";
-    return `<tr data-url="${esc(e.url)}" data-inst="${brokenInstCount(e.url)}"><td><input type="checkbox" class="pickbox" data-url="${esc(e.url)}" data-reason="${esc(e.reason)}" data-source="${esc(src)}"></td><td class="tcol"><input type="checkbox" class="brokenbox" data-url="${esc(e.url)}" title="Manual check confirms it's broken (it already counts by default — this just marks it triaged)"></td><td class="tcol"><input type="checkbox" class="okbox" data-url="${esc(e.url)}" title="Manual check shows it works — drop it from the broken count and the fix tracker"></td><td>${link(e.url)}</td><td><span class="pill err">${esc(e.reason)}</span></td><td class="muted">${refCellFix(e.url, e.source)}</td></tr>`;
+    return `<tr data-url="${esc(e.url)}" data-inst="${brokenInstCount(e.url)}"><td><input type="checkbox" class="pickbox" data-url="${esc(e.url)}" data-reason="${esc(e.reason)}" data-source="${esc(src)}"></td><td class="tscell" title="Date & time you last marked this link Broken or Working (auto-filled)"></td><td class="tcol"><input type="checkbox" class="brokenbox" data-url="${esc(e.url)}" title="Manual check confirms it's broken (it already counts by default — this just marks it triaged)"></td><td class="tcol"><input type="checkbox" class="okbox" data-url="${esc(e.url)}" title="Manual check shows it works — drop it from the broken count and the fix tracker"></td><td>${link(e.url)}</td><td><span class="pill err">${esc(e.reason)}</span></td><td class="muted">${refCellFix(e.url, e.source)}</td></tr>`;
   }).join("");
   // Toolbar above an Errors table: a live count + copy/export actions (disabled
   // until something is ticked). The select-all lives in the table header cell.
@@ -241,7 +241,7 @@ function buildReport(state, cfg, allow, partial) {
   const testBar = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span></div>`;
   // Blocked tab: just the fix-tracker button (no allowlist selection) + a live counter.
   const blockedBar = `<div class="exportbar"><span class="grow"></span><button type="button" class="btn trackbtn" title="Save the fix tracker — includes broken links plus the blocked links you've confirmed broken here, grouped by referrer page">🔧 Export fix tracker</button></div>`;
-  const blockedHelp = `<p class="muted" style="margin:2px 0 10px">Two mutually-exclusive boxes per link: <strong>Broken</strong> confirms this uncertain link really is dead — confirmed ones are added to the <strong>Broken hyperlink instances</strong> count and the fix tracker (routed internal/external by their kind); <strong>Working</strong> confirms it actually loads. Leave both unticked to keep it uncertain (not counted). Either tick counts as tested. Ticks are saved in this browser.</p>`;
+  const blockedHelp = `<p class="muted" style="margin:2px 0 10px">Two mutually-exclusive boxes per link: <strong>Broken</strong> confirms this uncertain link really is dead — confirmed ones are added to the <strong>Broken hyperlink instances</strong> count and the fix tracker (routed internal/external by their kind); <strong>Working</strong> confirms it actually loads. Leave both unticked to keep it uncertain (not counted). Either tick counts as tested and auto-fills the <strong>Last tested</strong> date &amp; time. Ticks are saved in this browser.</p>`;
   const blockedCounter = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span></div>`;
   // Embedded fix-tracker payload + self-rendering template (final report only).
   const brokenFor = (arr) => arr.slice(0, RENDER_CAP).map((e) => ({ url: e.url, reason: e.reason, refs: refsAll(e.url, e.source) }));
@@ -256,7 +256,7 @@ function buildReport(state, cfg, allow, partial) {
     ? `<script>window.__CW_BROKEN__=${brokenLiteral};window.__CW_TPL__=${trackerLiteral};</script>`
     : "";
   // One-line helper under each Errors table explaining the two kinds of checkbox.
-  const pickHelp = `<p class="muted" style="margin:2px 0 10px">First box selects a link for the <strong>allowlist</strong>. Then two mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The box beside each “found on” page marks that referrer <strong>fixed</strong>. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page). Ticks are saved in this browser.</p>`;
+  const pickHelp = `<p class="muted" style="margin:2px 0 10px">First box selects a link for the <strong>allowlist</strong>. Then two mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The <strong>Last tested</strong> column auto-fills the date &amp; time of your latest verdict. The box beside each “found on” page marks that referrer <strong>fixed</strong>. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page). Ticks are saved in this browser.</p>`;
 
   // Out-of-scope (same domain, outside the chosen subsection) — only shown when scoped.
   const scoped = !!state.pathPrefix;
@@ -358,18 +358,20 @@ function buildReport(state, cfg, allow, partial) {
  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:#06121f;border-color:var(--accent)}
  .hidden{display:none}code{background:var(--panel2);padding:1px 5px;border-radius:4px}
  .exptools{display:flex;align-items:center;gap:10px;margin:0 0 12px}
- /* Errors tables with a leading checkbox column: keep the box narrow, URL wide. */
+ /* Errors tables: allowlist box (narrow) · timestamp · Broken/Working boxes (narrow) · URL wide. */
  .haspick th:first-child,.haspick td:first-child{min-width:34px;width:34px;text-align:center}
  .tcol{min-width:62px;width:62px;text-align:center}
- .haspick th:nth-child(4),.haspick td:nth-child(4){min-width:340px}
+ .tscell{min-width:122px;width:122px;white-space:nowrap}
+ td.tscell{font-size:11px;color:var(--muted)}
+ .haspick th:nth-child(5),.haspick td:nth-child(5){min-width:340px}
  .haspick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
- /* Blocked tab with Broken/Working boxes: first two columns are narrow checkboxes, URL wide. */
- .blkpick th:first-child,.blkpick td:first-child,.blkpick th:nth-child(2),.blkpick td:nth-child(2){min-width:0;width:64px;text-align:center}
- .blkpick th:nth-child(3),.blkpick td:nth-child(3){min-width:340px}
+ /* Blocked tab: timestamp col, then two narrow Broken/Working boxes, then URL wide. */
+ .blkpick th:nth-child(2),.blkpick td:nth-child(2),.blkpick th:nth-child(3),.blkpick td:nth-child(3){min-width:0;width:64px;text-align:center}
+ .blkpick th:nth-child(4),.blkpick td:nth-child(4){min-width:340px}
  .blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
  .testbar{margin:0 0 12px}.tcount{color:var(--muted);font-size:12px}
- tr.notbroken td:not(.tcol):not(:first-child){opacity:.45;text-decoration:line-through}
- tr.confirmed td:not(.tcol){color:var(--bad)}
+ tr.notbroken td:not(.tcol):not(.tscell):not(:first-child){opacity:.45;text-decoration:line-through}
+ tr.confirmed td:not(.tcol):not(.tscell){color:var(--bad)}
  .exportbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}.exportbar .grow{flex:1}
  .selcount{color:var(--muted);font-size:12px}
  .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
@@ -422,9 +424,9 @@ function buildReport(state, cfg, allow, partial) {
   <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table class="pagestbl"><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
   <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extToggle" data-mode="collapse">Collapse all</button><span class="muted" style="font-size:12px">${byHost.size} domain${byHost.size === 1 ? "" : "s"}</span></div>${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
-  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + testBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
-  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + testBar("errext") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th>External URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeExt) : errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
-  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? blockedBar + blockedHelp + blockedCounter("blockd") : ""}${capNote(blocked.length)}<div class="tablewrap"><table${showPick ? ` class="blkpick"` : ``}><thead><tr>${showPick ? `<th class="tcol" title="Manual check confirms it's broken — counts it + adds to the fix tracker">Broken</th><th class="tcol" title="Manual check shows it works">Working</th>` : ``}<th>URL</th><th>Why uncertain</th><th>Kind</th><th>Found on</th></tr></thead><tbody>${showPick ? blockedPickRows(blocked) : blockedRows(blocked)}</tbody></table></div>` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + testBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th><th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + testBar("errext") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `<th><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th><th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th>External URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeExt) : errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
+  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? blockedBar + blockedHelp + blockedCounter("blockd") : ""}${capNote(blocked.length)}<div class="tablewrap"><table${showPick ? ` class="blkpick"` : ``}><thead><tr>${showPick ? `<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken — counts it + adds to the fix tracker">Broken</th><th class="tcol" title="Manual check shows it works">Working</th>` : ``}<th>URL</th><th>Why uncertain</th><th>Kind</th><th>Found on</th></tr></thead><tbody>${showPick ? blockedPickRows(blocked) : blockedRows(blocked)}</tbody></table></div>` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-suppressed">${suppressed.length ? `<p class="muted">Hidden from Errors via <code>${esc(cfg.allowlist)}</code>.</p><div class="tablewrap"><table><thead><tr><th>URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${errRows(suppressed)}</tbody></table></div>` : `<p class="muted">Nothing suppressed.</p>`}</div>
  </div>
  ${logCard}
@@ -625,7 +627,8 @@ ${trackerEmbed}
   // The Errors tabs default to BROKEN: every flagged link counts toward the header until
   // you tick Working, which subtracts it and drops it from the fix tracker. The Blocked
   // tab defaults to UNCERTAIN (not counted): ticking Broken adds it and routes it into the
-  // tracker by kind. Ticks persist in this browser (cwbroken: / cwok: keys).
+  // tracker by kind. A "Last tested" cell auto-fills the date+time of the latest verdict.
+  // Ticks + timestamps persist in this browser (cwbroken: / cwok: / cwts: keys).
   var HOST=${JSON.stringify(state.startHost)}, SCOPES=['errint','errext','blockd'], ERRS=['errint','errext'];
   function L(){ try{ return localStorage; }catch(e){ return null; } }
   function key(pfx,url){ return pfx+HOST+':'+url; }
@@ -636,6 +639,15 @@ ${trackerEmbed}
   function hasCls(el,c){ return (' '+el.className+' ').indexOf(' '+c+' ')>=0; }
   function addCls(el,c){ if(!hasCls(el,c)) el.className=(el.className?el.className+' ':'')+c; }
   function rmCls(el,c){ el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^ +| +$/g,''); }
+  // String-valued persistence (for the "last tested" timestamp; getF/setF only do flags).
+  function getS(k){ var s=L(); if(!s) return ''; try{ return s.getItem(k)||''; }catch(e){ return ''; } }
+  function setS(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,v); else s.removeItem(k); }catch(e){} }
+  // Auto-filled "Last tested" stamp = local date+time the row's latest verdict was set.
+  // Updated whenever Broken or Working is ticked; cleared when the row returns to no verdict.
+  function nowStr(){ var d=new Date(); function p(x){ return (x<10?'0':'')+x; } return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+  function tsCell(tr){ return tr?tr.querySelector('.tscell'):null; }
+  function setTs(tr,url){ var s=nowStr(), c=tsCell(tr); if(c) c.textContent=s; setS(key('cwts:',url), s); }
+  function clrTs(tr,url){ var c=tsCell(tr); if(c) c.textContent=''; setS(key('cwts:',url), ''); }
   function update(scope){
     var p=panel(scope); if(!p) return;
     var trs=p.querySelectorAll('tr[data-url]'), n=0, tested=0, broke=0, ok=0, i;
@@ -662,10 +674,11 @@ ${trackerEmbed}
     for(i=0;i<trs.length;i++){ var tr=trs[i], b=tr.querySelector('.brokenbox'), o=tr.querySelector('.okbox'); if(!b||!o) continue;
       var u=b.getAttribute('data-url'), wb=getF(key('cwbroken:',u)), wo=getF(key('cwok:',u));
       if(wb){ b.checked=true; addCls(tr,'confirmed'); if(wo){ setF(key('cwok:',u),false); } }
-      else if(wo){ o.checked=true; addCls(tr,'notbroken'); } }
+      else if(wo){ o.checked=true; addCls(tr,'notbroken'); }
+      var c=tsCell(tr); if(c) c.textContent=getS(key('cwts:',u)); }
     var bs=p.querySelectorAll('.brokenbox'), os=p.querySelectorAll('.okbox');
-    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ var url=this.getAttribute('data-url'), tr=rowOf(this); setF(key('cwbroken:',url), this.checked); if(this.checked){ var o=tr.querySelector('.okbox'); if(o&&o.checked){ o.checked=false; setF(key('cwok:',url),false); rmCls(tr,'notbroken'); } addCls(tr,'confirmed'); } else { rmCls(tr,'confirmed'); } update(scope); }); }
-    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ var url=this.getAttribute('data-url'), tr=rowOf(this); setF(key('cwok:',url), this.checked); if(this.checked){ var b=tr.querySelector('.brokenbox'); if(b&&b.checked){ b.checked=false; setF(key('cwbroken:',url),false); rmCls(tr,'confirmed'); } addCls(tr,'notbroken'); } else { rmCls(tr,'notbroken'); } update(scope); }); }
+    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ var url=this.getAttribute('data-url'), tr=rowOf(this); setF(key('cwbroken:',url), this.checked); if(this.checked){ var o=tr.querySelector('.okbox'); if(o&&o.checked){ o.checked=false; setF(key('cwok:',url),false); rmCls(tr,'notbroken'); } addCls(tr,'confirmed'); setTs(tr,url); } else { rmCls(tr,'confirmed'); clrTs(tr,url); } update(scope); }); }
+    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ var url=this.getAttribute('data-url'), tr=rowOf(this); setF(key('cwok:',url), this.checked); if(this.checked){ var b=tr.querySelector('.brokenbox'); if(b&&b.checked){ b.checked=false; setF(key('cwbroken:',url),false); rmCls(tr,'confirmed'); } addCls(tr,'notbroken'); setTs(tr,url); } else { rmCls(tr,'notbroken'); clrTs(tr,url); } update(scope); }); }
     update(scope);
   }
   for(var s=0;s<SCOPES.length;s++){ wire(SCOPES[s]); }

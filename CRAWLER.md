@@ -534,8 +534,11 @@ there's no separate "Tested" box — and ticking one unticks the other; clear bo
 a row to the default. A **live counter** per tab tracks progress — *"Manually tested X / N
 · confirmed broken Y · confirmed working Z"* — and **Working** links are dropped from the
 fix tracker, so one false positive (a sitewide link the crawler flagged but that works by
-hand) can't flood it with thousands of rows. Ticks persist in the browser. Clicking any
-link opens it in a **new window docked to the side** of the report (whichever side has
+hand) can't flood it with thousands of rows. A **Last tested** column to the left of the
+boxes **auto-fills the local date & time** whenever you tick **Broken** or **Working**, so
+each row carries a timestamp of its latest manual result (it re-stamps when you change the
+verdict and clears if you untick back to no verdict). Ticks and timestamps persist in the
+browser. Clicking any link opens it in a **new window docked to the side** of the report (whichever side has
 more room, reusing one window), so checking a link never covers your report or needs
 repositioning.
 

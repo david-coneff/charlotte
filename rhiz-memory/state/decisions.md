@@ -614,3 +614,30 @@ Working subtracts, Broken re-adds via mutual exclusivity, Blocked opt-in adds, b
 default, `cwbroken:`/`cwok:` persistence round-trips, broken-wins tie-guard on reload; partial report
 emits no triage boxes (auto-refresh safe); fix-tracker export excludes Working-marked errors, keeps
 others, adds confirmed-Broken blocked links routed by kind; report.js + embedded IIFE both parse.
+
+## AD-029: "Last tested" timestamp column on the triage tabs
+**Date:** 2026-06-25
+**Decision:** Add a **Last tested** column to the left of the Broken/Working boxes on all three
+triage tabs (Errors · internal/external + Blocked · uncertain). It **auto-fills the local date &
+time** (`YYYY-MM-DD HH:MM`) whenever the row's verdict is set — i.e. when **Broken** or **Working**
+is ticked — so the latest manual result carries a timestamp in the record.
+- **Re-stamps** on verdict change (ticking the other box updates it to now); **clears** when the row
+  returns to no verdict (untick back to default). The timestamp is verdict-bound: present iff a
+  verdict is set.
+- **Persistence:** new string-valued `cwts:` localStorage key (alongside the flag-valued `cwbroken:`
+  / `cwok:`). On reload the saved timestamp is shown **verbatim** (not re-stamped to "now"); a verdict
+  saved before this feature simply shows an empty cell (no retroactive time).
+- **Implementation:** added `getS`/`setS` (string storage) + `nowStr()`/`setTs()`/`clrTs()` to the
+  triage IIFE; the change handlers call `setTs` on tick / `clrTs` on untick-to-no-verdict; `wire()`'s
+  restore loop fills the cell from `cwts:`. Generated client-side with `new Date()` (local time).
+- **Layout:** new `.tscell` class (122px, small/muted data cells); shifted the wide-URL `nth-child`
+  rules (`.haspick` 4→5, `.blkpick` URL 3→4, Broken/Working now blkpick cols 2–3); excluded `.tscell`
+  from the `.notbroken` strikethrough and `.confirmed` red so the timestamp stays readable. Column is
+  gated on `showPick` (final reports only) like the boxes, so **partial/auto-refresh reports are
+  unaffected**.
+**Rationale:** the operator wanted an at-a-glance record of *when* each link's status was last
+determined by hand — useful for re-checking stale results and for handing triage off over time.
+**Verification:** 38/38 DOM-stub assertions pass (auto-fill on tick in `YYYY-MM-DD HH:MM` form,
+persisted to `cwts:`, re-stamp on verdict swap, cleared on untick + removed from storage, restored
+verbatim on reload, empty for a verdict with no saved stamp); fix-tracker export unaffected; report.js
++ embedded IIFE parse; partial reports render no `tscell`/`Last tested` column cells.

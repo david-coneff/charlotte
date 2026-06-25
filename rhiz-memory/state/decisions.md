@@ -392,3 +392,28 @@ pause→edit→resume flow — log shows `PAUSED crawled=5` → `RETUNED rps=off
 `Re-tuned: rps=off` printed, all 40 pages crawled, finishing in ~4s (vs ~20s if the cap had
 stayed) — proving the new rate took effect mid-crawl, not just logged. `crawl.js`/`cli.js`/
 `netutil.js` syntax-check; the GUI HTA's JScript parses and the tune wiring is present.
+
+## AD-021: "Link instances" headline metric (total link occurrences, not deduped)
+**Date:** 2026-06-25
+**Decision:** Add a **Link instances** headline stat to the crawl report: the total number
+of link *occurrences* — internal **and** external — summed across every crawled page, **not
+deduplicated**. Computed as `Σ (page.internal + page.external)` over `state.pages`. `extractLinks`
+doesn't dedupe, so `page.internal`/`page.external` are already raw per-page occurrence counts
+(matching the per-page Int/Ext columns); the metric is just their sum. Added to the single
+report's stat row (with a tooltip), the JSON (`summary.linkInstances`), and the multi-site
+index (per-site count in each card + a grand total in the header, and `summary.linkInstances`
+per site in the combined JSON). The `stat()` helper gained an optional 4th `title` arg.
+**Rationale:** the operator wanted a single top-of-report number for the total link volume —
+"a particular link may be found multiple times since it is highly referred to by other pages."
+Three clarifications pinned the definition: (1) it's a headline number; (2) **not** per-page
+deduped — count duplicates, "the sum of all links on the page across all pages"; (3) **both**
+internal and external, not external-only. So it's distinct from the existing *unique*-target
+counts ("Internal pages" / "External links"): a link in sitewide nav inflates instances but not
+the unique counts. Out-of-scope (same-domain, path-excluded) links aren't in the per-page
+counts, so they're excluded — consistent with the Int/Ext columns. The sum is robust on resume
+(replay restores `external`/`internal` per page) and on partial/checkpoint reports.
+**Verification:** a fixture with deliberate duplicate links — page `/` with two `/a` links + one
+`/b` + three `ext/x`, etc. — yields per-page int/ext of 3/3, 1/2, 1/0 and `summary.linkInstances`
+= **10** (not the 5 unique), the HTML headline shows "10 Link instances", unique counts stay
+3 pages / 2 external. Multi-site: index header "20 total link instances", each card "10 link
+instances", combined JSON `10, 10`. A normal single-site report renders the stat ("12"). `report.js` syntax-checks.

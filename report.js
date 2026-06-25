@@ -119,7 +119,14 @@ function buildReport(state, cfg, allow, partial) {
   // final-report feature: partial reports auto-refresh, which would clear ticks.
   const showPick = !partial;
 
-  const stat = (n, label, cls) => `<div class="stat ${cls || ""}"><div class="n">${n}</div><div class="l">${esc(label)}</div></div>`;
+  // Total link INSTANCES: every link occurrence — internal AND external — summed across
+  // all crawled pages, NOT deduped, so a link in a sitewide nav/footer counts once per
+  // page it appears on (twice if it appears twice on a page). Distinct from the unique
+  // "Internal pages" / "External links" counts. page.internal/external are the raw
+  // per-page counts (extractLinks doesn't dedupe), so this is just their running sum.
+  const linkInstances = state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0);
+
+  const stat = (n, label, cls, title) => `<div class="stat ${cls || ""}"${title ? ` title="${esc(title)}"` : ""}><div class="n">${n}</div><div class="l">${esc(label)}</div></div>`;
   const link = (u) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>`;
   // A "found on" referrer: clickable when it's a real URL, plain text otherwise.
   const srcLink = (s) => /^https?:\/\//i.test(s) ? link(s) : esc(s || "—");
@@ -322,6 +329,7 @@ function buildReport(state, cfg, allow, partial) {
  <div class="card"><div class="stats">
   ${stat(state.pages.length, "Internal pages", "good")}
   ${stat(state.external.size, "External links", "warn")}
+  ${stat(linkInstances.toLocaleString(), "Link instances", "", "Every link occurrence (internal + external) summed across all crawled pages — not deduplicated, so a link repeated in sitewide nav/footer counts once per page it appears on.")}
   ${oosStat}
   ${stat(activeInt.length, "Errors · internal", activeInt.length ? "bad" : "")}
   ${stat(activeExt.length, "Errors · external", activeExt.length ? "bad" : "")}
@@ -557,7 +565,7 @@ function writeOutputs(state, cfg, allow, partial) {
     fs.writeFileSync(cfg.json, JSON.stringify({
       crawledAt: state.startedAt, partial: !!partial, scope: state.pathPrefix || "(whole domain)",
       log: { manifest: state.logManifest || "", singleFile: !!state.logSingleFile, parts: state.logParts || [] },
-      summary: { pagesCrawled: state.pages.length, queued: state.queue.length, externalLinks: state.external.size, outOfScope: state.outOfScope.size, errorsInternal: active.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: active.filter((e) => e.kind === "external").length, blocked: (state.blocked || []).length, suppressed: suppressed.length },
+      summary: { pagesCrawled: state.pages.length, queued: state.queue.length, externalLinks: state.external.size, linkInstances: state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0), outOfScope: state.outOfScope.size, errorsInternal: active.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: active.filter((e) => e.kind === "external").length, blocked: (state.blocked || []).length, suppressed: suppressed.length },
       internalPages: state.pages,
       externalLinks: [...state.external.values()].map((e) => ({ url: e.url, host: e.host, status: e.status, foundOn: refsOf(e.url) })),
       outOfScopeLinks: [...state.outOfScope.values()].map((e) => ({ url: e.url, foundOn: refsOf(e.url) })),
@@ -570,6 +578,7 @@ function writeOutputs(state, cfg, allow, partial) {
 function buildIndexReport(sites, cfg, allow, partial, startedAt) {
   const esc2 = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const done = sites.filter((s) => s.state && !s.partial).length;
+  const totalInstances = sites.reduce((n, s) => n + (s.state ? s.state.pages.reduce((m, p) => m + (p.internal || 0) + (p.external || 0), 0) : 0), 0);
   const cards = sites.map((s, i) => {
     const st = s.state;
     let status, body;
@@ -580,9 +589,10 @@ function buildIndexReport(sites, cfg, allow, partial, startedAt) {
       const ei = act.filter((e) => (e.kind || "internal") !== "external").length;
       const ee = act.filter((e) => e.kind === "external").length;
       const bl = (st.blocked || []).length;
+      const li = st.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0);
       status = s.partial ? `<span class="pill warn">crawling…</span>` : `<span class="pill ok">done</span>`;
       const file = s.reportFile.split(/[\\/]/).pop();
-      body = `<div class="nums"><span><b>${st.pages.length}</b> pages</span><span><b>${st.external.size}</b> external</span><span class="${ei ? "bad" : ""}"><b>${ei}</b> internal errors</span><span class="${ee ? "bad" : ""}"><b>${ee}</b> external errors</span><span><b>${bl}</b> blocked</span></div>
+      body = `<div class="nums"><span><b>${st.pages.length}</b> pages</span><span><b>${st.external.size}</b> external</span><span><b>${li.toLocaleString()}</b> link instances</span><span class="${ei ? "bad" : ""}"><b>${ei}</b> internal errors</span><span class="${ee ? "bad" : ""}"><b>${ee}</b> external errors</span><span><b>${bl}</b> blocked</span></div>
         <p><a href="${esc2(file)}">Open ${esc2(s.host)} report →</a></p>`;
     }
     return `<div class="card"><h2>${i + 1}. ${esc2(s.host)} ${status}</h2><p class="muted">${esc2(s.url)}</p>${body}</div>`;
@@ -600,7 +610,7 @@ function buildIndexReport(sites, cfg, allow, partial, startedAt) {
  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;vertical-align:middle}
  .pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.warn{background:rgba(251,191,36,.15);color:var(--warn)}.pill.skip{background:rgba(154,164,178,.15);color:var(--muted)}
 </style></head><body>
-<header><h1>Crawl report — ${sites.length} sites</h1><p>${esc2(startedAt)} · ${done}/${sites.length} done${partial ? " · crawling… (auto-updates)" : ""}</p></header>
+<header><h1>Crawl report — ${sites.length} sites</h1><p>${esc2(startedAt)} · ${done}/${sites.length} done${partial ? " · crawling… (auto-updates)" : ""} · <b>${totalInstances.toLocaleString()}</b> total link instances</p></header>
 <main>${cards}</main>
 ${refresh}
 </body></html>`;
@@ -617,7 +627,7 @@ function writeCombinedJson(sites, cfg, allow) {
       for (const e of st.errors) (allow.some((re) => re.test(e.url)) ? supp : act).push(e);
       return {
         url: s.url, host: s.host, status: s.partial ? "crawling" : "done", reportFile: s.reportFile.split(/[\\/]/).pop(),
-        summary: { pagesCrawled: st.pages.length, externalLinks: st.external.size, errorsInternal: act.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: act.filter((e) => e.kind === "external").length, blocked: (st.blocked || []).length },
+        summary: { pagesCrawled: st.pages.length, externalLinks: st.external.size, linkInstances: st.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0), errorsInternal: act.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: act.filter((e) => e.kind === "external").length, blocked: (st.blocked || []).length },
         errors: act.map((e) => errOut(st, e)),
         blocked: (st.blocked || []).map((e) => errOut(st, e)),
       };

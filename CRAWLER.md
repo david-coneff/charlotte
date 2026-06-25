@@ -480,9 +480,15 @@ tabbed sections:
 - **Suppressed** — broken links hidden via the allowlist, kept separately so you can still audit them.
 
 Across the top sits a row of **headline numbers** — internal pages, external
-links, errors (internal/external), blocked, suppressed, requests, and the crawl
-**Runtime**. The report is branded **Charlotte** with a 🕸️ favicon (visible on
-the browser tab).
+links, **Link instances**, errors (internal/external), blocked, suppressed,
+requests, and the crawl **Runtime**. **Link instances** is the total number of
+link *occurrences* (internal + external) summed across every crawled page — **not
+deduplicated**, so a link repeated in a sitewide nav/footer counts once per page it
+appears on. It's distinct from "Internal pages" / "External links" (which count
+*unique* targets): the same link found on many pages inflates the instance count but
+not the unique counts. It's also in the JSON (`summary.linkInstances`), and the
+multi-site index shows a per-site count plus a grand total. The report is branded
+**Charlotte** with a 🕸️ favicon (visible on the browser tab).
 
 On the two **Errors** tabs every row has a **checkbox**. Tick the broken links
 you want to stop seeing, then **Export to allowlist…** (downloads a ready-to-append

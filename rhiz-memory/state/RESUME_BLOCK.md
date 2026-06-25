@@ -27,7 +27,14 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added live re-tuning of a running crawl (2026-06-25,
+- **last_completed_step**: Added a **Link instances** headline metric (2026-06-25,
+  AD-021) — the total number of link *occurrences* (internal **and** external) summed
+  across every crawled page, **not** deduplicated (a sitewide-nav link counts once per
+  page it's on). Computed `Σ(page.internal+page.external)`; shown as a headline stat,
+  in the JSON (`summary.linkInstances`), and on the multi-site index (per-site + a grand
+  total). Distinct from the unique-target counts ("Internal pages"/"External links").
+  Verified with a duplicate-link fixture (per-page 3/3, 1/2, 1/0 → 10 instances, not the
+  5 unique). Before that: Added live re-tuning of a running crawl (2026-06-25,
   AD-020) — `--tune-file FILE` is watched on the control-poll; changing its JSON
   (`delay`/`rps`/`crawlDelay`/`timeout`) re-paces the **running** crawl with no restart.
   The rate limiter now reads the gap per request; `applyTune()` mutates cfg live (workers

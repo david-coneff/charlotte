@@ -442,3 +442,43 @@ re-check re-probes each site (4 still broken across 2 sites) and the per-site er
 2,2 (not wiped); the multi-site crawl writes `report.1-host.json` / `report.2-host.json` and the
 index JSON references them via `jsonFile`; an old index missing per-site JSONs errors with exit
 1 and leaves the file unchanged (2,2). `crawl.js`/`recheck.js`/`report.js` syntax-check.
+
+## AD-023: Broken-link triage workflow in the report (all in report.js)
+**Date:** 2026-06-25
+**Decision:** A batch of related report-UX features for triaging broken links, from a rapid
+sequence of operator requests:
+- **Fix tracker grouped by referrer page.** The standalone tracker now renders one section
+  per *referrer page* (a page that links to broken URLs) with that page's broken links beneath
+  and a **single contact note per page** (was one row per referrer→broken pair with a per-pair
+  note) — one person usually owns a page. Fix ticks stay per (referrer,broken); notes are now
+  keyed by referrer.
+- **Manual-testing triage on the Errors tabs.** Each row gets a **Tested** box and a **Not
+  broken** box (ticking "Not broken" implies tested; unticking "Tested" clears it). A **live
+  per-tab counter** — "Manually tested X / N · confirmed broken Y · not broken Z" — shows how
+  far testing has gotten. State persists in localStorage (`cwtest:`/`cwok:` keyed by host+url).
+- **"Not broken" excludes from the tracker.** `exportTracker` drops okbox-checked URLs, so a
+  highly-referenced false positive can't flood the tracker with thousands of referrer rows.
+- **"Broken link instances" headline stat** (+ `summary.brokenLinkInstances`, + multi-site
+  per-site/total): each broken link counted once per referring page (min 1) — the cleanup
+  workload. It **updates live** (`recomputeBroken()` sums `data-inst` over rows whose "Not
+  broken" box is unticked) as links are screened, so the header is accurate post-triage.
+- **Export fix tracker always enabled.** `refresh()` now disables only `.copybtn`/`.exportbtn`
+  on empty selection, not the tracker button (it exports all/none regardless of ticks).
+- **Links open in a side-docked window.** A delegated `NEWWIN` handler intercepts
+  `target="_blank"` clicks and `window.open()`s one reused "charlotteLink" window docked to
+  whichever side of the report has more room (full height), so checking a link never covers the
+  report. Embedded in the report, the index, and the tracker.
+**Rationale:** the goal is screening crawler false positives *before* compiling the fix tracker
+so it lists only genuinely-broken work, grouped the way a fixer acts (by page, one contact).
+The broken-instances stat quantifies the workload and shrinks live as false positives are
+cleared. Side-docked windows keep the report visible while spot-checking links. All persistence
+is localStorage (final reports don't auto-refresh, so ticks survive).
+**Verification:** DOM-stub tests — tracker groups a 2-broken-link referrer into one card with
+one note (and a 1-link referrer separately); the manual-testing counter goes 0/3 → tested 1/3
+confirmed-broken 1 → (Not-broken row) tested 2/3 not-broken 1, with persistence and the
+tested/not-broken implication both directions; the broken-instances header drops 7→1 when a
+6-referrer link is marked Not broken and restores to 7; side-window math docks right of a
+left-report (left=1200,w=1360), left of a right-report (left=0), usable when maximized (w=806),
+reusing "charlotteLink". A real crawl: `summary.brokenLinkInstances=7` for a 6-referrer +
+1-referrer pair; multi-site index totals 14 (7+7). All five report scripts parse; `report.js`
+syntax-checks.

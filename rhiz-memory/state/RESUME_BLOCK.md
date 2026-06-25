@@ -27,7 +27,16 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Fixed `--recheck-from` on a multi-site **index** JSON
+- **last_completed_step**: Added a broken-link **triage workflow** to the report
+  (2026-06-25, AD-023, all in report.js): the fix tracker now **groups by referrer page**
+  (one who-to-contact note per page); the Errors tabs get **Tested** + **Not broken**
+  boxes with a **live counter** ("Manually tested X / N · confirmed broken Y · not broken
+  Z"); **Not broken** links are excluded from the tracker (so a highly-referenced false
+  positive can't flood it); a new **Broken link instances** headline stat (each broken
+  link × its referring pages) **updates live** as links are screened; **Export fix
+  tracker** is always clickable; and report links open in a **window docked to the side**
+  of the report (reused, whichever side has more room) so checking a link never covers the
+  view. All localStorage-persisted; DOM-stub + real-crawl verified. Before that: Fixed `--recheck-from` on a multi-site **index** JSON
   (2026-06-25, AD-022) — it was finding 0 flagged links and **wiping** the report to
   zero errors ("reset the counters to 0"). The combined index JSON has no top-level
   `errors` (they're under `sites[]`). Fix: multi-site crawls now write a full per-site

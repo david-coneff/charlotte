@@ -485,34 +485,41 @@ tabbed sections:
 - **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them.
 - **Suppressed** — broken links hidden via the allowlist, kept separately so you can still audit them.
 
-Across the top sits a row of **headline numbers** — internal pages, external
-links, **Link instances**, errors (internal/external), blocked, suppressed,
-requests, and the crawl **Runtime**. **Link instances** is the total number of
-link *occurrences* (internal + external) summed across every crawled page — **not
+Across the top sits a row of **headline numbers** — internal pages, external links,
+**Link instances**, **Broken link instances**, errors (internal/external), blocked,
+suppressed, requests, and the crawl **Runtime**. **Link instances** is the total number
+of link *occurrences* (internal + external) summed across every crawled page — **not
 deduplicated**, so a link repeated in a sitewide nav/footer counts once per page it
-appears on. It's distinct from "Internal pages" / "External links" (which count
-*unique* targets): the same link found on many pages inflates the instance count but
-not the unique counts. It's also in the JSON (`summary.linkInstances`), and the
-multi-site index shows a per-site count plus a grand total. The report is branded
+appears on (distinct from "Internal pages" / "External links", which count *unique*
+targets). **Broken link instances** is the same idea for broken links only — each broken
+link counted once per page that links to it, i.e. the real cleanup workload (and the
+number of fix-tracker rows). It **updates live** as you mark links *Not broken* on the
+Errors tabs, so after manual triage the header reflects what's actually still broken.
+Both are in the JSON (`summary.linkInstances` / `summary.brokenLinkInstances`), and the
+multi-site index shows per-site counts plus grand totals. The report is branded
 **Charlotte** with a 🕸️ favicon (visible on the browser tab).
 
-On the two **Errors** tabs every row has a **checkbox**. Tick the broken links
-you want to stop seeing, then **Export to allowlist…** (downloads a ready-to-append
-file) or **Copy lines** (to the clipboard). Both emit allowlist-format lines for
-exactly the links you picked — append them to your allowlist and those links move
-to **Suppressed** on the next scan. See
-[Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports).
+The two **Errors** tabs are built for triage. Each row has three boxes: an **allowlist**
+box (select links to suppress in future scans, then **Export to allowlist…** / **Copy
+lines** — see
+[Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports)); a
+**Tested** box (you've manually checked it); and a **Not broken** box (the manual test
+showed it actually works). A **live counter** per tab tracks how far testing has
+gotten — *"Manually tested X / N · confirmed broken Y · not broken Z"* — and **Not
+broken** links are dropped from the fix tracker, so one false positive (a sitewide link
+the crawler flagged but that works by hand) can't flood it with thousands of rows.
+Tested / Not-broken ticks persist in the browser. Clicking any link opens it in a **new
+window docked to the side** of the report (whichever side has more room, reusing one
+window), so checking a link never covers your report or needs repositioning.
 
-Each broken link also lists the pages it was **found on**, and every one of those
-referrers has its **own checkbox** — tick a referrer as you fix the link on that
-page. **🔧 Export fix tracker** (on either Errors tab) then saves the whole set —
-every referrer → broken-link pair, internal *and* external — as a **standalone
-HTML checklist**: two tabs (internal/external) styled like this report, each row a
-referrer paired with the broken link it points to, an editable **Fixed** checkbox,
-and a **Notes · who to contact** field. The exported file is self-contained and its
-checkboxes **and notes persist in the browser** (localStorage), so someone can keep
-working through it — and hand it off — over time. Referrers you already ticked in
-the report come across pre-checked.
+Each broken link also lists the pages it was **found on**, each with its own checkbox.
+**🔧 Export fix tracker** (always available — you don't have to tick anything first)
+saves a **standalone HTML checklist grouped by referrer page**: one section per page that
+has broken links, with a single **who-to-contact note** for that page (one person usually
+owns it) and its broken links listed beneath, each with an editable **Fixed** box. Links
+you marked *Not broken* are excluded. Two tabs (internal/external) styled like this
+report; ticks and notes **persist in the browser** (localStorage), so it can be worked
+through and handed off over time.
 
 Every broken link lists **all** the pages that link to it (each a clickable
 "found on" referrer); when there's more than one, they're shown in a collapsible

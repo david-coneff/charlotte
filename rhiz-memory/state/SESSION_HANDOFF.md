@@ -77,6 +77,7 @@ This is Charlotte's session-handoff artifact — the durable, self-contained
   - [x] Removed the report's per-table render cap (AD-017): `RENDER_CAP` 5,000→`Infinity`, so the HTML renders every row instead of truncating at 5,000 (full data was/is also in JSON). Verified a 6,000-link fixture renders all 6,000 rows; small reports unaffected.
   - [x] Opt-in client-side report pagination (AD-018): off-by-default `--paginate` (+ GUI checkbox) shows large tables 1,000 rows/page with Prev/Next/jump; display-only (export/selection still act on every row). DOM-stub verified across pages; default report unchanged but for 3 inert CSS lines.
   - [x] Uncapped + paginated the "found on" referrer list (AD-019): removed `REF_CAP` (500) so every referrer of a broken link is listed in the HTML (no "+N more"); the `--paginate` pager now also pages these nested lists (1,000/page). Verified with a 1,501-referrer fixture (all listed; nested pager DOM-stub passes; tracker payload carries all 1,501).
+  - [x] Live re-tuning (AD-020): `--tune-file FILE` lets you change delay/rps/crawl-delay/timeout on a *running* crawl (pause → edit → resume), no restart; GUI Resume writes the tune file from its rate fields. Rate limiter reads the gap per request; normal crawl byte-identical. Verified end-to-end (PAUSED→RETUNED→RESUMED, rate change took effect).
   - [~] Remove crawler from broodforge — operator chose *delete the branch*;
     blocked from this session (branch-write policy 403 + no delete-branch tool).
     Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.

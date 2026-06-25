@@ -27,7 +27,16 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Uncapped + paginated the "found on" referrer list
+- **last_completed_step**: Added live re-tuning of a running crawl (2026-06-25,
+  AD-020) — `--tune-file FILE` is watched on the control-poll; changing its JSON
+  (`delay`/`rps`/`crawlDelay`/`timeout`) re-paces the **running** crawl with no restart.
+  The rate limiter now reads the gap per request; `applyTune()` mutates cfg live (workers
+  already read `cfg.delay`). GUI: **Resume** writes the Delay/Max-req-sec/Timeout fields to
+  `crawl-gui-tune.json`. The natural flow is pause → edit → resume. A normal crawl (no
+  `--tune-file`) is byte-identical to before. Verified end-to-end (PAUSED crawled=5 →
+  RETUNED rps=off → RESUMED; 40 pages done in ~4s vs ~20s, so the new rate really applied).
+  Concurrency/structural changes still go via Stop → Resume crawl (journal, no re-crawl).
+  Before that: Uncapped + paginated the "found on" referrer list
   (2026-06-25, AD-019) — removed the `REF_CAP` (500) cap so every page that links to a
   broken URL is listed in the HTML report (no more "+N more — see JSON"); the AD-018
   `--paginate` pager now also pages each broken link's nested referrer list (1,000/page

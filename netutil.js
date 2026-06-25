@@ -21,16 +21,19 @@ function sameDomain(host, startHost, includeSub) {
   return false;
 }
 
-// Global rate limiter: spaces request start times by minGapMs regardless of
-// concurrency (derived from --rps and/or robots crawl-delay). Returns an async
-// acquire() each request awaits before firing.
-function makeRateLimiter(minGapMs) {
-  if (!minGapMs || minGapMs <= 0) return async () => {};
+// Global rate limiter: spaces request start times by the current gap regardless of
+// concurrency (derived from --rps and/or robots crawl-delay). `minGap` may be a fixed
+// number (ms) or a getter returning the current gap, so spacing can be re-tuned live
+// mid-crawl (see --tune-file). Returns an async acquire() each request awaits.
+function makeRateLimiter(minGap) {
+  const getGap = typeof minGap === "function" ? minGap : () => minGap;
   let next = 0;
   return async function acquire() {
+    const gap = getGap();
+    if (!gap || gap <= 0) return;
     const now = Date.now();
     const slot = Math.max(now, next);
-    next = slot + minGapMs;
+    next = slot + gap;
     const wait = slot - now;
     if (wait > 0) await sleep(wait);
   };

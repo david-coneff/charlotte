@@ -75,10 +75,15 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
   let crawlDelay = cfg.crawlDelay;
   let robotsDelay = 0;
   if (!cfg.crawlDelay && !cfg.ignoreRobots) { robotsDelay = await fetchCrawlDelay(cfg); crawlDelay = robotsDelay; }
-  let minGapMs = 0;
-  if (cfg.rps > 0) minGapMs = Math.max(minGapMs, 1000 / cfg.rps);
-  if (crawlDelay > 0) minGapMs = Math.max(minGapMs, crawlDelay * 1000);
-  const limiter = makeRateLimiter(minGapMs);
+  // Effective request spacing, recomputed each request so --tune-file can change
+  // --rps / --crawl-delay mid-crawl (with --delay and --timeout) WITHOUT restarting.
+  const effGapMs = () => {
+    let g = 0;
+    if (cfg.rps > 0) g = Math.max(g, 1000 / cfg.rps);
+    if (crawlDelay > 0) g = Math.max(g, crawlDelay * 1000);
+    return g;
+  };
+  const limiter = makeRateLimiter(effGapMs);
   const throttle = makeThrottle(cfg.maxBackoff * 1000);
 
   // Frontier cap: bound how many distinct internal URLs we remember, so memory
@@ -395,12 +400,36 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
   const onSigint = () => shutdown("INTERRUPTED");
   process.on("SIGINT", onSigint);
 
+  // Live re-tuning: re-read --tune-file each control tick and, when its JSON changes,
+  // apply new delay / rps / crawl-delay / timeout to the running crawl — so you can
+  // pause, change the pacing, and resume WITHOUT restarting (the GUI Resume writes it).
+  // The file's content at start is the baseline (not applied), so stale values can't
+  // override the CLI args; a missing/invalid file or unknown keys are ignored.
+  let lastTuneRaw = null;
+  try { if (cfg.tuneFile && fs.existsSync(cfg.tuneFile)) lastTuneRaw = fs.readFileSync(cfg.tuneFile, "utf8"); } catch { /* ignore */ }
+  const applyTune = () => {
+    if (!cfg.tuneFile) return;
+    let raw;
+    try { raw = fs.readFileSync(cfg.tuneFile, "utf8"); } catch { return; }
+    if (raw === lastTuneRaw) return;
+    lastTuneRaw = raw;
+    let t; try { t = JSON.parse(raw); } catch { return; }
+    if (!t || typeof t !== "object") return;
+    const ch = [];
+    if (Number.isFinite(t.delay) && t.delay >= 0 && t.delay !== cfg.delay) { cfg.delay = t.delay; ch.push(`delay=${t.delay}ms`); }
+    if (Number.isFinite(t.rps) && t.rps >= 0 && t.rps !== cfg.rps) { cfg.rps = t.rps; ch.push(`rps=${t.rps || "off"}`); }
+    if (Number.isFinite(t.crawlDelay) && t.crawlDelay >= 0 && t.crawlDelay !== crawlDelay) { crawlDelay = t.crawlDelay; state.crawlDelay = t.crawlDelay; ch.push(`crawl-delay=${t.crawlDelay}s`); }
+    if (Number.isFinite(t.timeout) && t.timeout >= 1000 && t.timeout !== cfg.timeout) { cfg.timeout = t.timeout; ch.push(`timeout=${t.timeout}ms`); }
+    if (ch.length) { logLine(`# RETUNED ${new Date().toISOString()} ${ch.join(" ")}`); console.log("Re-tuned: " + ch.join(", ") + "."); }
+  };
+
   // Poll the control files: stop -> graceful shutdown; pause/resume -> log the
-  // transition (workers check isPaused() themselves).
+  // transition (workers check isPaused() themselves); tune-file -> apply live.
   let pausedState = false;
-  if (cfg.stopFile || cfg.pauseFile) {
+  if (cfg.stopFile || cfg.pauseFile || cfg.tuneFile) {
     controlTimer = setInterval(() => {
       if (cfg.stopFile && fs.existsSync(cfg.stopFile)) { shutdown("STOPPED"); return; }
+      applyTune();
       const p = isPaused();
       if (p && !pausedState) { pausedState = true; logLine(`# PAUSED ${new Date().toISOString()} crawled=${state.crawled}`); console.log("Paused."); }
       else if (!p && pausedState) { pausedState = false; logLine(`# RESUMED ${new Date().toISOString()}`); console.log("Resumed."); }

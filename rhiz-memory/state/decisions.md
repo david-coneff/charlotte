@@ -367,3 +367,28 @@ pager: a 1,501-row nested `.subtable` inside a 3-row main table gets its own pag
 page 1, Next → the remaining 501) while the 3-row main table gets none. AD-018's main-table
 paging still passes; the default (no `--paginate`) report is unchanged except the one CSS
 comment line. `report.js` syntax-checks (REF_CAP fully removed).
+
+## AD-020: Live re-tuning of a running crawl (`--tune-file`)
+**Date:** 2026-06-25
+**Decision:** Add `--tune-file FILE` (cfg.tuneFile): the crawler watches a JSON file on the
+existing control-poll (every 400ms) and, when its content changes, applies new `delay` /
+`rps` / `crawlDelay` / `timeout` to the **running** crawl without restarting. Implemented by
+making the rate limiter read the gap each request (`makeRateLimiter` now accepts a getter,
+not just a number) and by `applyTune()` mutating `cfg`/the local `crawlDelay` (workers
+already read `cfg.delay` per loop, so no worker change). The file's content at startup is
+baselined (not applied), so a stale file can't override CLI flags. GUI: a `writeTune()`
+writes the Delay/Max-req-sec/Timeout fields to `crawl-gui-tune.json` on **Resume**, and the
+tune file is deleted at crawl start; `--tune-file` is added to the run command.
+**Rationale:** the operator wanted to pause, change *how it crawls* (e.g. pace between
+requests), and resume without re-crawling. Rate is the common "the setting is the problem"
+lever (getting throttled), and `--rps` is a hard global cap, so live delay/rps fully control
+pace. Concurrency/depth/scope aren't hot-swappable but don't need re-crawling either — the
+existing Stop → **Resume crawl** journal flow (AD-012/015) already continues with new
+settings without re-fetching. Keeping the worker pool untouched made this low-risk: a normal
+crawl (no `--tune-file`) is byte-identical to before.
+**Verification:** a normal crawl without `--tune-file` is byte-identical (HTML + JSON) to the
+pre-change version. End-to-end: a 40-page chain crawl at `--rps 2`, then the exact
+pause→edit→resume flow — log shows `PAUSED crawled=5` → `RETUNED rps=off` → `RESUMED`,
+`Re-tuned: rps=off` printed, all 40 pages crawled, finishing in ~4s (vs ~20s if the cap had
+stayed) — proving the new rate took effect mid-crawl, not just logged. `crawl.js`/`cli.js`/
+`netutil.js` syntax-check; the GUI HTA's JScript parses and the tune wiring is present.

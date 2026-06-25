@@ -360,6 +360,35 @@ the interrupted run for you.
 The journal grows with the crawl (it records the discovered link graph), so it's
 opt-in via `--state` and independent of the report/log checkpoints above.
 
+### Re-tuning the pace mid-crawl (`--tune-file`) — no restart
+
+If you realize partway in that the **pace is the problem** (getting rate-limited, or
+just too slow), you don't have to start over. Run with `--tune-file FILE` and the
+crawler watches that JSON file; when you change it, the new pacing applies to the
+**running** crawl:
+
+```json
+{ "delay": 1000, "rps": 0.5, "crawlDelay": 2, "timeout": 30000 }
+```
+
+Any subset of `delay` (ms between a worker's requests), `rps` (global requests/sec
+cap, `0` = uncapped), `crawlDelay` (seconds between requests), and `timeout` (ms) is
+applied live — each request re-reads the rate, so a change takes effect within a
+moment. The crawler logs a `RETUNED …` line and prints `Re-tuned: …`. The natural
+flow is **pause → edit → resume**, and the file's contents at startup are the
+baseline (so a stale file can't override your CLI flags).
+
+In the Windows **GUI** this is automatic: **Pause**, change the **Delay**, **Max
+req/sec**, or **Timeout** fields, and click **Resume** — the new values are written to
+the tune file and picked up without restarting. `rps` is a hard cap on the actual
+request rate, so lowering it is the most direct way to back off a site that's
+throttling you.
+
+> Structural settings (concurrency, depth, scope, …) aren't hot-swappable, but you
+> don't have to re-crawl to change them either: **Stop**, change them, and **Resume
+> crawl** — the journal (above) continues from where it stopped without re-fetching
+> pages already done.
+
 ### Memory on big sites
 
 A crawler must remember every URL it has seen to avoid re-crawling, so peak memory

@@ -31,6 +31,7 @@ function parseArgs(argv) {
     logMaxBytes: 5 * 1024 * 1024,    // roll to a new log part at this size (0 = single file)
     stopFile: "",                    // if this file appears, stop gracefully (GUI Stop button)
     pauseFile: "",                   // while this file exists, pause crawling (GUI Pause button)
+    tuneFile: "",                    // JSON file watched live; changes re-tune delay/rps/crawl-delay/timeout mid-crawl
     includeSubdomains: false,
     checkExternal: false,
     browser: false,                  // send a desktop-browser UA + Accept headers
@@ -73,6 +74,7 @@ function parseArgs(argv) {
       case "--log-max-bytes": cfg.logMaxBytes = Math.max(0, num(next(), arg)); break;
       case "--stop-file": cfg.stopFile = next(); break;
       case "--pause-file": cfg.pauseFile = next(); break;
+      case "--tune-file": cfg.tuneFile = next(); break;
       case "--max-depth": {
         const dv = next();
         if (/^(none|unlimited|all|inf|infinity)$/i.test(dv) || Number(dv) < 0) cfg.maxDepth = Infinity;
@@ -167,6 +169,10 @@ Options:
                           write a partial report (used by the GUI Stop button)
   --pause-file FILE       While this file exists, pause crawling; delete it to
                           resume (used by the GUI Pause button)
+  --tune-file FILE        Watch this JSON file and apply changes to it live, without
+                          restarting: { "delay": ms, "rps": n, "crawlDelay": s,
+                          "timeout": ms }. Pause, edit the file (or change the GUI
+                          fields and hit Resume), and the new pacing takes effect.
 
 Reconstruct a partitioned log into one composite stream:
   node crawl.js --merge-logs <manifest-or-log-base> [--out FILE]

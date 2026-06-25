@@ -17,6 +17,7 @@ crawl-gui-run.log
 crawl-gui-err.log
 crawl-gui-stop.flag
 crawl-gui-pause.flag
+crawl-gui-tune.json
 # GUI default Start URLs — your personal list (the .example template stays tracked)
 crawl-gui-domains.txt
 # crawl-render.js (browser second-opinion) outputs

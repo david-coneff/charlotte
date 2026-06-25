@@ -204,6 +204,7 @@ var livePath = "";      // the crawler's progress log we tail (lock-free, live)
 var errPath = "";       // captured node stdout/stderr (for launch failures)
 var stopPath = "";      // Stop control file
 var pausePath = "";     // Pause control file
+var tunePath = "";      // Live re-tune file (delay/rps/timeout applied on Resume)
 var isPaused = false;
 // Incremental log parsing state (so huge logs don't get re-read/re-parsed each
 // poll — that was making the live counts read 0 on large crawls).
@@ -407,11 +408,12 @@ function startCrawl(resume) {
   batPath  = workDir + "\\crawl-gui-run.bat";
   stopPath = workDir + "\\crawl-gui-stop.flag";
   pausePath = workDir + "\\crawl-gui-pause.flag";
+  tunePath = workDir + "\\crawl-gui-tune.json";
 
   // The batch runs node (with control files), sends node's own console to the
   // err log, and appends a DONE_<exitcode> marker to the live log we poll.
   var runCmd = buildCommand() +
-    " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath) +
+    " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath) + " --tune-file " + q(tunePath) +
     (resume ? " --resume crawl-gui-state.jsonl" : "");
   var bat = "";
   bat += "@echo off\r\n";
@@ -422,6 +424,7 @@ function startCrawl(resume) {
   try {
     deleteIfExists(stopPath);
     deleteIfExists(pausePath);
+    deleteIfExists(tunePath);   // start clean so stale tune values can't carry over
     deleteIfExists(livePath);   // fresh live log for this run
     writeFile(batPath, bat);
   } catch (e) {
@@ -541,12 +544,27 @@ function togglePause() {
     setActivity("paused", true);
     setStatus("Paused — click Resume to continue.", "muted");
   } else {
+    writeTune();              // apply any changed Delay / Max req-sec / Timeout on resume
     deleteIfExists(pausePath);
     isPaused = false;
     $("pauseBtn").innerHTML = "Pause";
     setActivity("resuming&hellip;", false);
-    setStatus("Crawling…", "muted");
+    setStatus("Crawling… (live settings applied)", "muted");
   }
+}
+
+// Write the live-tunable rate fields to the tune file the running crawler watches.
+// Called on Resume so a changed Delay / Max req-sec / Timeout takes effect WITHOUT
+// restarting. Only delay/rps/timeout are hot-swappable; other settings need a
+// Stop + Resume crawl (which continues without re-crawling).
+function numField(id) { var v = val(id); if (v === "") return null; var n = parseFloat(v); return isNaN(n) ? null : n; }
+function writeTune() {
+  if (!tunePath) return;
+  var parts = [];
+  var d = numField("delay"); if (d !== null) parts.push('"delay":' + d);
+  var r = numField("rps"); if (r !== null) parts.push('"rps":' + r);
+  var t = numField("timeout"); if (t !== null) parts.push('"timeout":' + t);
+  try { writeFile(tunePath, "{" + parts.join(",") + "}"); } catch (e) {}
 }
 
 // mm:ss from whole seconds.

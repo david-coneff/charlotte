@@ -641,3 +641,36 @@ determined by hand — useful for re-checking stale results and for handing tria
 persisted to `cwts:`, re-stamp on verdict swap, cleared on untick + removed from storage, restored
 verbatim on reload, empty for a verdict with no saved stamp); fix-tracker export unaffected; report.js
 + embedded IIFE parse; partial reports render no `tscell`/`Last tested` column cells.
+
+## AD-030: Share testing verdicts (export/import JSON + bake-into-copy)
+**Date:** 2026-06-25
+**Decision:** Triage verdicts (Broken/Working + Last-tested timestamps) live in localStorage, so
+they don't travel when the report `.html` is emailed. Add a **Share your testing verdicts** toolbar
+(above the tabs, final report only, shown only when there are links to triage) with two paths:
+- **Save shareable copy** — serialize the live page (`document.documentElement.outerHTML`), strip any
+  prior seed, and inject a `<script>window.__CW_SEED__={host,v}</script>` island just before
+  `</head>` (so it runs before the wiring IIFE). The downloaded HTML carries the verdicts baked in;
+  email the single file. On open, `seedFromCopy()` primes localStorage from the seed **only if the
+  recipient has no verdicts for this host** (never clobbers their work), and `getF`/`getS` fall back
+  to the seed when localStorage is unavailable (read-only display even on locked-down `file://`).
+- **Export / Import verdicts (JSON)** — Export writes `{app:'charlotte-verdicts',host,v:{cw* keys}}`
+  as `charlotte-verdicts-<host>.json`; Import validates app+host, **merges by link** (clears+sets the
+  three keys for each url the file mentions; leaves untouched urls alone — so multiple people's
+  exports combine), then `location.reload()`. A file for a different host is refused.
+**Key details / gotchas:**
+- The seed JSON is escaped `<` → `<` (browser-side, written as a 4-backslash literal in the
+  Node template so the emitted inline script is `'\\u003c'`) — a URL containing `</script>` therefore
+  can't break out of the seed `<script>` and round-trips back to `<` on the recipient. The literal
+  `<script>`/`</script>` tags are built via `'<scr'+'ipt>'` concatenation to avoid a literal closing
+  tag in the inline source. Re-sharing strips the old seed (indexOf loop) so seeds don't accumulate.
+- New code is scoped inside the existing triage IIFE (reuses HOST/L/key/getF/getS); a local `toast`
+  + `dl` mirror the export IIFE's. Buttons wired by id with `if(el)` guards. Browser APIs
+  (Blob/URL/FileReader/location/setTimeout) used conventionally — same Blob-download pattern as the
+  proven allowlist/fix-tracker exports.
+**Rationale:** the operator asked whether emailing the file carries verdicts (it doesn't) and, when
+told, wanted both a single-file handoff and a mergeable export/import.
+**Verification:** 19/19 DOM-stub assertions (export JSON content + host scoping; import per-url
+replace + reload + host-mismatch/garbage rejection; shareable-copy seed injected before `</head>`,
+single seed, strip-on-reshare; seed primes empty / doesn't clobber existing; no-localStorage seed
+fallback display) + the seed `<`-escape round-trip checked against a `</script>`-bearing URL. Existing
+triage (38) + fix-tracker export (6) still pass; all 7 embedded scripts parse; report.js parses.

@@ -551,6 +551,27 @@ you marked *Working* are excluded. Two tabs (internal/external) styled like this
 report; ticks and notes **persist in the browser** (localStorage), so it can be worked
 through and handed off over time.
 
+#### Sharing your verdicts
+
+Your Broken/Working ticks and **Last tested** timestamps are stored in **your browser's
+localStorage**, *not* inside the report file — so if you simply email the `.html`, the
+recipient opens a blank-triage copy (nothing travels). A **Share your testing verdicts**
+toolbar (above the tabs, on the final report) carries them across:
+
+- **💾 Save shareable copy** — downloads a *new* self-contained report HTML with your current
+  verdicts and timestamps **baked in** (as a `window.__CW_SEED__` island). Email that single
+  file; the recipient just opens it and sees everything. It primes their browser only if they
+  have no verdicts for this site yet (so it never clobbers their own triage), and it still
+  displays even where `file://` localStorage is disabled.
+- **⬇ Export verdicts** / **⬆ Import verdicts** — Export writes a small JSON of every tick +
+  timestamp (`charlotte-verdicts-<host>.json`) to send alongside the report; Import loads such
+  a file and reloads. Import **merges by link** (each link the file mentions is replaced; links
+  it doesn't mention are left alone), so several people's triage can be combined. A verdicts
+  file made for a different site is rejected.
+
+(The **fix tracker** export above is already a self-contained file, so *it* survives emailing
+too — but it's the referrer-grouped “what to fix” view, not the raw Broken/Working verdicts.)
+
 Every broken link lists **all** the pages that link to it (each a clickable
 "found on" referrer); when there's more than one, they're shown in a collapsible
 table inside the row, so you can fix every reference. The full referrer lists are

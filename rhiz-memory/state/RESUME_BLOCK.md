@@ -27,16 +27,18 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Added a **Last tested** timestamp column to the triage tabs
-  (2026-06-25, AD-029). A column to the left of the Broken/Working boxes on all three tabs
-  (Errors · internal/external + Blocked · uncertain) **auto-fills the local date & time**
-  (`YYYY-MM-DD HH:MM`) whenever a verdict is set — re-stamps when the verdict changes, clears when
-  you untick back to no verdict — so the latest manual result carries a timestamp in the record.
-  Persisted via a new string-valued `cwts:` localStorage key (restored verbatim on reload, no
-  retroactive stamp), generated client-side with `new Date()`. Column is gated on `showPick`
-  (final reports only), so partial/auto-refresh reports are unaffected. Verified: 38/38 DOM-stub
-  assertions pass; fix-tracker export unaffected; report.js + IIFE parse.
-  (Prior step — AD-028 — unified the triage into mutually-exclusive Broken/Working boxes.)
+- **last_completed_step**: Added a **Share your testing verdicts** toolbar (2026-06-25, AD-030)
+  because triage verdicts live in localStorage and don't travel when the report `.html` is emailed.
+  Above the tabs (final report, shown only when there's something to triage): **💾 Save shareable
+  copy** bakes the current Broken/Working verdicts + timestamps into a new self-contained report
+  (a `window.__CW_SEED__` island injected before `</head>`; on open it primes the recipient only
+  if they have no verdicts yet, and `getF`/`getS` fall back to the seed where `file://` localStorage
+  is blocked); **⬇ Export / ⬆ Import verdicts** move them as a small JSON (import merges by link
+  then reloads; host-checked). Seed JSON is `<`-escaped so a `</script>`-bearing URL can't break out.
+  Verified: 19/19 share DOM-stub assertions + the escape round-trip; triage (38) + fix-tracker (6)
+  still pass; all 7 embedded scripts parse.
+  (Prior steps — AD-028 unified triage into mutually-exclusive Broken/Working; AD-029 added the
+  Last-tested timestamp column.)
 
 - **resume_instructions**:
   1. Read `rhiz-memory/state/SESSION_HANDOFF.md` for full context.

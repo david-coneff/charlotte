@@ -255,6 +255,10 @@ function buildReport(state, cfg, allow, partial) {
   const trackerEmbed = showPick
     ? `<script>window.__CW_BROKEN__=${brokenLiteral};window.__CW_TPL__=${trackerLiteral};</script>`
     : "";
+  // Share toolbar — only meaningful when there are links to triage. Lets you carry your
+  // Broken/Working verdicts (which live in localStorage, not the file) to someone else.
+  const hasTriage = showPick && (activeInt.length || activeExt.length || blocked.length);
+  const shareBar = `<div class="card sharebar"><p class="muted" style="margin:0 0 8px;font-size:13px"><strong>Share your testing verdicts.</strong> Your Broken/Working ticks &amp; timestamps are saved in <em>this</em> browser only — they don't travel if you just email this file. To hand them off:</p><div class="exportbar"><button type="button" class="btn" id="cwSaveCopy" title="Download a new self-contained report with your current verdicts baked in — email that file and the recipient just opens it">💾 Save shareable copy</button><span class="vsep"></span><button type="button" class="btn" id="cwExportV" title="Download your verdicts as a small JSON file to send alongside the report">⬇ Export verdicts</button><button type="button" class="btn" id="cwImportV" title="Load verdicts from a JSON file someone shared with you (merges by link, then reloads)">⬆ Import verdicts</button><input type="file" id="cwImportFile" accept="application/json,.json" style="display:none"></div></div>`;
   // One-line helper under each Errors table explaining the two kinds of checkbox.
   const pickHelp = `<p class="muted" style="margin:2px 0 10px">First box selects a link for the <strong>allowlist</strong>. Then two mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The <strong>Last tested</strong> column auto-fills the date &amp; time of your latest verdict. The box beside each “found on” page marks that referrer <strong>fixed</strong>. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page). Ticks are saved in this browser.</p>`;
 
@@ -373,6 +377,7 @@ function buildReport(state, cfg, allow, partial) {
  tr.notbroken td:not(.tcol):not(.tscell):not(:first-child){opacity:.45;text-decoration:line-through}
  tr.confirmed td:not(.tcol):not(.tscell){color:var(--bad)}
  .exportbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}.exportbar .grow{flex:1}
+ .sharebar{border-left:3px solid var(--accent);padding-top:12px;padding-bottom:12px}.sharebar .exportbar{margin:0}
  .selcount{color:var(--muted);font-size:12px}
  .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
  .btn.exportbtn:not(:disabled){background:var(--accent);color:#06121f;border-color:var(--accent);font-weight:600}
@@ -411,6 +416,7 @@ function buildReport(state, cfg, allow, partial) {
  </div>
  <p class="muted" style="margin:10px 2px 0;font-size:13px"><strong>Destinations</strong> are <em>unique</em> URLs (there are relatively few); <strong>instances</strong> count <em>every</em> hyperlink to them across all pages (there are many). One destination linked from 500 pages is <strong>1 destination</strong> but <strong>500 hyperlink instances</strong>.</p>
  </div>
+ ${hasTriage ? shareBar : ""}
  <div class="card">
   <div class="tabs">
    <div class="tab active" data-tab="internal">Internal pages (${state.pages.length.toLocaleString()})</div>
@@ -628,11 +634,17 @@ ${trackerEmbed}
   // you tick Working, which subtracts it and drops it from the fix tracker. The Blocked
   // tab defaults to UNCERTAIN (not counted): ticking Broken adds it and routes it into the
   // tracker by kind. A "Last tested" cell auto-fills the date+time of the latest verdict.
-  // Ticks + timestamps persist in this browser (cwbroken: / cwok: / cwts: keys).
+  // Ticks + timestamps persist in this browser (cwbroken: / cwok: / cwts: keys). Because that
+  // state lives in localStorage (not the file), a share toolbar can export/import the verdicts as
+  // JSON or bake them into a self-contained "shareable copy" (window.__CW_SEED__) for emailing.
   var HOST=${JSON.stringify(state.startHost)}, SCOPES=['errint','errext','blockd'], ERRS=['errint','errext'];
   function L(){ try{ return localStorage; }catch(e){ return null; } }
   function key(pfx,url){ return pfx+HOST+':'+url; }
-  function getF(k){ var s=L(); if(!s) return false; try{ return s.getItem(k)==='1'; }catch(e){ return false; } }
+  // __CW_SEED__ carries verdicts baked into a "shareable copy" (see saveShareableCopy). When this
+  // browser exposes no localStorage (some file:// modes), getF/getS fall back to it so the copy
+  // still displays the sender's verdicts read-only.
+  function seedGet(k){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; return (sd&&sd.v&&sd.v.hasOwnProperty(k))?sd.v[k]:null; }
+  function getF(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null&&sv==='1'; } try{ return s.getItem(k)==='1'; }catch(e){ return false; } }
   function setF(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,'1'); else s.removeItem(k); }catch(e){} }
   function panel(scope){ return document.getElementById('panel-'+scope); }
   function rowOf(el){ var n=el; while(n&&n.nodeName!=='TR') n=n.parentNode; return n; }
@@ -640,7 +652,7 @@ ${trackerEmbed}
   function addCls(el,c){ if(!hasCls(el,c)) el.className=(el.className?el.className+' ':'')+c; }
   function rmCls(el,c){ el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^ +| +$/g,''); }
   // String-valued persistence (for the "last tested" timestamp; getF/setF only do flags).
-  function getS(k){ var s=L(); if(!s) return ''; try{ return s.getItem(k)||''; }catch(e){ return ''; } }
+  function getS(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null?sv:''; } try{ return s.getItem(k)||''; }catch(e){ return ''; } }
   function setS(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,v); else s.removeItem(k); }catch(e){} }
   // Auto-filled "Last tested" stamp = local date+time the row's latest verdict was set.
   // Updated whenever Broken or Working is ticked; cleared when the row returns to no verdict.
@@ -648,6 +660,23 @@ ${trackerEmbed}
   function tsCell(tr){ return tr?tr.querySelector('.tscell'):null; }
   function setTs(tr,url){ var s=nowStr(), c=tsCell(tr); if(c) c.textContent=s; setS(key('cwts:',url), s); }
   function clrTs(tr,url){ var c=tsCell(tr); if(c) c.textContent=''; setS(key('cwts:',url), ''); }
+  // ---- share testing verdicts (localStorage stays in THIS browser; the file doesn't carry it) ----
+  function toast(msg){ var t=document.getElementById('cw-toast'); if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); } t.textContent=msg; t.className='toast show'; setTimeout(function(){ t.className='toast'; }, 2600); }
+  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
+  // Snapshot every saved verdict (cwbroken: / cwok: / cwts:) for THIS crawl's host.
+  function collectState(){ var out={app:'charlotte-verdicts', host:HOST, v:{}}, s=L(); if(!s) return out; var i,k,n=0; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0||k.indexOf('cwts:'+HOST+':')===0)) out.v[k]=s.getItem(k); } return out; }
+  function countVerdicts(st){ var links={}, k, pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', v=(st&&st.v)||{}; for(k in v){ if(!v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) links[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) links[k.slice(po.length)]=1; } var c=0,z; for(z in links){ if(links.hasOwnProperty(z)) c++; } return c; }
+  function exportVerdicts(){ var st=collectState(), c=countVerdicts(st); if(!c){ toast('No verdicts to export yet — mark some links Broken or Working first'); return; } toast(dl(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}), 'charlotte-verdicts-'+HOST+'.json') ? ('Exported '+c+' verdict'+(c===1?'':'s')) : 'Export failed'); }
+  // Replace each url the file has an opinion on (clear its 3 keys, then set what the file holds);
+  // urls the file doesn't mention are left as-is, so several people's exports merge cleanly.
+  function applyState(obj){ var s=L(); if(!s||!obj||!obj.v) return 0; var pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', pt='cwts:'+HOST+':', urls={}, k; for(k in obj.v){ if(!obj.v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) urls[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) urls[k.slice(po.length)]=1; else if(k.indexOf(pt)===0) urls[k.slice(pt.length)]=1; } var u; for(u in urls){ if(urls.hasOwnProperty(u)){ try{ s.removeItem(pb+u); s.removeItem(po+u); s.removeItem(pt+u); }catch(e){} } } var c=0; for(k in obj.v){ if(obj.v.hasOwnProperty(k)){ try{ s.setItem(k,obj.v[k]); c++; }catch(e){} } } return c; }
+  function importVerdicts(file){ if(!file) return; if(!L()){ toast('This browser blocks storage for local files — serve the report over a local web server to import'); return; } var r=new FileReader(); r.onload=function(){ var obj; try{ obj=JSON.parse(String(r.result)); }catch(e){ obj=null; } if(!obj||obj.app!=='charlotte-verdicts'||!obj.v){ toast('That isn\\'t a Charlotte verdicts file'); return; } if(obj.host!==HOST){ toast('That file is for “'+obj.host+'”, not “'+HOST+'” — not applied'); return; } var c=countVerdicts(obj); applyState(obj); toast('Imported '+c+' verdict'+(c===1?'':'s')+' — reloading…'); setTimeout(function(){ try{ location.reload(); }catch(e){} }, 700); }; r.onerror=function(){ toast('Could not read the file'); }; try{ r.readAsText(file); }catch(e){ toast('Could not read the file'); } }
+  // Bake the current verdicts into a fresh self-contained copy of this report: serialize the page,
+  // strip any prior seed, and inject window.__CW_SEED__ just before </head> so it runs first.
+  function saveShareableCopy(){ var st=collectState(), c=countVerdicts(st); var SO='<scr'+'ipt>window.__CW_SEED__=', SC='</scr'+'ipt>'; var seed=SO+JSON.stringify(st).replace(/</g,'\\\\u003c')+';'+SC; var src='<!doctype html>\\n'+document.documentElement.outerHTML, pos; while((pos=src.indexOf(SO))>=0){ var en=src.indexOf(SC,pos); if(en<0) break; src=src.slice(0,pos)+src.slice(en+SC.length); } if(src.indexOf('</head>')>=0) src=src.replace('</head>', seed+'</head>'); else src=seed+src; toast(dl(new Blob([src],{type:'text/html;charset=utf-8'}), 'charlotte-report-'+HOST+'-shared.html') ? ('Saved a shareable copy with '+c+' verdict'+(c===1?'':'s')+' baked in') : 'Save failed'); }
+  // On opening a shared copy: prime localStorage from the seed, but ONLY if this browser has no
+  // verdicts for this host yet — never clobber a recipient's own triage.
+  function seedFromCopy(){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; if(!sd||!sd.v||sd.host!==HOST) return; var s=L(); if(!s) return; var i,k,n=0,has=false; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0)){ has=true; break; } } if(has) return; for(k in sd.v){ if(sd.v.hasOwnProperty(k)){ try{ s.setItem(k,sd.v[k]); }catch(e){} } } }
   function update(scope){
     var p=panel(scope); if(!p) return;
     var trs=p.querySelectorAll('tr[data-url]'), n=0, tested=0, broke=0, ok=0, i;
@@ -681,7 +710,13 @@ ${trackerEmbed}
     for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ var url=this.getAttribute('data-url'), tr=rowOf(this); setF(key('cwok:',url), this.checked); if(this.checked){ var b=tr.querySelector('.brokenbox'); if(b&&b.checked){ b.checked=false; setF(key('cwbroken:',url),false); rmCls(tr,'confirmed'); } addCls(tr,'notbroken'); setTs(tr,url); } else { rmCls(tr,'notbroken'); clrTs(tr,url); } update(scope); }); }
     update(scope);
   }
+  seedFromCopy();
   for(var s=0;s<SCOPES.length;s++){ wire(SCOPES[s]); }
+  // Wire the share toolbar (final report only; absent otherwise).
+  var bCopy=document.getElementById('cwSaveCopy'); if(bCopy) bCopy.addEventListener('click', saveShareableCopy);
+  var bExp=document.getElementById('cwExportV'); if(bExp) bExp.addEventListener('click', exportVerdicts);
+  var bImp=document.getElementById('cwImportV'), fImp=document.getElementById('cwImportFile');
+  if(bImp&&fImp){ bImp.addEventListener('click', function(){ fImp.click(); }); fImp.addEventListener('change', function(){ var f=this.files&&this.files[0]; importVerdicts(f); try{ this.value=''; }catch(e){} }); }
 })();</script>
 <script>(function(){
   // External-links tab: one control to expand/collapse all the per-domain sections.

@@ -893,3 +893,32 @@ links included, `blockedInt/blockedExt` merged away; marking any link Working (a
 link; untested blocked needs no Broken confirmation. Structural check: exactly **one** `trackbtn`, in the
 share bar, none on the tabs. Headless screenshot of the share bar shows the prominent button + description.
 domtest/vtest/sharetest/revtest/newwin/tracker3 all pass.
+
+## AD-054: Stats row — test-completeness outlines, broken-first order, "Total unique destinations"
+**Date:** 2026-06-26
+**Problem:** three asks for the headline stats. (1) The three "broken" stats (Broken hyperlink instances,
+Broken·internal, Broken·external) gave no signal of whether they were *trustworthy yet* — a count is only
+final once every link in that category has been triaged. (2) They're the most important numbers but were
+scattered mid-row. (3) The "Requests" stat (AD-044) was poorly named for what it represents.
+**Decision:**
+- **Test-completeness outline.** Each of the three broken cards gets a dashed outline: **green** when
+  every triageable link in its category has a verdict (count is final), **amber** while any remain
+  untested (count may still change), none when there's nothing to test. "Category" = Internal (errint
+  rows + blocked-internal), External (errext rows + blocked-external), and — because **Broken hyperlink
+  instances** spans both plus blocked — its outline needs *every* triage link tested. Computed inside the
+  existing `recomputeBroken()` (so it updates live on load and every verdict change) via a new
+  `setTestState(el,tested,total)`; the tally is folded into recomputeBroken's existing single pass. CSS:
+  `.stat.tested-all{outline:2px dashed var(--good);outline-offset:-1px}` / `.tested-partial{...var(--warn)}`
+  — inset outline, so no layout shift; independent of the red `bad` number class.
+- **Broken-first order.** The three broken stats moved to the front (left/top) of the grid.
+- **"Total unique destinations"** replaces "Requests": value = `state.pages.length + state.external.size`
+  (internal + external destinations), positioned right after External destinations as their running total
+  (so the trio reads Internal → External → Total). The old request-count value (`crawled + externalChecked`,
+  AD-044) is dropped along with its now-dead `requestCount`/`externalChecked`; **Queued** stays on partial
+  reports. **This supersedes AD-044.**
+**Verification:** headless real-click probe on the rendered report — on load all three broken cards are
+`tested-partial` (amber); after marking the 3 internal-category links, Broken·internal flips to
+`tested-all` (green) while Broken·external and Broken hyperlink instances stay amber; after the 2
+external-category links, all three are green. Structural: stat order is broken-trio first, then
+Internal/External/**Total unique destinations** (= 5 = 3+2), "Requests" gone. domtest/vtest/sharetest/
+revtest/exporttest/newwin/tracker3 all pass.

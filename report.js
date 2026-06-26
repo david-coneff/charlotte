@@ -94,12 +94,6 @@ function buildReport(state, cfg, allow, partial) {
   // browser as links are marked "Working" (each such link drops its instances).
   const brokenInstCount = (url) => refsOf(url).length || 1;
   const brokenInstances = active.reduce((n, e) => n + brokenInstCount(e.url), 0);
-  // "Requests" = every link the crawler actually hit: internal pages crawled (state.crawled
-  // counts internal visits, including failed ones) PLUS external destinations it verified.
-  // External links start with status null and only get ok/err/blocked once probed, so a
-  // non-null status marks a real request (0 when external checking was off).
-  const externalChecked = [...state.external.values()].filter((e) => e.status === "ok" || e.status === "err" || e.status === "blocked").length;
-  const requestCount = (state.crawled || 0) + externalChecked;
   // Compact "found on" for the external / out-of-scope tables: first few + count.
   const srcCell = (url) => {
     const arr = refsOf(url);
@@ -312,6 +306,10 @@ function buildReport(state, cfg, allow, partial) {
  .stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
  .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}.stat .n{font-size:26px;font-weight:700}.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
  .stat.good .n{color:var(--good)}.stat.bad .n{color:var(--bad)}.stat.warn .n{color:var(--warn)}
+ /* Test-completeness outline on the three "broken" stats: green = every link in that category has a
+    verdict (count is final); amber = some still untested (count may change). Inset outline -> no shift. */
+ .stat.tested-all{outline:2px dashed var(--good);outline-offset:-1px}
+ .stat.tested-partial{outline:2px dashed var(--warn);outline-offset:-1px}
  table{width:100%;border-collapse:collapse;font-size:13px;min-width:820px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
  th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
  /* URL and Found-on columns get real width; long URLs wrap at sensible points, not every character */
@@ -405,16 +403,17 @@ function buildReport(state, cfg, allow, partial) {
 <p>${esc(cfg.startUrl)} · ${esc(state.startedAt)}<br>${esc(cfgLine)}</p>${banner}</header>
 <main>
  <div class="card"><div class="stats">
+  ${stat(`<span id="brokenInstN">${brokenInstances.toLocaleString()}</span>`, "Broken hyperlink instances", brokenInstances ? "bad" : "", "Hyperlink instances that point at a broken destination — each broken destination counted once per page that links to it (the real cleanup workload). Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”. Outline: GREEN dashed once every internal + external + blocked link has been tested (so this total is final); AMBER while some are still untested (it may yet change).")}
+  ${stat(`<span id="brokenIntN">${activeInt.length.toLocaleString()}</span>`, "Broken · internal", activeInt.length ? "bad" : "", "Unique broken internal destinations — pages on your site that don't load. Updates live as you triage. Outline: GREEN dashed once every internal link (errors + blocked) has been tested; AMBER while some are still untested.")}
+  ${stat(`<span id="brokenExtN">${activeExt.length.toLocaleString()}</span>`, "Broken · external", activeExt.length ? "bad" : "", "Unique broken external destinations — off-site URLs that don't resolve. Updates live as you triage. Outline: GREEN dashed once every external link (errors + blocked) has been tested; AMBER while some are still untested.")}
   ${stat(state.pages.length.toLocaleString(), "Internal destinations", "good", "Unique same-domain pages crawled — distinct destinations on your own site. (One per URL, however many pages link to it.)")}
   ${stat(state.external.size.toLocaleString(), "External destinations", "warn", "Unique off-site URLs your pages link to. Usually far fewer than the hyperlink instances — one destination is typically linked from many pages.")}
+  ${stat((state.pages.length + state.external.size).toLocaleString(), "Total unique destinations", "", "Every distinct destination Charlotte saw — internal destinations (same-domain pages crawled) plus external destinations (off-site URLs your pages link to). The sum of the two stats to its left; counts each URL once, however many pages link to it.")}
   ${stat(linkInstances.toLocaleString(), "Hyperlink instances", "", "Every hyperlink occurrence across all crawled pages (internal + external), NOT deduplicated — a destination linked from N pages counts N times. So this runs much larger than the unique destination counts.")}
-  ${stat(`<span id="brokenInstN">${brokenInstances.toLocaleString()}</span>`, "Broken hyperlink instances", brokenInstances ? "bad" : "", "Hyperlink instances that point at a broken destination — each broken destination counted once per page that links to it (the real cleanup workload). Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”.")}
   ${oosStat}
-  ${stat(`<span id="brokenIntN">${activeInt.length.toLocaleString()}</span>`, "Broken · internal", activeInt.length ? "bad" : "", "Unique broken internal destinations — pages on your site that don't load. Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”.")}
-  ${stat(`<span id="brokenExtN">${activeExt.length.toLocaleString()}</span>`, "Broken · external", activeExt.length ? "bad" : "", "Unique broken external destinations — off-site URLs that don't resolve. Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”.")}
   ${stat(blocked.length, "Blocked · uncertain", blocked.length ? "warn" : "")}
   ${stat(suppressed.length, "Suppressed", "")}
-  ${partial ? stat(state.queue.length, "Queued", "") : stat(requestCount.toLocaleString(), "Requests", "", `Every link the crawler actually requested: ${(state.crawled || 0).toLocaleString()} internal page${state.crawled === 1 ? "" : "s"} crawled${externalChecked ? ` + ${externalChecked.toLocaleString()} external destination${externalChecked === 1 ? "" : "s"} verified` : " (external links weren't verified)"}. Excludes automatic rate-limit retries.`)}
+  ${partial ? stat(state.queue.length, "Queued", "") : ""}
   ${stat(fmtDur(elapsedMs), partial ? "Runtime · so far" : "Runtime", "")}
  </div>
  <p class="muted" style="margin:10px 2px 0;font-size:13px"><strong>Destinations</strong> are <em>unique</em> URLs (there are relatively few); <strong>instances</strong> count <em>every</em> hyperlink to them across all pages (there are many). One destination linked from 500 pages is <strong>1 destination</strong> but <strong>500 hyperlink instances</strong>.</p>
@@ -690,6 +689,10 @@ ${trackerEmbed}
   }
   // Set a header stat number and keep its card's red "bad" highlight in sync with the count.
   function setStat(el, v){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var card=el.parentNode&&el.parentNode.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').replace(/^\s+|\s+$/g,''); } }
+  // Test-completeness outline on a "broken" stat card: GREEN dashed when every triageable link in the
+  // category has a verdict (the count is final), AMBER dashed while any remain untested (the count may
+  // still change), none when there's nothing to test. (Independent of setStat's 'bad' class.)
+  function setTestState(el, tested, total){ if(!el) return; var card=el.parentNode&&el.parentNode.parentNode; if(!card||typeof card.className!=='string') return; var c=(' '+card.className+' ').split(' tested-all ').join(' ').split(' tested-partial ').join(' ').replace(/^\s+|\s+$/g,''); if(total>0) c+=(tested>=total?' tested-all':' tested-partial'); card.className=c; }
   // Live header stats, recomputed on load and on every verdict change. Errors tabs: each flagged
   // link counts (one unique destination + its referrer instances) UNLESS confirmed Working, so
   // clearing a false positive drops it from the instances total AND its Broken·internal/external
@@ -697,17 +700,28 @@ ${trackerEmbed}
   // internal/external by their kind. Keeps all three top-level broken stats accurate after triage.
   function recomputeBroken(){
     var inst=0, uInt=0, uExt=0, sc, p, trs, i;
-    for(sc=0;sc<ERRS.length;sc++){ p=panel(ERRS[sc]); if(!p) continue; trs=p.querySelectorAll('tr[data-url]');
-      for(i=0;i<trs.length;i++){ var o=trs[i].querySelector('.okbox'); if(o&&o.checked) continue;
+    // Per-category test completeness for the green/amber outline: a row is "tested" if either box is
+    // ticked. Internal = errint rows + blocked-internal; External = errext rows + blocked-external.
+    var iT=0, iN=0, eT=0, eN=0;
+    for(sc=0;sc<ERRS.length;sc++){ p=panel(ERRS[sc]); if(!p) continue; trs=p.querySelectorAll('tr[data-url]'); var isInt=(ERRS[sc]==='errint');
+      for(i=0;i<trs.length;i++){ var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'), td=(b&&b.checked)||(o&&o.checked);
+        if(isInt){ iN++; if(td) iT++; } else { eN++; if(td) eT++; }
+        if(o&&o.checked) continue;
         inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
-        if(ERRS[sc]==='errint') uInt++; else uExt++; } }
+        if(isInt) uInt++; else uExt++; } }
     p=panel('blockd'); if(p){ trs=p.querySelectorAll('tr[data-url]');
-      for(i=0;i<trs.length;i++){ var b=trs[i].querySelector('.brokenbox'); if(!(b&&b.checked)) continue;
+      for(i=0;i<trs.length;i++){ var bb=trs[i].querySelector('.brokenbox'), bo=trs[i].querySelector('.okbox'), ext=(trs[i].getAttribute('data-kind')==='external'), t2=(bb&&bb.checked)||(bo&&bo.checked);
+        if(ext){ eN++; if(t2) eT++; } else { iN++; if(t2) iT++; }
+        if(!(bb&&bb.checked)) continue;
         inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
-        if(trs[i].getAttribute('data-kind')==='external') uExt++; else uInt++; } }
+        if(ext) uExt++; else uInt++; } }
     setStat(document.getElementById('brokenInstN'), inst);
     setStat(document.getElementById('brokenIntN'), uInt);
     setStat(document.getElementById('brokenExtN'), uExt);
+    // Hyperlink-instances spans BOTH categories + blocked, so its outline needs every link tested.
+    setTestState(document.getElementById('brokenIntN'), iT, iN);
+    setTestState(document.getElementById('brokenExtN'), eT, eN);
+    setTestState(document.getElementById('brokenInstN'), iT+eT, iN+eN);
   }
   // Apply a verdict to ONE row: set its boxes, persist the keys, swap classes, stamp/clear the
   // Last-tested time. want is 'broken' | 'working' | '' (clears it). Shared by the per-link change

@@ -46,6 +46,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-035** (2026-06-26) — GUI resume — seed live counters from a "# resume-stats" marker
 - **AD-036** (2026-06-26) — Extract NEWWIN + TRACKER_TEMPLATE into report-templates.js
 - **AD-037** (2026-06-26) — Partial reports were zeroing the “Broken hyperlink instances” header
+- **AD-038** (2026-06-26) — External tab: two Expand/Collapse buttons instead of a single toggle
 
 ---
 

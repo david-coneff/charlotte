@@ -546,3 +546,17 @@ Final reports (`pickRows`/`blockedPickRows` carry `data-url`) are unaffected; th
 exists when errors/blocked exist, so it always has rows and never bails wrongly.
 **Verification:** partial-report header stays at the server value (not 0); final-report triage (38) /
 share (19) / fix-tracker (6) / tracker (15+18) / newwin (7) suites all pass; report.js parses.
+
+## AD-038: External tab — two Expand/Collapse buttons instead of a single state-detecting toggle
+**Date:** 2026-06-26
+**Problem:** the single Expand/Collapse-all toggle (AD-011) could show the **wrong label** — e.g. all
+per-domain sections collapsed but the button still read "Collapse all", so there was no way to expand
+them. Its label was driven by a `sync()` that recomputed "are all sections open?" from per-section
+`toggle` listeners; manually expanding/collapsing individual sections (or sections not present when the
+script wired) desynced it.
+**Decision:** replace it with **two always-present buttons — Expand all / Collapse all** — that simply
+set every `<details>` open/closed unconditionally. No state detection, no `toggle` listeners, no
+`sync()`. Robust regardless of section state. Supersedes the single-toggle part of AD-011.
+**Verification:** both buttons render (old `extToggle` gone); Collapse all closes every section, Expand
+all opens every section, and a desync scenario (collapse one manually, then Collapse all) still closes
+all — DOM-stub verified; full report suite still passes.

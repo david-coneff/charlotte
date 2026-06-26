@@ -332,7 +332,7 @@ function buildReport(state, cfg, allow, partial) {
    <div class="tab" data-tab="suppressed">Suppressed (${suppressed.length.toLocaleString()})</div>
   </div>
   <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table class="pagestbl"><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
-  <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extToggle" data-mode="collapse">Collapse all</button><span class="muted" style="font-size:12px">${byHost.size} domain${byHost.size === 1 ? "" : "s"}</span></div>${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
+  <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extExpand">Expand all</button><button type="button" class="btn" id="extCollapse">Collapse all</button><span class="muted" style="font-size:12px">${byHost.size} domain${byHost.size === 1 ? "" : "s"}</span></div>${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
   <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + testBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + testBar("errext") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>External URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeExt) : errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
@@ -632,24 +632,13 @@ ${trackerEmbed}
   if(bImp&&fImp){ bImp.addEventListener('click', function(){ fImp.click(); }); fImp.addEventListener('change', function(){ var f=this.files&&this.files[0]; importVerdicts(f); try{ this.value=''; }catch(e){} }); }
 })();</script>
 <script>(function(){
-  // External-links tab: one control to expand/collapse all the per-domain sections.
-  var P=document.getElementById('panel-external'), b=document.getElementById('extToggle');
-  if(!P||!b) return;
-  function dets(){ return P.getElementsByTagName('details'); }
-  function sync(){
-    var d=dets(), open=0, i;
-    for(i=0;i<d.length;i++){ if(d[i].open) open++; }
-    var allOpen = d.length>0 && open===d.length;
-    b.setAttribute('data-mode', allOpen?'collapse':'expand');
-    b.textContent = allOpen?'Collapse all':'Expand all';
-  }
-  b.addEventListener('click', function(){
-    var open = b.getAttribute('data-mode')!=='collapse';   // mode 'collapse' -> close all; else open all
-    var d=dets(), i; for(i=0;i<d.length;i++){ d[i].open=open; }
-    sync();
-  });
-  var d=dets(), i; for(i=0;i<d.length;i++){ d[i].addEventListener('toggle', sync); }
-  sync();
+  // External-links tab: two always-present controls — Expand all / Collapse all — that simply set
+  // every per-domain section. No state detection: a single toggle could desync from manual
+  // expand/collapse of individual sections and then show the wrong (unusable) label.
+  var P=document.getElementById('panel-external'); if(!P) return;
+  function setAll(open){ var d=P.getElementsByTagName('details'), i; for(i=0;i<d.length;i++){ d[i].open=open; } }
+  var ex=document.getElementById('extExpand'); if(ex) ex.addEventListener('click', function(){ setAll(true); });
+  var co=document.getElementById('extCollapse'); if(co) co.addEventListener('click', function(){ setAll(false); });
 })();</script>
 ${pagerScript}${NEWWIN}</body></html>`;
 }

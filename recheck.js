@@ -46,6 +46,9 @@ function loadStateFromJson(file) {
     pages, external, outOfScope, refs, errors, blocked,
     retries: (j.summary && j.summary.retries) || 0, crawlDelay: 0, crawled: pages.length, queue: [],
     startedAt: j.crawledAt || new Date().toISOString(), startedMs: Date.now(), runtimeMs,
+    // Original crawl settings (if this JSON was written by a current build) so a rebuild/re-check
+    // rewrite shows the real config line, not this process's CLI defaults. See report.effSettings.
+    settings: (j.settings && typeof j.settings === "object") ? j.settings : null,
     logParts: [], logManifest: "", logSingleFile: true,
   };
 }

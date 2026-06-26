@@ -57,6 +57,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-046** (2026-06-26) — Configurable report pagination breakpoint (--page-size + GUI dropdown)
 - **AD-047** (2026-06-26) — Fix tracker: reverse mapping (By page / By broken link) with synced Fixed flags
 - **AD-048** (2026-06-26) — Domain grouping generalized to Blocked tab + richer header (All:/Mixture/all-tested/counter)
+- **AD-049** (2026-06-26) — Persist crawl settings in the JSON so a rebuild/re-check rewrite shows the real config line
 
 ---
 

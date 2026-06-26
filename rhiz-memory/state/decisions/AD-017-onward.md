@@ -779,3 +779,30 @@ data-scope. Headless real-click (dispatched MouseEvents): errext bulk-Broken →
 all-tested on, counter "tested 2/2"; flip one to Working → Mixture on; Blocked-tab bulk-Working → both
 rows working, domWorking on; Collapse-all collapses every group (2/2). domtest (now with data-scope +
 indicator asserts), vtest, sharetest, revtest, newwin all PASS.
+
+## AD-049: Persist crawl settings in the JSON so a rebuild/re-check rewrite shows the real config line
+**Date:** 2026-06-26
+**Problem:** the crawl report's config line (concurrency · delay · rps · max pages/depth · scope · …)
+read straight off `cfg`. A fresh crawl was fine, but a **`--rebuild-from`** or **`--recheck-from`**
+REWRITE runs in a SEPARATE process whose `cfg` is mostly CLI defaults — the GUI's "Rebuild report"
+button (`buildRebuildCommand`) passes NO tuning flags at all, and "Re-check" passes only
+concurrency/delay/rps/timeout (not the page/depth limits or scope). So a rewrite stamped the report
+with bogus defaults — the user crawled at concurrency 2 / delay 3000 / rps 1 / no page+depth limit but
+the rebuilt report showed `4 concurrent · 100ms · no rps cap · max 200 pages / depth 3`. The settings
+were never persisted in the `--json`, so on rewrite the originals were simply gone.
+**Decision:** persist the crawl's display settings in the report JSON and restore them on rewrite,
+WITHOUT touching the live cfg that drives the re-probe. `report.js` gains `effSettings(state, cfg)` —
+returns `state.settings` (restored from JSON) when present, else falls back to `cfg`. `buildReport`
+builds the config line from it; `buildReportJson` writes a `settings` block
+(`{concurrency, delay, rps, maxPages, maxDepth, includeSubdomains, checkExternal}`, with Infinity→null
+since JSON has no Infinity); `recheck.loadStateFromJson` reads `j.settings` back onto `state.settings`
+(null when an OLD JSON lacks it → graceful fallback to cfg). The re-probe still uses the live cfg
+(a user can still re-check at a different rate); only the *displayed/persisted* settings come from the
+original crawl. Index report has no config line, so it's unaffected. No GUI/HTA change needed — the fix
+is in the data round-trip, so it also covers CLI users and old workflows.
+**Verification:** new cfgtest (19 asserts) — fresh crawl still shows real settings (regression guard);
+JSON carries the settings block (Infinity→null); load-then-rewrite with a DEFAULT cfg reproduces the
+user's case and now shows `2 concurrent · 3000ms · 1 rps cap · max unlimited pages / depth unlimited ·
+… · external checked` (NOT the 4/100/200/3 defaults); an old JSON with the block deleted falls back to
+cfg without error. Confirmed through the REAL CLI: `node crawl.js --rebuild-from rb.json` emits that
+same original-settings line. domtest/vtest/sharetest/revtest/newwin all still PASS.

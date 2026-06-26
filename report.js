@@ -14,6 +14,30 @@ const BRAND_ICON = "🕸️";           // spiderweb glyph: favicon + report hea
 
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
+// The crawl settings shown in the report's config line. A fresh crawl reads them straight from
+// cfg; but a --recheck-from / --rebuild-from REWRITE runs in a separate process whose cfg holds
+// CLI defaults (it was only handed --recheck-from / --out / …), which used to overwrite the line
+// with bogus defaults. So we persist these in the JSON (buildReportJson) and restore them onto
+// state.settings (loadStateFromJson); when present they win, so a rewrite reports the ORIGINAL
+// crawl's settings rather than the rewrite process's defaults. The live cfg still drives the
+// re-probe itself — only the displayed/persisted settings come from here. (maxPages/maxDepth use
+// null in JSON for Infinity, since JSON has no Infinity.)
+function effSettings(state, cfg) {
+  const s = (state && state.settings) || null;
+  const num = (v, d) => (typeof v === "number" ? v : d);
+  const bool = (v, d) => (typeof v === "boolean" ? v : d);
+  if (!s) return { concurrency: cfg.concurrency, delay: cfg.delay, rps: cfg.rps, maxPages: cfg.maxPages, maxDepth: cfg.maxDepth, includeSubdomains: cfg.includeSubdomains, checkExternal: cfg.checkExternal };
+  return {
+    concurrency: num(s.concurrency, cfg.concurrency),
+    delay: num(s.delay, cfg.delay),
+    rps: num(s.rps, cfg.rps),
+    maxPages: s.maxPages === null ? Infinity : num(s.maxPages, cfg.maxPages),
+    maxDepth: s.maxDepth === null ? Infinity : num(s.maxDepth, cfg.maxDepth),
+    includeSubdomains: bool(s.includeSubdomains, cfg.includeSubdomains),
+    checkExternal: bool(s.checkExternal, cfg.checkExternal),
+  };
+}
+
 // The side-docked link-window script (NEWWIN) and the standalone fix-tracker document
 // (TRACKER_TEMPLATE) are large self-contained strings — kept in their own module (AD-036).
 const { NEWWIN, TRACKER_TEMPLATE } = require("./report-templates");
@@ -215,10 +239,11 @@ function buildReport(state, cfg, allow, partial) {
   const oosTab = scoped ? `<div class="tab" data-tab="outscope">Out of scope (${state.outOfScope.size})</div>` : "";
   const oosPanel = scoped ? `<div class="panel hidden" id="panel-outscope">${state.outOfScope.size ? `<p class="muted">Same domain but outside <code>${esc(state.pathPrefix)}</code> — recorded, not crawled.</p>${capNote(state.outOfScope.size)}<div class="tablewrap"><table><thead><tr><th>URL</th><th>Found on</th></tr></thead><tbody>${oosRows}</tbody></table></div>` : `<p class="muted">No out-of-scope links found.</p>`}</div>` : "";
 
-  const depthLabel = cfg.maxDepth === Infinity ? "unlimited" : cfg.maxDepth;
-  const pagesLabel = cfg.maxPages === Infinity ? "unlimited" : cfg.maxPages;
+  const settings = effSettings(state, cfg);   // original crawl settings (survives a rebuild/re-check rewrite)
+  const depthLabel = settings.maxDepth === Infinity ? "unlimited" : settings.maxDepth;
+  const pagesLabel = settings.maxPages === Infinity ? "unlimited" : settings.maxPages;
   const scopeLabel = scoped ? `scope ${esc(state.pathPrefix)}/` : "whole domain";
-  const cfgLine = `${cfg.concurrency} concurrent · ${cfg.delay}ms delay · ${cfg.rps ? cfg.rps + " rps cap" : "no rps cap"}${state.crawlDelay ? ` · crawl-delay ${state.crawlDelay}s` : ""} · max ${pagesLabel} pages / depth ${depthLabel} · ${scopeLabel}${cfg.includeSubdomains ? " · subdomains internal" : ""}${cfg.checkExternal ? " · external checked" : ""}${state.retries ? ` · ${state.retries} rate-limit retries` : ""}`;
+  const cfgLine = `${settings.concurrency} concurrent · ${settings.delay}ms delay · ${settings.rps ? settings.rps + " rps cap" : "no rps cap"}${state.crawlDelay ? ` · crawl-delay ${state.crawlDelay}s` : ""} · max ${pagesLabel} pages / depth ${depthLabel} · ${scopeLabel}${settings.includeSubdomains ? " · subdomains internal" : ""}${settings.checkExternal ? " · external checked" : ""}${state.retries ? ` · ${state.retries} rate-limit retries` : ""}`;
   // While a crawl is in progress the open report refreshes itself in JS (see the
   // script below) — but only when you're not interacting, and it restores your
   // tab/scroll. No <meta refresh>, so a reload never interrupts you mid-scroll.
@@ -783,8 +808,12 @@ function buildReportJson(state, cfg, allow, partial) {
   for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);
   const refsOf = (url) => { const s = state.refs.get(url); return s ? [...s] : []; };
   const errOut = (e) => ({ url: e.url, reason: e.reason, kind: e.kind || "internal", foundOn: refsOf(e.url).length ? refsOf(e.url) : (e.source ? [e.source] : []) });
+  const st = effSettings(state, cfg);
   return JSON.stringify({
     crawledAt: state.startedAt, partial: !!partial, scope: state.pathPrefix || "(whole domain)",
+    // The crawl's settings, so a later --rebuild-from / --recheck-from rewrite can show the
+    // ORIGINAL run's config line instead of the rewrite process's CLI defaults. Infinity -> null.
+    settings: { concurrency: st.concurrency, delay: st.delay, rps: st.rps, maxPages: st.maxPages === Infinity ? null : st.maxPages, maxDepth: st.maxDepth === Infinity ? null : st.maxDepth, includeSubdomains: !!st.includeSubdomains, checkExternal: !!st.checkExternal },
     log: { manifest: state.logManifest || "", singleFile: !!state.logSingleFile, parts: state.logParts || [] },
     summary: { pagesCrawled: state.pages.length, queued: state.queue.length, externalLinks: state.external.size, linkInstances: state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0), brokenLinkInstances: active.reduce((n, e) => n + (refsOf(e.url).length || 1), 0), outOfScope: state.outOfScope.size, errorsInternal: active.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: active.filter((e) => e.kind === "external").length, blocked: (state.blocked || []).length, suppressed: suppressed.length, retries: state.retries || 0, runtimeMs: Number.isFinite(state.runtimeMs) ? state.runtimeMs : Math.max(0, (state.finishedMs || Date.now()) - (state.startedMs || Date.parse(state.startedAt) || Date.now())) },
     internalPages: state.pages,

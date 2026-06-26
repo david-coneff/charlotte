@@ -674,3 +674,19 @@ programmatic `.click()`. **Verification:** real dispatched-click test in headles
 generated report — domain Working/Broken apply to all members, stay mutually exclusive, and Collapse
 all/Expand all hit 5/5 groups; domtest grew a collapse section (per-group toggle + all-groups
 collapse/expand); triage/share/newwin suites stay green.
+
+## AD-044: "Requests" stat counts internal pages + external destinations verified
+**Date:** 2026-06-26
+**Problem:** the report's **Requests** stat showed `state.crawled`, which only counts internal page
+visits — so it always equalled the **Internal pages** stat and ignored the (often far larger) number of
+external links the crawler actually probed when `--check-external` was on. A 2,410-page crawl with 6,479
+external destinations still read "2,410 requests".
+**Decision:** compute Requests at render time as **internal pages crawled + external destinations
+verified**. External links are created with `status: null` and only get `ok`/`err`/`blocked` once probed,
+so a non-null status marks a real request — `externalChecked = count(status in {ok,err,blocked})`, and
+`requestCount = state.crawled + externalChecked`. This is resume- and rebuild-safe (statuses are in the
+JSON) and reads 0 external when checking was off (Requests == internal, correctly). Added a tooltip
+spelling out the breakdown; retries/second-pass re-requests are excluded (noted in the tooltip). No new
+counter/state needed.
+**Verification:** a rebuilt report with 3 internal pages + externals {2 ok, 1 err, 1 blocked, 1 unchecked}
+shows **Requests = 7** with the breakdown tooltip; triage/domain suites still pass.

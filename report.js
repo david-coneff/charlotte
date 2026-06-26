@@ -70,6 +70,12 @@ function buildReport(state, cfg, allow, partial) {
   // browser as links are marked "Working" (each such link drops its instances).
   const brokenInstCount = (url) => refsOf(url).length || 1;
   const brokenInstances = active.reduce((n, e) => n + brokenInstCount(e.url), 0);
+  // "Requests" = every link the crawler actually hit: internal pages crawled (state.crawled
+  // counts internal visits, including failed ones) PLUS external destinations it verified.
+  // External links start with status null and only get ok/err/blocked once probed, so a
+  // non-null status marks a real request (0 when external checking was off).
+  const externalChecked = [...state.external.values()].filter((e) => e.status === "ok" || e.status === "err" || e.status === "blocked").length;
+  const requestCount = (state.crawled || 0) + externalChecked;
   // Compact "found on" for the external / out-of-scope tables: first few + count.
   const srcCell = (url) => {
     const arr = refsOf(url);
@@ -363,7 +369,7 @@ function buildReport(state, cfg, allow, partial) {
   ${stat(`<span id="brokenExtN">${activeExt.length.toLocaleString()}</span>`, "Broken · external", activeExt.length ? "bad" : "", "Unique broken external destinations — off-site URLs that don't resolve. Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”.")}
   ${stat(blocked.length, "Blocked · uncertain", blocked.length ? "warn" : "")}
   ${stat(suppressed.length, "Suppressed", "")}
-  ${partial ? stat(state.queue.length, "Queued", "") : stat(state.crawled, "Requests", "")}
+  ${partial ? stat(state.queue.length, "Queued", "") : stat(requestCount.toLocaleString(), "Requests", "", `Every link the crawler actually requested: ${(state.crawled || 0).toLocaleString()} internal page${state.crawled === 1 ? "" : "s"} crawled${externalChecked ? ` + ${externalChecked.toLocaleString()} external destination${externalChecked === 1 ? "" : "s"} verified` : " (external links weren't verified)"}. Excludes automatic rate-limit retries.`)}
   ${stat(fmtDur(elapsedMs), partial ? "Runtime · so far" : "Runtime", "")}
  </div>
  <p class="muted" style="margin:10px 2px 0;font-size:13px"><strong>Destinations</strong> are <em>unique</em> URLs (there are relatively few); <strong>instances</strong> count <em>every</em> hyperlink to them across all pages (there are many). One destination linked from 500 pages is <strong>1 destination</strong> but <strong>500 hyperlink instances</strong>.</p>

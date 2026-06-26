@@ -83,9 +83,15 @@ Charlotte is **two independent toolchains** that share one set of docs:
 
 ### File inventory
 
+> **Note (2026-06-26):** `crawl.js` has since been partitioned into sibling leaf
+> modules — `cli.js`, `netutil.js`, `recheck.js`, `report.js`, `report-templates.js`,
+> `parse.js`, `fetch.js`, `log.js`, `seen.js` (all plain `require()`, no bundler;
+> AD-009/14/16/36). They ship and travel together. The current module DAG and a full
+> capability/lessons retrospective live in [`state/SYNTHESIS.md`](state/SYNTHESIS.md).
+
 | File | Role | Runtime |
 |------|------|---------|
-| `crawl.js` | Core crawler: crawls a domain, verifies links, scans PDF/Office links, writes the HTML report + JSON + progress logs. | Node ≥ 14, zero deps |
+| `crawl.js` (+ sibling modules) | Core crawler: crawls a domain, verifies links, scans PDF/Office links, writes the HTML report + JSON + progress logs. The engine + glue; report/parse/fetch/log/seen/cli/netutil/recheck are split into siblings it `require`s. | Node ≥ 14, zero deps |
 | `crawl-gui.hta` | Windows GUI front-end that builds the command line and launches `crawl.js` (kept beside it; auto-detected). | Windows + Node |
 | `crawl-render.js` | Headless-browser verifier: re-checks links `crawl.js` flagged as dead/blocked by rendering them in real Chromium. | Node + optional Playwright |
 | `web-crawler.html` | In-browser crawler variant; runs entirely in a tab. | Any modern browser |
@@ -109,6 +115,7 @@ CRAWLER.md / README.md ──document──▶ all of the above
 | Category | Location |
 |---|---|
 | Governance | `rhiz-memory/_instance.md` (this file) |
+| Synthesis (features / architecture / lessons) | `rhiz-memory/state/SYNTHESIS.md` |
 | Decisions | `rhiz-memory/state/decisions.md` |
 | Planning / State | `rhiz-memory/state/SESSION_HANDOFF.md`, `rhiz-memory/state/RESUME_BLOCK.md` |
 | Risk / Oversight | `rhiz-memory/audits/` |

@@ -172,7 +172,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     };
     let lines = [];
     try { lines = fs.readFileSync(cfg.resume, "utf8").split(/\r?\n/); } catch { /* no journal yet — resume behaves like a fresh crawl */ }
-    let meta = null, replayed = 0;
+    let meta = null, replayed = 0, rGood = 0;   // rGood = HTML pages replayed (GUI "Good" = OK lines)
     for (const ln of lines) {
       if (!ln) continue;
       let e; try { e = JSON.parse(ln); } catch { continue; }
@@ -184,6 +184,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
       doneSet.add(e.u);
       replayed++;
       if (e.t === "p") {
+        rGood++;
         state.pages.push({ url: e.u, title: e.ti, status: e.s, depth: e.d, internal: (e.in || []).length, external: (e.ex || []).length });
         for (const t of (e.in || [])) consider(t, e.u, e.d);
         for (const pr of (e.ex || [])) { const u = pr[0]; if (!state.external.has(u)) state.external.set(u, { url: u, host: pr[1], status: null }); addRef(u, e.u); }
@@ -213,6 +214,11 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     const su = normalize(cfg.startUrl);
     if (!doneSet.has(su) && !enq.has(su)) state.queue.unshift({ url: su, depth: 0, parent: "(start)" });
     state.crawled = doneSet.size;
+    // Tell the GUI's live counters what was already done — it tails a FRESH progress log on
+    // resume (the replayed pages aren't re-logged), so without this its Crawled/Good/Broken/
+    // Blocked tallies would restart at 0 (External already survives via the absolute extTotal=).
+    // The GUI ADDS these to its counters, so multi-site resumes accumulate correctly.
+    if (replayed > 0) logLine(`# resume-stats crawled=${state.crawled} good=${rGood} broken=${state.errors.length} blocked=${state.blocked.length} external=${state.external.size}`);
     J({ t: "r", at: new Date().toISOString() });   // mark this resume in the journal
     console.log(`Resumed from ${cfg.resume}: ${replayed} already done, ${state.queue.length} queued${quarantined ? `, ${quarantined} quarantined (crashing page${quarantined === 1 ? "" : "s"})` : ""}.`);
   }

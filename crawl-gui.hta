@@ -741,6 +741,11 @@ function processLine(ln) {
     lastChangeMs = (new Date()).getTime();
     return;
   }
+  // On resume the crawler replays its journal silently into a fresh log, so seed the live
+  // counters with what was already done. ADD (don't set) so multi-site resumes accumulate;
+  // external is an absolute total (like extTotal=) so it's set.
+  var rs = ln.match(/^# resume-stats crawled=(\d+) good=(\d+) broken=(\d+) blocked=(\d+) external=(\d+)/);
+  if (rs) { gCrawled += parseInt(rs[1], 10); gGood += parseInt(rs[2], 10); gBroken += parseInt(rs[3], 10); gBlocked += parseInt(rs[4], 10); gExtFound = parseInt(rs[5], 10); return; }
   var ex = ln.match(/^# extcheck (\d+)\/(\d+) (\w+)/);
   if (ex) { gExtChecked = parseInt(ex[1], 10); gExtTotal = parseInt(ex[2], 10); if (ex[3] === "err") gExtBad++; else if (ex[3] === "blocked") gBlocked++; return; }
   var bo = ln.match(/untilMs=(\d+)/); if (ln.indexOf("# BACKOFF") === 0 && bo) { gBackoffUntil = parseInt(bo[1], 10); return; }

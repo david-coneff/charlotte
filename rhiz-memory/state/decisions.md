@@ -788,3 +788,21 @@ into the fix-tracker share paragraph. No code change.
 **If revisited:** implement File System Access as an additive, feature-detected enhancement (a
 "Save to file…" button writing a JSON sidecar + auto-save to a remembered handle), with the current
 Export/Import as the universal fallback — do not remove localStorage auto-save.
+
+## AD-035: GUI resume — seed live counters from a "# resume-stats" marker
+**Date:** 2026-06-26
+**Bug:** On a GUI **Resume**, the live Crawled/Good/Broken/Blocked tallies reset to 0, while
+External kept its value. Cause: the GUI deletes the live log + zeroes its counters each launch and
+**increments** Crawled/Good/Broken/Blocked per OK/ERR/SKIP/BLOCKED line it sees — but on resume the
+crawler replays its journal *silently* into the fresh log and only logs *new* pages, so those tallies
+only counted new activity. External survived because the GUI reads it from the absolute `extTotal=`
+the crawler stamps on every OK line (and `state.external` is restored on replay).
+**Fix:** After the resume replay rebuilds state, crawl.js emits one marker to the progress log —
+`# resume-stats crawled=N good=G broken=B blocked=K external=E` (gated on `replayed > 0`; `good` =
+count of replayed HTML "p" pages). crawl-gui.hta's `processLine` parses it and **ADDS** crawled/good/
+broken/blocked to its counters (so multi-site resumes accumulate across sites) and **sets** external
+(absolute, like `extTotal=`). Fresh crawls emit no marker (unchanged).
+**Verification:** real full-crawl→resume: marker `crawled=4 good=2 broken=2 blocked=0 external=0`
+exactly matched the full crawl's `# crawl done`; GUI-tally simulation of the fresh resume log equalled
+the full crawl (4/2/2, no reset); synthetic partial resume (1 baseline + 3 new) summed to 4/2/2 with
+external tracking the absolute. crawl.js + HTA JScript parse.

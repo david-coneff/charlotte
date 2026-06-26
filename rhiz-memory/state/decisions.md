@@ -64,7 +64,8 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-053** (2026-06-26) — Unify fix-tracker export (include all untested incl. blocked, drop only Working) + one always-visible button
 - **AD-054** (2026-06-26) — Stats row: green/amber test-completeness outline on the broken stats, broken-first order, "Total unique destinations" (supersedes the Requests stat, AD-044)
 - **AD-055** (2026-06-26) — Stats as a broken-over-total matrix (2 rows × 5 cols), + "Total unique destinations broken"; Runtime/Suppressed to the header line
-- **AD-056** (2026-06-26) — Each broken stat shows count + live "(percent)" of the total directly below it
+- **AD-056** (2026-06-26) — Each broken stat shows count + live "(percent)" of the total directly below it (one-decimal, then adaptive precision)
+- **AD-057** (2026-06-26) — Blocked·uncertain gets the green/amber tested-outline; a grey legend card keys the colors
 
 ---
 

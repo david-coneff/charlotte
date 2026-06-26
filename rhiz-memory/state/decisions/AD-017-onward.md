@@ -969,3 +969,27 @@ pages, not broken ones); Blocked·uncertain (the col-5 outlier) and the row-2 to
 (= 6/10, 2/3, 1/2, 3/5). Headless real-click probe confirms live recompute: marking e1 Working →
 int 1 (33%), tot 2 (40%), inst 3 (30%); then confirming blocked b1 Broken → inst 8 (80%), int 2 (67%),
 tot 3 (60%). Full suite passes.
+**Follow-ups:** (a) one decimal by default (60.0% / 66.7%). (b) then **adaptive precision** — an
+`fmtPct(p)` helper (mirrored server-side + in the IIFE, ES5-clean) keeps one decimal for normal values
+but expands precision until a small-but-nonzero share shows ≥1 significant digit, so 1 broken / 10,000
+reads **0.01%** not a misleading 0.0% (0.04%→0.04, 0.034%→0.03, 0.0001%→0.0001; true 0 stays 0.0%).
+
+## AD-057: Blocked·uncertain gets the tested-outline too + a legend card keys the colors
+**Date:** 2026-06-26
+**Problem:** the green/amber test-completeness outline (AD-054/055) was on the four broken stats but not
+on **Blocked·uncertain**, even though its links are triaged the same way — and nothing on the report
+explained what the dashed colors mean.
+**Decision:** (1) give the Blocked·uncertain card the same outline — GREEN once every blocked link has a
+verdict (Broken or Working), AMBER while any remain untested. `recomputeBroken` now tallies `bT/bN` over
+ALL blocked rows (any kind) and calls `setTestState(blockedN, bT, bN)`; the card's count got a
+`<span id="blockedN">` so it's targetable. (2) Fill the previously-empty **row-2/col-5 slot** (under
+Blocked) with a **legend card**: a `.statleg` with a **grey** dashed outline (`var(--muted)`) containing
+an "Outline key" — a green dashed swatch = "all tested — count is final", an amber dashed swatch = "some
+untested — may change". Rendered only when `hasTriage` (no outlines → no legend); `oosStat` moves to the
+overflow row when scoped. So the whole stats block now reads: row 1 = outlined tracked counts (incl.
+Blocked), row 2 = plain totals + the legend that decodes the outlines, directly under the Blocked card it
+mirrors.
+**Verification:** structural — legend card + green/amber swatches + `blockedN` + `.statleg` CSS all
+present. Headless real-click probe: Blocked outline starts `tested-partial` (amber), stays amber after one
+of its two links is tested, flips to `tested-all` (green) once both are; legend present throughout.
+domtest/vtest/sharetest/revtest/exporttest/newwin/tracker3 all pass.

@@ -87,7 +87,7 @@ function buildReport(state, cfg, allow, partial) {
   // A "broken" stat's number paired with its share (%) of the matching total directly below it in the
   // matrix. The % updates live (setStat rewrites the .pct sibling as triage changes the count); the
   // denominator is the fixed row-2 total. Omitted when the denominator is 0 (nothing to be a share of).
-  const brokenN = (id, count, denom) => `<span id="${id}">${count.toLocaleString()}</span>${denom > 0 ? ` <span class="pct">(${Math.round((count / denom) * 100)}%)</span>` : ""}`;
+  const brokenN = (id, count, denom) => `<span id="${id}">${count.toLocaleString()}</span>${denom > 0 ? ` <span class="pct">(${((count / denom) * 100).toFixed(1)}%)</span>` : ""}`;
   const link = (u) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(u)}</a>`;
   // A "found on" referrer: clickable when it's a real URL, plain text otherwise.
   const srcLink = (s) => /^https?:\/\//i.test(s) ? link(s) : esc(s || "—");
@@ -701,7 +701,7 @@ ${trackerEmbed}
   }
   // Set a header stat number, refresh its "(percent of total)" sibling (when a denom is given), and
   // keep its card's red "bad" highlight in sync with the count.
-  function setStat(el, v, denom){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var nDiv=el.parentNode; if(typeof denom==='number'&&nDiv){ var pe=nDiv.querySelector('.pct'); if(pe) pe.textContent = denom>0 ? '('+Math.round((v/denom)*100)+'%)' : ''; } var card=nDiv&&nDiv.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').replace(/^\s+|\s+$/g,''); } }
+  function setStat(el, v, denom){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var nDiv=el.parentNode; if(typeof denom==='number'&&nDiv){ var pe=nDiv.querySelector('.pct'); if(pe) pe.textContent = denom>0 ? '('+((v/denom)*100).toFixed(1)+'%)' : ''; } var card=nDiv&&nDiv.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').replace(/^\s+|\s+$/g,''); } }
   // Test-completeness outline on a "broken" stat card: GREEN dashed when every triageable link in the
   // category has a verdict (the count is final), AMBER dashed while any remain untested (the count may
   // still change), none when there's nothing to test. (Independent of setStat's 'bad' class.)

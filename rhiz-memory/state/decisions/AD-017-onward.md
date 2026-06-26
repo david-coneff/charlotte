@@ -823,3 +823,28 @@ adds no layout shift. Works on both grouped tabs (errext + blockd) since `derive
 clears at 2/2, an untested sibling keeps its highlight, and the state restores correctly from saved
 verdicts on reload. Headless screenshot of the Blocked tab confirms the dashed-amber frame around an
 untested domain header and none around a fully-tested one. Full suite passes.
+
+## AD-051: Satellite popup shows a brief interstitial naming the next link before it loads
+**Date:** 2026-06-26
+**Problem:** with the single reused satellite window (AD-039), testing several broken links in a row
+that all return the SAME 404/error page is visually indistinguishable — you can't tell the popup
+actually navigated to the NEXT link vs. still showing the previous one. The operator wanted a visible
+"loading <link>" cue per click.
+**Decision:** route every (re)use through a tiny **blob: interstitial** that names the link being
+loaded (spinner + "Loading next link…" + the URL + an "Open it directly" fallback) and then
+**meta-refreshes** to the target after ~0.6s. Why blob: top-level navigation to `data:` URLs is blocked
+by Chrome, so the interstitial can't be a data: URL; a blob works and—crucially—the opener CREATES the
+blob, so it's same-origin with it and may navigate even a cross-origin popup to it (the popup's current
+origin is irrelevant to the blob-nav security check, which is about the initiator). The redirect is a
+`<meta http-equiv=refresh>` (no script in the blob → nothing to escape but HTML; the URL is HTML-escaped
+via String.fromCharCode(34) for the quote, keeping NEWWIN backtick/${}/backslash-free). New helpers in
+NEWWIN: `esc`, `interURL(href)` (builds the blob, returns its object URL, revoked after 6s), and
+`go(win,href)` (navigate to the interstitial; on any throw fall back to a direct
+`location.replace(href)` so behavior degrades to the old direct-load). First open now does
+`window.open('')` then `go()`, so even the first link shows the cue. **Verification:** confirmed against
+the bundled Chromium that a file:// page can top-level-navigate to a blob it created (DOM reached) and
+that the interstitial's meta-refresh lands on the target; headless screenshot of the interstitial;
+newwin-test extended (16 asserts incl. URL/Blob stubs) — reuse still opens exactly one window and
+re-focuses each click, the interstitial names the LATEST link in both its display and meta-refresh, a
+reopened-after-close window shows the new link, and ampersands are escaped (a=1&amp;b=2). NEWWIN stays
+constraint-clean and parses as valid JS; all suites pass.

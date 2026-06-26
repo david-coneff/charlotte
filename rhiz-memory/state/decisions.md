@@ -59,6 +59,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-048** (2026-06-26) — Domain grouping generalized to Blocked tab + richer header (All:/Mixture/all-tested/counter)
 - **AD-049** (2026-06-26) — Persist crawl settings in the JSON so a rebuild/re-check rewrite shows the real config line
 - **AD-050** (2026-06-26) — Dashed-amber header outline on per-domain groups with untested links (clears when all tested)
+- **AD-051** (2026-06-26) — Satellite popup shows a blob: interstitial naming the next link before it loads
 
 ---
 

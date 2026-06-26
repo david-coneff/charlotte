@@ -221,8 +221,8 @@ Reconstruct a partitioned log into one composite stream:
   --paginate              In the HTML report, show large tables a page at a time
                           with Prev/Next paging (all rows stay embedded; keeps very
                           large reports responsive). Off by default = render every
-                          row at once. Applies to every data table (internal pages,
-                          errors, the nested "found on" lists, …).
+                          row at once. Applies to every data table (internal
+                          destinations, errors, the nested "found on" lists, …).
   --page-size N           Rows per page when paginating (default 1,000). Implies
                           --paginate.
   --allowlist-export      Re-enable the in-report allowlist EXPORT UI (per-link pick

@@ -55,7 +55,7 @@ function buildReport(state, cfg, allow, partial) {
   // Total link INSTANCES: every link occurrence — internal AND external — summed across
   // all crawled pages, NOT deduped, so a link in a sitewide nav/footer counts once per
   // page it appears on (twice if it appears twice on a page). Distinct from the unique
-  // "Internal pages" / "External destinations" counts. page.internal/external are the raw
+  // "Internal destinations" / "External destinations" counts. page.internal/external are the raw
   // per-page counts (extractLinks doesn't dedupe), so this is just their running sum.
   const linkInstances = state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0);
 
@@ -375,7 +375,7 @@ function buildReport(state, cfg, allow, partial) {
 <p>${esc(cfg.startUrl)} · ${esc(state.startedAt)}<br>${esc(cfgLine)}</p>${banner}</header>
 <main>
  <div class="card"><div class="stats">
-  ${stat(state.pages.length.toLocaleString(), "Internal pages", "good", "Unique same-domain pages crawled — distinct destinations on your own site.")}
+  ${stat(state.pages.length.toLocaleString(), "Internal destinations", "good", "Unique same-domain pages crawled — distinct destinations on your own site. (One per URL, however many pages link to it.)")}
   ${stat(state.external.size.toLocaleString(), "External destinations", "warn", "Unique off-site URLs your pages link to. Usually far fewer than the hyperlink instances — one destination is typically linked from many pages.")}
   ${stat(linkInstances.toLocaleString(), "Hyperlink instances", "", "Every hyperlink occurrence across all crawled pages (internal + external), NOT deduplicated — a destination linked from N pages counts N times. So this runs much larger than the unique destination counts.")}
   ${stat(`<span id="brokenInstN">${brokenInstances.toLocaleString()}</span>`, "Broken hyperlink instances", brokenInstances ? "bad" : "", "Hyperlink instances that point at a broken destination — each broken destination counted once per page that links to it (the real cleanup workload). Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”.")}
@@ -392,7 +392,7 @@ function buildReport(state, cfg, allow, partial) {
  ${hasTriage ? shareBar : ""}
  <div class="card">
   <div class="tabs">
-   <div class="tab active" data-tab="internal">Internal pages (${state.pages.length.toLocaleString()})</div>
+   <div class="tab active" data-tab="internal">Internal destinations (${state.pages.length.toLocaleString()})</div>
    <div class="tab" data-tab="external">External destinations (${state.external.size.toLocaleString()})</div>
    ${oosTab}
    <div class="tab" data-tab="errint">Broken · internal (${activeInt.length.toLocaleString()})</div>
@@ -822,7 +822,7 @@ function buildIndexReport(sites, cfg, allow, partial, startedAt) {
       const bi = biOf(st);
       status = s.partial ? `<span class="pill warn">crawling…</span>` : `<span class="pill ok">done</span>`;
       const file = s.reportFile.split(/[\\/]/).pop();
-      body = `<div class="nums"><span><b>${st.pages.length.toLocaleString()}</b> internal pages</span><span><b>${st.external.size.toLocaleString()}</b> external destinations</span><span><b>${li.toLocaleString()}</b> hyperlink instances</span><span class="${bi ? "bad" : ""}"><b>${bi.toLocaleString()}</b> broken hyperlink instances</span><span class="${ei ? "bad" : ""}"><b>${ei}</b> broken · internal</span><span class="${ee ? "bad" : ""}"><b>${ee}</b> broken · external</span><span><b>${bl}</b> blocked</span></div>
+      body = `<div class="nums"><span><b>${st.pages.length.toLocaleString()}</b> internal destinations</span><span><b>${st.external.size.toLocaleString()}</b> external destinations</span><span><b>${li.toLocaleString()}</b> hyperlink instances</span><span class="${bi ? "bad" : ""}"><b>${bi.toLocaleString()}</b> broken hyperlink instances</span><span class="${ei ? "bad" : ""}"><b>${ei}</b> broken · internal</span><span class="${ee ? "bad" : ""}"><b>${ee}</b> broken · external</span><span><b>${bl}</b> blocked</span></div>
         <p><a href="${esc2(file)}">Open ${esc2(s.host)} report →</a></p>`;
     }
     return `<div class="card"><h2>${i + 1}. ${esc2(s.host)} ${status}</h2><p class="muted">${esc2(s.url)}</p>${body}</div>`;

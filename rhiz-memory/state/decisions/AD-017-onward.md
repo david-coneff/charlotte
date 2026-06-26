@@ -722,3 +722,32 @@ all three command builders (crawl / re-check / rebuild): "off" emits nothing (re
 **Verification:** rebuilt a 25-internal-page report with `--page-size 10`; headless Chromium confirms the
 **internal-pages tab paginates** — pager present, 25 rows total, 10 visible, label "Page 1 of 3 · rows
 1–10 of 25". HTA parses + ES3/ES5-clean; pushPageArgs wired into all 3 builders; report/triage suites pass.
+
+### AD-039 follow-up #2 (2026-06-26) — the satellite window STILL spawned per click
+The held-reference reuse (AD-039) was still opening a fresh window on every link in a real browser.
+Root cause: it kept `nw.opener=null` (reverse-tabnabbing hygiene). Nulling the opener REVOKES the
+opener's permission to navigate the popup, so cross-origin `SAT.location.replace/href` throws a
+SecurityError → the catch nulls SAT → window.open runs again → new window every click. (The stub test
+never hit this; it doesn't simulate the cross-origin throw.) Fix: stop nulling the opener — the opener
+is then allowed to navigate its own popup (cross-origin navigation is permitted), so the held reference
+reuses the one window. The minor reverse-tabnabbing exposure is an accepted trade-off for a local
+link-checking tool. One-line removal in NEWWIN.
+
+## AD-047: Fix tracker — reverse mapping (By page <-> By broken link) with synced Fixed flags
+**Date:** 2026-06-26
+**Problem:** the fix tracker only grouped By referrer page (page -> its broken links). Closing the loop
+needs the reverse too: per broken link, which pages still link to it — so a fixer can confirm a unique
+broken link is resolved on EVERY page, not just confirm a page is clean.
+**Decision:** add a **By page / By broken link** grouping toggle (`.gtab`) beside the Internal/External
+tabs. By-page (existing) groups by referrer with the per-page note; By-broken-link groups by URL —
+the group header is the link with its Broken/Working verdict + last-tested, and rows are the referrer
+pages, each with a Fixed checkbox. Both render the SAME (page,link) pairs, and Fixed state is keyed by
+`pkey(ref,broken)`, so a tick in either grouping is the same localStorage flag — switch views and the
+equivalent box is already checked. Verdict boxes/last-tested now carry `data-broken` and sync via a
+generalized `setVerdict` that scans by attribute (works whether the box sits in a row or a header).
+viewMode re-renders both panels; no extra storage. Template stays backtick/${}/backslash-free.
+**Verification:** a new revtest (11 asserts, real tracker wiring on an innerHTML stub with working
+localStorage) — tick By-page → checked in By-link and vice-versa, untouched pairs stay clear, verdict
+set in a row reflects in the other view's header; tracker3 suite still passes; rendered (headless) the
+By-broken-link layout. (tracker2's 3 "bake" failures are stale test data — it wants e1/e2 links absent
+from synth.html; exportTracker in report.js is unchanged.)

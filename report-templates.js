@@ -32,7 +32,7 @@ const TRACKER_TEMPLATE = `<!DOCTYPE html>
 <title>🕸️ Charlotte — Broken-link fix tracker</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%95%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <style>
-:root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--good:#4ade80;--bad:#f87171;--border:#2c3340}
+:root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--bad:#f87171;--border:#2c3340}
 *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
 header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
 main{max-width:1280px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px}
@@ -42,7 +42,7 @@ main{max-width:1280px;margin:0 auto;padding:24px}.card{background:var(--panel);b
 .vlbl{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:12px;margin-left:12px}.vlbl input{cursor:pointer}
 .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover{border-color:var(--accent);color:var(--accent)}
 table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
-td a{color:var(--accent);text-decoration:none}td a:hover{text-decoration:underline}td{overflow-wrap:anywhere}
+a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}td a{color:var(--link)}td{overflow-wrap:anywhere}
 .tablewrap{max-height:72vh;overflow:auto;border:1px solid var(--border);border-radius:8px}
 .c{width:54px;text-align:center}.c input{width:16px;height:16px;cursor:pointer}
 .v{width:54px;text-align:center}.v input{width:16px;height:16px;cursor:pointer}

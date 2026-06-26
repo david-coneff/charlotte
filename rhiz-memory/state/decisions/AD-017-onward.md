@@ -657,3 +657,20 @@ mutual exclusivity, a single per-link change desyncing the box to "mixed", unche
 clearing the domain, and reload deriving the box from saved verdicts — all pass; the per-link refactor
 left the existing triage (38)/share (19)/newwin suites green; rendered (headless) — collapsible sections,
 domain controls in the header, wide Reason column intact.
+
+### AD-043 follow-up (2026-06-26) — same-day fixes after browser testing
+Shipping AD-043 with native `<details>/<summary>` for the domain sections turned out to break three
+things in a real browser (none caught by the DOM-stub test, which fires synthetic `change` events):
+the domain **Broken/Working checkboxes did nothing and weren't mutually exclusive** (a real click on a
+control inside a `<summary>` is consumed by the disclosure toggle, so the checkbox never fires `change`),
+and **Collapse all missed groups** (intermittent native-`details.open` behavior, notably the bottom
+single-member ones). Replaced the native disclosure with a **custom collapsible**: each `.domgrp` is a
+plain `<div>` with a dedicated `.domtoggle` button (caret via CSS `.collapsed`) and the verdict
+checkboxes as *siblings* of the button (not nested in a summary); collapse is a `.collapsed` class the
+script sets, so Expand/Collapse all set every group with certainty. Also fixed **Import verdicts not
+opening a file picker**: the hidden `<input type=file>` (report + fix tracker) moved from
+`display:none` to off-screen (`position:fixed;left:-9999px;opacity:0`), the reliable pattern for
+programmatic `.click()`. **Verification:** real dispatched-click test in headless Chromium against the
+generated report — domain Working/Broken apply to all members, stay mutually exclusive, and Collapse
+all/Expand all hit 5/5 groups; domtest grew a collapse section (per-group toggle + all-groups
+collapse/expand); triage/share/newwin suites stay green.

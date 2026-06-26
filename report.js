@@ -152,7 +152,11 @@ function buildReport(state, cfg, allow, partial) {
     for (const e of arr.slice(0, RENDER_CAP)) { const h = hostOf(e.url); if (!m.has(h)) m.set(h, []); m.get(h).push(e); }
     return [...m.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).map(([host, list]) => {
       const rows = list.map((e) => `<tr data-url="${esc(e.url)}" data-inst="${brokenInstCount(e.url)}" data-domain="${esc(host)}">${triageCells(e)}</tr>`).join("");
-      return `<details open class="domgrp" data-domain="${esc(host)}"><summary><span class="domname">${esc(host)}</span> <span class="muted">(${list.length} broken)</span><span class="domverdict" title="Apply to every link in this domain at once"><label class="domlbl">Broken <input type="checkbox" class="dombroken" data-domain="${esc(host)}"></label><label class="domlbl">Working <input type="checkbox" class="domworking" data-domain="${esc(host)}"></label></span></summary><div class="tablewrap"><table class="haspick">${errextHead}<tbody>${rows}</tbody></table></div></details>`;
+      // Custom collapsible (NOT <details>/<summary>): a dedicated toggle button + the verdict
+      // checkboxes as siblings. Interactive controls inside a <summary> have their clicks eaten by
+      // the disclosure toggle, so the domain Broken/Working boxes wouldn't fire; this keeps them
+      // independent and lets the script control collapse deterministically (a .collapsed class).
+      return `<div class="domgrp" data-domain="${esc(host)}"><div class="domhead"><button type="button" class="domtoggle"><span class="caret"></span> <span class="domname">${esc(host)}</span> <span class="muted">(${list.length} broken)</span></button><span class="domverdict" title="Apply to every link in this domain at once"><label class="domlbl">Broken <input type="checkbox" class="dombroken" data-domain="${esc(host)}"></label><label class="domlbl">Working <input type="checkbox" class="domworking" data-domain="${esc(host)}"></label></span></div><div class="tablewrap dombody"><table class="haspick">${errextHead}<tbody>${rows}</tbody></table></div></div>`;
     }).join("");
   };
   const errextTools = `<div class="exptools"><button type="button" class="btn" id="errextExpand">Expand all</button><button type="button" class="btn" id="errextCollapse">Collapse all</button></div>`;
@@ -182,7 +186,7 @@ function buildReport(state, cfg, allow, partial) {
   // Share toolbar — only meaningful when there are links to triage. Lets you carry your
   // Broken/Working verdicts (which live in localStorage, not the file) to someone else.
   const hasTriage = showPick && (activeInt.length || activeExt.length || blocked.length);
-  const shareBar = `<div class="card sharebar"><p class="muted" style="margin:0 0 8px;font-size:13px"><strong>Share your testing verdicts.</strong> Your Broken/Working ticks &amp; timestamps are saved in <em>this</em> browser only — they don't travel if you just email this file. To hand them off:</p><div class="exportbar"><button type="button" class="btn" id="cwSaveCopy" title="Download a new self-contained report with your current verdicts baked in — email that file and the recipient just opens it">💾 Save shareable copy</button><span class="vsep"></span><button type="button" class="btn" id="cwExportV" title="Download your verdicts as a small JSON file to send alongside the report">⬇ Export verdicts</button><button type="button" class="btn" id="cwImportV" title="Load verdicts from a JSON file someone shared with you (merges by link, then reloads)">⬆ Import verdicts</button><input type="file" id="cwImportFile" accept="application/json,.json" style="display:none"></div></div>`;
+  const shareBar = `<div class="card sharebar"><p class="muted" style="margin:0 0 8px;font-size:13px"><strong>Share your testing verdicts.</strong> Your Broken/Working ticks &amp; timestamps are saved in <em>this</em> browser only — they don't travel if you just email this file. To hand them off:</p><div class="exportbar"><button type="button" class="btn" id="cwSaveCopy" title="Download a new self-contained report with your current verdicts baked in — email that file and the recipient just opens it">💾 Save shareable copy</button><span class="vsep"></span><button type="button" class="btn" id="cwExportV" title="Download your verdicts as a small JSON file to send alongside the report">⬇ Export verdicts</button><button type="button" class="btn" id="cwImportV" title="Load verdicts from a JSON file someone shared with you (merges by link, then reloads)">⬆ Import verdicts</button><input type="file" id="cwImportFile" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0"></div></div>`;
   // One-line helper under each Errors table explaining the two kinds of checkbox.
   const pickHelp = `<p class="muted" style="margin:2px 0 10px">${showAllow ? `First box selects a link for the <strong>allowlist</strong>. Then two` : `Two`} mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The <strong>Last tested</strong> column auto-fills the date &amp; time of your latest verdict. The box beside each “found on” page marks that referrer <strong>fixed</strong>. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page). Ticks are saved in this browser.</p>`;
 
@@ -305,15 +309,20 @@ function buildReport(state, cfg, allow, partial) {
  table.haspick td:last-child,table.blkpick td:last-child{min-width:0}
  table.haspick .foundcol,table.blkpick .foundcol{width:236px}
  .blkpick .kindcol{width:92px}
- /* Errors·external is grouped into collapsible per-domain sections; each summary carries a
-    domain-level Broken/Working pair (floated right) that bulk-applies to all of that domain's links. */
+ /* Errors·external is grouped into collapsible per-domain sections. A custom collapsible (not
+    <details>): a .domtoggle button + the domain Broken/Working pair as siblings, so the checkbox
+    clicks aren't eaten by a <summary> and the script can collapse via a .collapsed class. */
  .domgrp{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
- .domgrp>summary{padding:8px 12px;background:var(--panel2);cursor:pointer;font-weight:600;color:var(--fg)}
- .domgrp>summary::-webkit-details-marker{color:var(--muted)}
+ .domhead{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--panel2);flex-wrap:wrap}
+ .domtoggle{flex:1;min-width:200px;background:none;border:none;color:var(--fg);font:inherit;font-weight:600;cursor:pointer;padding:4px 2px;text-align:left;overflow-wrap:anywhere}
+ .domtoggle:hover{color:var(--accent)}
+ .caret::before{content:"▼";display:inline-block;width:1em;font-size:11px;color:var(--muted);font-weight:400}
+ .domgrp.collapsed .caret::before{content:"▶"}
  .domname{overflow-wrap:anywhere}
- .domverdict{float:right;font-weight:400;font-size:12px;color:var(--muted)}
- .domlbl{cursor:pointer;margin-left:16px;white-space:nowrap}
+ .domverdict{font-weight:400;font-size:12px;color:var(--muted);white-space:nowrap}
+ .domlbl{cursor:pointer;margin-left:14px}
  .domlbl input{cursor:pointer;vertical-align:middle;margin-left:4px}
+ .domgrp.collapsed .dombody{display:none}
  .domgrp .tablewrap{max-height:none;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0}
  .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
  .testbar{margin:0 0 12px}.tcount{color:var(--muted);font-size:12px}
@@ -675,18 +684,22 @@ ${trackerEmbed}
   function deriveDomain(host){ var bx=domBoxes(host); if(!bx) return; var rs=rowsInDomain(host), n=rs.length, br=0, wk=0, i; for(i=0;i<n;i++){ var b=rs[i].querySelector('.brokenbox'), o=rs[i].querySelector('.okbox'); if(b&&b.checked) br++; if(o&&o.checked) wk++; } bx.b.checked=(n>0&&br===n); bx.o.checked=(n>0&&wk===n); }
   function syncDomain(tr){ if(!tr) return; var h=tr.getAttribute('data-domain'); if(h) deriveDomain(h); }
   function applyDomain(host, want){ var rs=rowsInDomain(host), i; for(i=0;i<rs.length;i++){ applyVerdict(rs[i], rs[i].getAttribute('data-url'), want); } deriveDomain(host); update('errext'); }
+  function hasCls(el,c){ return !!(el&&typeof el.className==='string'&&(' '+el.className+' ').indexOf(' '+c+' ')>=0); }
+  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).replace(/^\s+/,''); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^\s+|\s+$/g,''); }
+  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
   function wireDomains(){
     var p=panel('errext'); if(!p) return;
-    var bs=p.querySelectorAll('.dombroken'), os=p.querySelectorAll('.domworking'), dv=p.querySelectorAll('.domverdict'), i;
-    function stop(e){ if(e&&e.stopPropagation) e.stopPropagation(); }   // keep verdict clicks off the <summary> toggle
-    for(i=0;i<dv.length;i++){ dv[i].addEventListener('click', stop); }
+    var tgs=p.querySelectorAll('.domtoggle'), bs=p.querySelectorAll('.dombroken'), os=p.querySelectorAll('.domworking'), i;
+    // Collapse/expand is a .collapsed class on the .domgrp — fully under our control (no native
+    // <details>), so Expand/Collapse all sets every group with certainty.
+    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
     for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.checked?'broken':''); }); }
     for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.checked?'working':''); }); }
     var seen={}, all=p.querySelectorAll('tr[data-url]'); for(i=0;i<all.length;i++){ var h=all[i].getAttribute('data-domain'); if(h&&!seen[h]){ seen[h]=1; deriveDomain(h); } }
-    // Expand all / Collapse all over the domain sections only (not the nested "found on" details).
-    function setAll(open){ var d=p.querySelectorAll('.domgrp'), j; for(j=0;j<d.length;j++){ d[j].open=open; } }
-    var ex=document.getElementById('errextExpand'); if(ex) ex.addEventListener('click', function(){ setAll(true); });
-    var co=document.getElementById('errextCollapse'); if(co) co.addEventListener('click', function(){ setAll(false); });
+    var grps=p.querySelectorAll('.domgrp');
+    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
+    var ex=document.getElementById('errextExpand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
+    var co=document.getElementById('errextCollapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
   }
   function wire(scope){
     var p=panel(scope); if(!p) return;

@@ -356,6 +356,9 @@ function buildReport(state, cfg, allow, partial) {
     clicks aren't eaten by a <summary> and the script can collapse via a .collapsed class. */
  .domgrp{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
  .domhead{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--panel2);flex-wrap:wrap}
+ /* Domains with untested links get a dashed-amber header (inset outline: no clip from the group's
+    overflow:hidden, no layout shift); it clears once every link in the domain has a verdict. */
+ .domgrp.untested .domhead{outline:2px dashed var(--warn);outline-offset:-2px}
  .domtoggle{flex:1;min-width:200px;background:none;border:none;color:var(--fg);font:inherit;font-weight:600;cursor:pointer;padding:4px 2px;text-align:left;overflow-wrap:anywhere}
  .domtoggle:hover{color:var(--accent)}
  .caret::before{content:"▼";display:inline-block;width:1em;font-size:11px;color:var(--muted);font-weight:400}
@@ -741,6 +744,8 @@ ${trackerEmbed}
     setInd(domCtl(host,scope,'.dommixture'), (br>0&&wk>0));
     setInd(domCtl(host,scope,'.domalltested'), (n>0&&tested===n));
     var pg=domCtl(host,scope,'.domprog'); if(pg) pg.textContent='· tested '+tested+'/'+n+' · '+br+' broken · '+wk+' working';
+    // Dashed-amber the header while the domain still has untested links; clears once all are tested.
+    var grp=domCtl(host,scope,'.domgrp'); if(grp) setCls(grp,'untested',(n>0&&tested<n));
   }
   function syncDomain(tr){ if(!tr) return; var h=tr.getAttribute('data-domain'), sc=tr.getAttribute('data-scope'); if(h&&sc) deriveDomain(h, sc); }
   function applyDomain(host, scope, want){ var rs=rowsInDomain(host, scope), i; for(i=0;i<rs.length;i++){ applyVerdict(rs[i], rs[i].getAttribute('data-url'), want); } deriveDomain(host, scope); update(scope); }

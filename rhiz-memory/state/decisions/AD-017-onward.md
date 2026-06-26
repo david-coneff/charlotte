@@ -806,3 +806,20 @@ user's case and now shows `2 concurrent · 3000ms · 1 rps cap · max unlimited 
 … · external checked` (NOT the 4/100/200/3 defaults); an old JSON with the block deleted falls back to
 cfg without error. Confirmed through the REAL CLI: `node crawl.js --rebuild-from rb.json` emits that
 same original-settings line. domtest/vtest/sharetest/revtest/newwin all still PASS.
+
+## AD-050: Dashed-amber header outline on per-domain groups with untested links
+**Date:** 2026-06-26
+**Problem:** with the per-domain "all tested" indicator (AD-048) you could *read* whether a domain was
+done, but there was no at-a-glance cue across many collapsed groups for *which* domains still need
+triage — the operator wanted the unfinished ones to stand out.
+**Decision:** give a `.domgrp` whose links aren't all tested a dashed-amber header. `deriveDomain`
+already computes `tested` and `n`; it now also toggles an `untested` class on the group element
+(`setCls(domCtl(host,scope,'.domgrp'),'untested',(n>0&&tested<n))`) — the exact inverse of the
+all-tested indicator, so it clears the moment every link in the domain has a Broken/Working verdict and
+re-appears if one is cleared. CSS: `.domgrp.untested .domhead{outline:2px dashed var(--warn);
+outline-offset:-2px}` — an **inset** outline so the group's `overflow:hidden` can't clip it and it
+adds no layout shift. Works on both grouped tabs (errext + blockd) since `deriveDomain` is scope-generic.
+**Verification:** 6 new domtest asserts — highlighted on load while untested, still highlighted at 1/2,
+clears at 2/2, an untested sibling keeps its highlight, and the state restores correctly from saved
+verdicts on reload. Headless screenshot of the Blocked tab confirms the dashed-amber frame around an
+untested domain header and none around a fully-tested one. Full suite passes.

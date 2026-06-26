@@ -80,7 +80,7 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" id="wrap">
   <h1>Domain Crawler</h1>
   <p class="sub">A friendly front-end for crawl.js. Requires Node.js on your PATH.</p>
 
@@ -955,6 +955,44 @@ function showTab(name) {
   }
 }
 
+// On open the HTA otherwise picks a giant default width. Size it to the content instead:
+// measure the natural width of BOTH tab panels at once (an off-screen clone with both panels
+// shown and the stretchy width:100% elements neutralized so they can't inflate it), then resize
+// the window width to fit. Adaptive — it follows whatever the interface actually needs, so layout
+// changes don't need a new magic number. Width only; height is left as-is. Best-effort: if anything
+// fails the window just keeps its default size.
+function fitWindowWidth() {
+  try {
+    var w = $("wrap"); if (!w) return;
+    var c = w.cloneNode(true); c.id = "";
+    c.style.position = "absolute"; c.style.left = "-99999px"; c.style.top = "0px";
+    c.style.display = "inline-block"; c.style.width = "auto";
+    var i, pnls = c.getElementsByTagName("div");
+    for (i = 0; i < pnls.length; i++) { if ((" " + pnls[i].className + " ").indexOf(" tabpanel ") >= 0) pnls[i].className = "tabpanel active"; }
+    var tbls = c.getElementsByTagName("table");
+    for (i = 0; i < tbls.length; i++) { if ((" " + tbls[i].className + " ").indexOf(" cols ") >= 0) tbls[i].style.width = "auto"; }
+    var tas = c.getElementsByTagName("textarea");
+    for (i = 0; i < tas.length; i++) { tas[i].style.width = "auto"; }
+    var pres = c.getElementsByTagName("pre");
+    for (i = 0; i < pres.length; i++) { pres[i].style.width = "auto"; pres[i].style.whiteSpace = "normal"; }
+    document.body.appendChild(c);
+    var natural = c.offsetWidth;
+    document.body.removeChild(c);
+    if (!natural || natural < 1) return;
+    // Window chrome (frame + vertical scrollbar) = current outer minus the usable content area.
+    var chrome = 26;
+    try { var ow = window.outerWidth, bw = document.body.clientWidth; if (ow > 0 && bw > 0 && ow > bw) chrome = ow - bw; } catch (e) {}
+    if (chrome < 26) chrome = 26;
+    if (chrome > 80) chrome = 80;
+    var target = natural + chrome + 4;
+    var maxW = 1600; try { if (screen.availWidth > 0) maxW = screen.availWidth - 40; } catch (e) {}
+    if (target > maxW) target = maxW;
+    if (target < 760) target = 760;
+    var h = 760; try { if (window.outerHeight > 0) h = window.outerHeight; } catch (e) {}
+    try { window.resizeTo(target, h); } catch (e) {}
+  } catch (e) { /* best-effort sizing */ }
+}
+
 // ---- boot ----
 initPaths();
 seedUrls();              // pre-fill Start URL rows from crawl-gui-domains.txt (else one blank row)
@@ -963,6 +1001,7 @@ toggleInputs();          // sync dependent fields AFTER the config may have chan
 updatePreview();
 updateResumeBtn();       // enable "Resume" if a journal from a prior crawl is present
 showTab("settings");     // open on Settings; launching a run jumps to the Run tab
+fitWindowWidth();        // shrink the default (very wide) window to the content it actually needs
 </script>
 </body>
 </html>

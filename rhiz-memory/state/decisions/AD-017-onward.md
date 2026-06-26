@@ -690,3 +690,18 @@ spelling out the breakdown; retries/second-pass re-requests are excluded (noted 
 counter/state needed.
 **Verification:** a rebuilt report with 3 internal pages + externals {2 ok, 1 err, 1 blocked, 1 unchecked}
 shows **Requests = 7** with the breakdown tooltip; triage/domain suites still pass.
+
+## AD-045: GUI sizes its window to the content on open (was a giant default width)
+**Date:** 2026-06-26
+**Problem:** the HTA opened at a very wide default, leaving a large empty right margin — the form's
+fixed-width fields and the `width:100%` two-column rate-limit table stretched to fill whatever width
+the window happened to get.
+**Decision:** on boot, `fitWindowWidth()` measures the **natural** content width of BOTH tab panels
+at once and `window.resizeTo`s the width to fit (height left as-is). It clones `.wrap` off-screen,
+shows both `.tabpanel`s, and neutralizes the stretchy elements (`table.cols`, `<textarea>`, `<pre>`
+→ width auto) so they can't inflate the measurement, then reads the clone's `offsetWidth`. Window
+chrome is `outerWidth − body.clientWidth` (clamped 26–80); the result is clamped to `[760,
+availWidth−40]`. Adaptive — follows whatever the UI needs, so layout changes don't need a new magic
+number — and best-effort (try/catch; on any failure the window keeps its default size). Added
+`id="wrap"`. (Couldn't be exercised in the Linux dev env — no Trident/mshta — so it's reasoned +
+syntax/dialect-checked, with the no-op fallback as the safety net.)

@@ -63,6 +63,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-052** (2026-06-26) — Remove the per-referrer "Fixed" checkbox from the base report (fix-tracking lives in the tracker)
 - **AD-053** (2026-06-26) — Unify fix-tracker export (include all untested incl. blocked, drop only Working) + one always-visible button
 - **AD-054** (2026-06-26) — Stats row: green/amber test-completeness outline on the broken stats, broken-first order, "Total unique destinations" (supersedes the Requests stat, AD-044)
+- **AD-055** (2026-06-26) — Stats as a broken-over-total matrix (2 rows × 5 cols), + "Total unique destinations broken"; Runtime/Suppressed to the header line
 
 ---
 

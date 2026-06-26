@@ -922,3 +922,30 @@ scattered mid-row. (3) The "Requests" stat (AD-044) was poorly named for what it
 external-category links, all three are green. Structural: stat order is broken-trio first, then
 Internal/External/**Total unique destinations** (= 5 = 3+2), "Requests" gone. domtest/vtest/sharetest/
 revtest/exporttest/newwin/tracker3 all pass.
+
+## AD-055: Stats as a broken-over-total matrix; Runtime/Suppressed to the header
+**Date:** 2026-06-26
+**Problem:** the operator wanted the headline stats laid out as a deliberate **two-row matrix** where each
+*broken* count sits directly above its *total*, plus a new **Total unique destinations broken** to pair
+with **Total unique destinations** — and Runtime/Suppressed moved out of the result grid (they describe
+the RUN, not the results).
+**Decision:** fix the grid to **5 columns** (`repeat(5,minmax(0,1fr))`, collapsing to 2 on ≤640px) and
+order the cards so columns pair broken-over-total:
+
+| Broken hyperlink instances | Broken·internal | Broken·external | **Total unique destinations broken** | Blocked·uncertain |
+| Hyperlink instances | Internal destinations | External destinations | Total unique destinations | *(Out-of-scope when scoped, else empty)* |
+
+The new **`brokenTotN`** = `uInt + uExt` (unique broken destinations, internal + external incl. confirmed
+blocked), server-rendered as `activeInt+activeExt` and updated live in `recomputeBroken`; it carries the
+same green/amber test-completeness outline as Broken hyperlink instances (both span every triageable link).
+**Blocked·uncertain** stays in row 1 but as the col-5 outlier (it's neither a broken count nor a total),
+with no outline. This reconciles the operator's two messages — Blocked in row 1 *and* Total-unique-broken
+above Total-unique-destinations — at the cost of one empty cell at row-2/col-5 (filled by the Out-of-scope
+card on scoped crawls; `oosStat` is the grid's last card). **Runtime** and **Suppressed** left the grid and
+were appended to the header config line (`cfgLine`) as run metadata (`· ran in 1s · 0 suppressed`;
+partial reports show `· <dur> so far`). Queued stays a partial-only card.
+**Verification:** structural — 9 cards in the matrix order, brokenTotN present, Runtime/Suppressed cards
+gone, header line carries runtime + suppressed. Headless real-click probe: on load all four broken stats
+(incl. brokenTotN) are amber; marking the internal-category links greens Broken·internal only; marking the
+rest greens all four; brokenTotN's value rises 3→5 as the two blocked links are confirmed broken.
+domtest/vtest/sharetest/revtest/exporttest/newwin/tracker3 all pass.

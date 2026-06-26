@@ -238,7 +238,10 @@ function buildReport(state, cfg, allow, partial) {
   const depthLabel = settings.maxDepth === Infinity ? "unlimited" : settings.maxDepth;
   const pagesLabel = settings.maxPages === Infinity ? "unlimited" : settings.maxPages;
   const scopeLabel = scoped ? `scope ${esc(state.pathPrefix)}/` : "whole domain";
-  const cfgLine = `${settings.concurrency} concurrent · ${settings.delay}ms delay · ${settings.rps ? settings.rps + " rps cap" : "no rps cap"}${state.crawlDelay ? ` · crawl-delay ${state.crawlDelay}s` : ""} · max ${pagesLabel} pages / depth ${depthLabel} · ${scopeLabel}${settings.includeSubdomains ? " · subdomains internal" : ""}${settings.checkExternal ? " · external checked" : ""}${state.retries ? ` · ${state.retries} rate-limit retries` : ""}`;
+  // Config + run metadata for the header line: the crawl settings, then run stats that describe the
+  // RUN rather than the results — runtime and suppressed (moved off the stat grid at the operator's
+  // request so the grid holds only result counts).
+  const cfgLine = `${settings.concurrency} concurrent · ${settings.delay}ms delay · ${settings.rps ? settings.rps + " rps cap" : "no rps cap"}${state.crawlDelay ? ` · crawl-delay ${state.crawlDelay}s` : ""} · max ${pagesLabel} pages / depth ${depthLabel} · ${scopeLabel}${settings.includeSubdomains ? " · subdomains internal" : ""}${settings.checkExternal ? " · external checked" : ""}${state.retries ? ` · ${state.retries} rate-limit retries` : ""}${partial ? ` · ${fmtDur(elapsedMs)} so far` : ` · ran in ${fmtDur(elapsedMs)}`} · ${suppressed.length.toLocaleString()} suppressed`;
   // While a crawl is in progress the open report refreshes itself in JS (see the
   // script below) — but only when you're not interacting, and it restores your
   // tab/scroll. No <meta refresh>, so a reload never interrupts you mid-scroll.
@@ -303,7 +306,10 @@ function buildReport(state, cfg, allow, partial) {
  *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
  header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
  main{max-width:1500px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px}
- .stats{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+ /* Two rows of broken-over-total pairs (col 1–4) + Blocked in col 5. Fixed 5 columns so each broken
+    stat sits directly above its total; collapses to 2 columns on narrow screens. */
+ .stats{display:grid;gap:12px;grid-template-columns:repeat(5,minmax(0,1fr))}
+ @media (max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
  .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}.stat .n{font-size:26px;font-weight:700}.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
  .stat.good .n{color:var(--good)}.stat.bad .n{color:var(--bad)}.stat.warn .n{color:var(--warn)}
  /* Test-completeness outline on the three "broken" stats: green = every link in that category has a
@@ -406,15 +412,14 @@ function buildReport(state, cfg, allow, partial) {
   ${stat(`<span id="brokenInstN">${brokenInstances.toLocaleString()}</span>`, "Broken hyperlink instances", brokenInstances ? "bad" : "", "Hyperlink instances that point at a broken destination — each broken destination counted once per page that links to it (the real cleanup workload). Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”. Outline: GREEN dashed once every internal + external + blocked link has been tested (so this total is final); AMBER while some are still untested (it may yet change).")}
   ${stat(`<span id="brokenIntN">${activeInt.length.toLocaleString()}</span>`, "Broken · internal", activeInt.length ? "bad" : "", "Unique broken internal destinations — pages on your site that don't load. Updates live as you triage. Outline: GREEN dashed once every internal link (errors + blocked) has been tested; AMBER while some are still untested.")}
   ${stat(`<span id="brokenExtN">${activeExt.length.toLocaleString()}</span>`, "Broken · external", activeExt.length ? "bad" : "", "Unique broken external destinations — off-site URLs that don't resolve. Updates live as you triage. Outline: GREEN dashed once every external link (errors + blocked) has been tested; AMBER while some are still untested.")}
+  ${stat(`<span id="brokenTotN">${(activeInt.length + activeExt.length).toLocaleString()}</span>`, "Total unique destinations broken", (activeInt.length + activeExt.length) ? "bad" : "", "Total unique destinations confirmed broken — Broken · internal + Broken · external, each URL counted once. The broken counterpart of “Total unique destinations” directly below it. Updates live as you triage. Outline: GREEN dashed once every internal + external + blocked link has been tested; AMBER while some are still untested.")}
+  ${stat(blocked.length, "Blocked · uncertain", blocked.length ? "warn" : "", "Links the automated check couldn't confirm (auth, anti-bot, rate-limiting, timeouts) — very likely fine in a real browser. Not counted as broken until you confirm one. Sits apart from the broken/total matrix because it's neither.")}
+  ${stat(linkInstances.toLocaleString(), "Hyperlink instances", "", "Every hyperlink occurrence across all crawled pages (internal + external), NOT deduplicated — a destination linked from N pages counts N times. So this runs much larger than the unique destination counts.")}
   ${stat(state.pages.length.toLocaleString(), "Internal destinations", "good", "Unique same-domain pages crawled — distinct destinations on your own site. (One per URL, however many pages link to it.)")}
   ${stat(state.external.size.toLocaleString(), "External destinations", "warn", "Unique off-site URLs your pages link to. Usually far fewer than the hyperlink instances — one destination is typically linked from many pages.")}
-  ${stat((state.pages.length + state.external.size).toLocaleString(), "Total unique destinations", "", "Every distinct destination Charlotte saw — internal destinations (same-domain pages crawled) plus external destinations (off-site URLs your pages link to). The sum of the two stats to its left; counts each URL once, however many pages link to it.")}
-  ${stat(linkInstances.toLocaleString(), "Hyperlink instances", "", "Every hyperlink occurrence across all crawled pages (internal + external), NOT deduplicated — a destination linked from N pages counts N times. So this runs much larger than the unique destination counts.")}
+  ${stat((state.pages.length + state.external.size).toLocaleString(), "Total unique destinations", "", "Every distinct destination Charlotte saw — Internal destinations + External destinations, each URL counted once. The total whose broken subset sits directly above it.")}
   ${oosStat}
-  ${stat(blocked.length, "Blocked · uncertain", blocked.length ? "warn" : "")}
-  ${stat(suppressed.length, "Suppressed", "")}
   ${partial ? stat(state.queue.length, "Queued", "") : ""}
-  ${stat(fmtDur(elapsedMs), partial ? "Runtime · so far" : "Runtime", "")}
  </div>
  <p class="muted" style="margin:10px 2px 0;font-size:13px"><strong>Destinations</strong> are <em>unique</em> URLs (there are relatively few); <strong>instances</strong> count <em>every</em> hyperlink to them across all pages (there are many). One destination linked from 500 pages is <strong>1 destination</strong> but <strong>500 hyperlink instances</strong>.</p>
  </div>
@@ -718,10 +723,13 @@ ${trackerEmbed}
     setStat(document.getElementById('brokenInstN'), inst);
     setStat(document.getElementById('brokenIntN'), uInt);
     setStat(document.getElementById('brokenExtN'), uExt);
-    // Hyperlink-instances spans BOTH categories + blocked, so its outline needs every link tested.
+    setStat(document.getElementById('brokenTotN'), uInt+uExt);   // total unique destinations broken
     setTestState(document.getElementById('brokenIntN'), iT, iN);
     setTestState(document.getElementById('brokenExtN'), eT, eN);
+    // Broken hyperlink instances AND total unique destinations broken both span internal + external
+    // (+ blocked), so their outlines need EVERY triageable link tested.
     setTestState(document.getElementById('brokenInstN'), iT+eT, iN+eN);
+    setTestState(document.getElementById('brokenTotN'), iT+eT, iN+eN);
   }
   // Apply a verdict to ONE row: set its boxes, persist the keys, swap classes, stamp/clear the
   // Last-tested time. want is 'broken' | 'working' | '' (clears it). Shared by the per-link change

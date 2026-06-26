@@ -51,6 +51,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-040** (2026-06-26) — Triage tables: `table-layout:fixed` so the timestamp column stops starving Reason
 - **AD-041** (2026-06-26) — Re-check: GUI live progress + Pause/Stop + a separate `*.recheck.json` written first
 - **AD-042** (2026-06-26) — Live “Broken · internal/external” destination stats update during triage
+- **AD-043** (2026-06-26) — Errors·external grouped by domain + a domain-level Broken/Working bulk verdict
 
 ---
 

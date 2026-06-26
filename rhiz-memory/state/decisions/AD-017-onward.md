@@ -633,3 +633,27 @@ sync (added at >0, removed at 0) — now applied to the instances card too.
 **Verification:** vtest gains destination-stat asserts — initial 2/1, drop on Working, re-add on Broken,
 blocked-internal vs blocked-external routing, card `bad` toggling at 0, and reload restoring the post-
 triage counts — all pass alongside the existing 38 triage / 19 share / newwin asserts.
+
+## AD-043: Errors·external grouped by domain with a domain-level Broken/Working bulk verdict
+**Date:** 2026-06-26
+**Problem:** the Errors·external tab was a flat list. When a whole site is a systematic blind spot
+for the automated check — e.g. social networks (facebook.com) that return 400/403 to the crawler but
+load fine in a browser — the user had to tick "Working" on every single link, which is wasted effort
+when the trend is obvious.
+**Decision:** group Errors·external into **collapsible per-domain `<details>` sections** (largest first),
+each summary carrying a **domain-level Broken/Working pair** (floated right, visible even when collapsed)
+that **bulk-applies** the verdict to every link in that domain. The domain box is **derived** from its
+children (all Working → Working, all Broken → Broken, mixed → neither), so it needs no storage of its own
+and reconstructs on reload from the per-link `cwbroken:`/`cwok:` keys. Internal errors aren't grouped
+(one domain). Implementation: extracted `triageCells(e)` shared by `pickRows` and a new
+`errextDomainGroups(activeExt)` (host via a scheme/userinfo/port-stripping regex); rows carry
+`data-domain`; the IIFE gained `applyVerdict(tr,url,want)` (now shared by the per-link handlers too),
+`rowsInDomain`/`domBoxes`/`deriveDomain`/`syncDomain`/`applyDomain`/`wireDomains`; domain-box clicks
+`stopPropagation` so they don't toggle the `<details>`; Expand all/Collapse all over `.domgrp` only (not
+the nested "found on" details). Verdicts still flow through the existing per-URL persistence, so stats,
+fix tracker, and sharing all keep working unchanged.
+**Verification:** new domtest (26 asserts) — bulk Working/Broken apply + persist + stamp times, derived
+mutual exclusivity, a single per-link change desyncing the box to "mixed", unchecking the active box
+clearing the domain, and reload deriving the box from saved verdicts — all pass; the per-link refactor
+left the existing triage (38)/share (19)/newwin suites green; rendered (headless) — collapsible sections,
+domain controls in the header, wide Reason column intact.

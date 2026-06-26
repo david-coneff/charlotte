@@ -555,7 +555,18 @@ hand) can't flood it with thousands of rows. A **Last tested** column to the lef
 boxes **auto-fills the local date & time** whenever you tick **Broken** or **Working**, so
 each row carries a timestamp of its latest manual result (it re-stamps when you change the
 verdict and clears if you untick back to no verdict). Ticks and timestamps persist in the
-browser. Clicking any link opens it in a **new window docked to the side** of the report (whichever side has
+browser.
+
+The **Broken · external** tab additionally groups its links into **collapsible per-domain
+sections**, each with a **domain-level Broken / Working pair** in the section header that
+applies to *every* link in that domain at once — so when a whole site (a social network,
+say) is systematically misread by the automated check but spot-checks fine in a browser,
+you can clear it in **one click** instead of testing each link. The domain box derives its
+state from the links it covers (all Working → Working, all Broken → Broken, mixed → neither),
+so it survives a reload from the per-link verdicts; **Expand all / Collapse all** toggle the
+sections.
+
+Clicking any link opens it in a **new window docked to the side** of the report (whichever side has
 more room, reusing one window), so checking a link never covers your report or needs
 repositioning.
 

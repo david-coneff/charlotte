@@ -27,7 +27,11 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: **Re-check GUI integration + report UX fixes** (2026-06-26), four ADRs.
+- **last_completed_step**: **Re-check GUI integration + report UX fixes** (2026-06-26), five ADRs.
+  (0) **AD-043 — Errors·external grouped by domain:** collapsible per-domain sections, each header with a
+  domain-level Broken/Working pair that bulk-applies to every link in the domain (derived from the per-link
+  verdicts; survives reload) — clear a whole misread site (e.g. facebook.com) in one click; Expand/Collapse
+  all. `applyVerdict()` now shared by per-link + domain handlers; 26-assert domtest.
   (1) **AD-041 — re-check in the GUI:** "Re-check broken links" now streams live progress to the run log
   the GUI tails (`# recheck-start`, per-link `RECHK ok|broken|blocked <url>`, `# recheck-done`), drives the
   stat chips (re-labeled Re-checked K/N · Now OK · Still broken · Now blocked), and honors **Pause/Stop**

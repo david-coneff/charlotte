@@ -153,20 +153,31 @@ function buildReport(state, cfg, allow, partial) {
   // the per-link verdicts (no extra storage).
   const hostOf = (u) => { const m = /^[a-z][a-z0-9+.\-]*:\/\/([^/?#]+)/i.exec(String(u)); if (!m) return "(unknown host)"; let h = m[1]; const at = h.indexOf("@"); if (at >= 0) h = h.slice(at + 1); return h.replace(/:\d+$/, "").toLowerCase() || "(unknown host)"; };
   const errextHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
-  const errextDomainGroups = (arr) => {
+  // Inner cells of a BLOCKED triage row (mirrors triageCells, but a neutral "uncertain" pill + a Kind
+  // column; default is uncertain, so Broken CONFIRMS-dead and Working records that it loads).
+  const blockedCells = (e) => { const kind = (e.kind || "internal") === "external" ? "external" : "internal"; return `<td class="tscell" title="Date & time you last marked this link Broken or Working (auto-filled)"></td><td class="tcol"><input type="checkbox" class="brokenbox" data-url="${esc(e.url)}" title="Manual check confirms it's broken — count it and add it to the fix tracker"></td><td class="tcol"><input type="checkbox" class="okbox" data-url="${esc(e.url)}" title="Manual check shows it works — leave it out of the broken count"></td><td>${link(e.url)}</td><td><span class="pill skip">${esc(e.reason)}</span></td><td>${kind}</td><td class="muted">${refCellFix(e.url, e.source)}</td>`; };
+  const blockdHead = `<thead><tr><th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken — counts it + adds to the fix tracker">Broken</th><th class="tcol" title="Manual check shows it works">Working</th><th class="urlcol">URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead>`;
+  // Generalized per-domain collapsible grouping — used by BOTH the Errors·external and Blocked tabs.
+  // Each header carries a collapse toggle, a live "tested K/N" counter, the bulk-apply All:
+  // Broken/Working pair, a Mixture indicator (the domain has both verdicts), and an all-tested
+  // indicator — so progress is scannable with the groups collapsed. Rows + controls carry data-domain
+  // and data-scope so the IIFE finds a domain's members and derives its header state.
+  const domainGroups = (arr, scope, headHtml, cellsFn) => {
     const m = new Map();
     for (const e of arr.slice(0, RENDER_CAP)) { const h = hostOf(e.url); if (!m.has(h)) m.set(h, []); m.get(h).push(e); }
+    const tcls = scope === "blockd" ? "blkpick" : "haspick";
+    const dk = (e) => e.kind ? ` data-kind="${e.kind === "external" ? "external" : "internal"}"` : "";
     return [...m.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).map(([host, list]) => {
-      const rows = list.map((e) => `<tr data-url="${esc(e.url)}" data-inst="${brokenInstCount(e.url)}" data-domain="${esc(host)}">${triageCells(e)}</tr>`).join("");
-      // Custom collapsible (NOT <details>/<summary>): a dedicated toggle button + the verdict
-      // checkboxes as siblings. Interactive controls inside a <summary> have their clicks eaten by
-      // the disclosure toggle, so the domain Broken/Working boxes wouldn't fire; this keeps them
-      // independent and lets the script control collapse deterministically (a .collapsed class).
-      return `<div class="domgrp" data-domain="${esc(host)}"><div class="domhead"><button type="button" class="domtoggle"><span class="caret"></span> <span class="domname">${esc(host)}</span> <span class="muted">(${list.length} broken)</span></button><span class="domverdict" title="Apply to every link in this domain at once"><label class="domlbl">Broken <input type="checkbox" class="dombroken" data-domain="${esc(host)}"></label><label class="domlbl">Working <input type="checkbox" class="domworking" data-domain="${esc(host)}"></label></span></div><div class="tablewrap dombody"><table class="haspick">${errextHead}<tbody>${rows}</tbody></table></div></div>`;
+      const rows = list.map((e) => `<tr data-url="${esc(e.url)}" data-inst="${brokenInstCount(e.url)}" data-domain="${esc(host)}" data-scope="${scope}"${dk(e)}>${cellsFn(e)}</tr>`).join("");
+      const dd = `data-domain="${esc(host)}" data-scope="${scope}"`;
+      // Custom collapsible (NOT <details>/<summary>): interactive controls inside a <summary> have
+      // their clicks eaten by the disclosure toggle, so the verdict boxes wouldn't fire. A .collapsed
+      // class on .domgrp drives show/hide deterministically.
+      return `<div class="domgrp" ${dd}><div class="domhead"><button type="button" class="domtoggle"><span class="caret"></span> <span class="domname">${esc(host)}</span> <span class="muted">(${list.length})</span> <span class="muted domprog" ${dd}></span></button><span class="domverdict"><span class="domall muted">All:</span><label class="domlbl" title="Mark every link in this domain Broken at once"><input type="checkbox" class="dombroken" ${dd}> Broken</label><label class="domlbl" title="Mark every link in this domain Working at once"><input type="checkbox" class="domworking" ${dd}> Working</label><label class="domlbl ind" title="Indicator only — this domain has a mix of Broken and Working verdicts"><input type="checkbox" class="dommixture" ${dd} disabled> Mixture of broken/working</label><label class="domlbl ind" title="Indicator only — every link in this domain has been tested (marked Broken or Working)"><input type="checkbox" class="domalltested" ${dd} disabled> all tested</label></span></div><div class="tablewrap dombody"><table class="${tcls}">${headHtml}<tbody>${rows}</tbody></table></div></div>`;
     }).join("");
   };
-  const errextTools = `<div class="exptools"><button type="button" class="btn" id="errextExpand">Expand all</button><button type="button" class="btn" id="errextCollapse">Collapse all</button></div>`;
-  const domainHelp = `<p class="muted" style="margin:2px 0 10px">Grouped by domain. Each domain header has its own <strong>Broken</strong> / <strong>Working</strong> pair that applies to <em>every</em> link in that domain at once — handy when a whole site (e.g. a social network) is systematically misread by the automated check but spot-checks fine in a browser, so you can clear it in one click instead of testing each link.</p>`;
+  const domainTools = (scope) => `<div class="exptools"><button type="button" class="btn" id="${scope}Expand">Expand all</button><button type="button" class="btn" id="${scope}Collapse">Collapse all</button></div>`;
+  const domainHelp = `<p class="muted" style="margin:2px 0 10px">Grouped by domain. Each header has an <strong>All: Broken / Working</strong> pair that applies to <em>every</em> link in that domain at once — handy when a whole site (e.g. a social network) is systematically misread by the automated check but works in a browser. The header also shows a live <strong>tested K/N</strong> count, a <strong>Mixture</strong> flag (both verdicts present) and an <strong>all tested</strong> flag, so you can scan progress with the groups collapsed.</p>`;
   // Toolbar above an Errors table: a live count + copy/export actions (disabled
   // until something is ticked). The select-all lives in the table header cell.
   const exportBar = (scope) => `<div class="exportbar">${showAllow ? `<span class="selcount" data-scope="${scope}">0 selected</span><span class="grow"></span><button type="button" class="btn copybtn" data-scope="${scope}" disabled>⧉ Copy lines</button><button type="button" class="btn exportbtn" data-scope="${scope}" disabled>⬇ Export to allowlist…</button><span class="vsep"></span>` : `<span class="grow"></span>`}<button type="button" class="btn trackbtn" title="Save an editable checklist (grouped by referrer page) of the broken links not marked 'Working', as a standalone HTML">🔧 Export fix tracker</button></div>`;
@@ -325,9 +336,13 @@ function buildReport(state, cfg, allow, partial) {
  .caret::before{content:"▼";display:inline-block;width:1em;font-size:11px;color:var(--muted);font-weight:400}
  .domgrp.collapsed .caret::before{content:"▶"}
  .domname{overflow-wrap:anywhere}
- .domverdict{font-weight:400;font-size:12px;color:var(--muted);white-space:nowrap}
- .domlbl{cursor:pointer;margin-left:14px}
- .domlbl input{cursor:pointer;vertical-align:middle;margin-left:4px}
+ .domverdict{font-weight:400;font-size:12px;color:var(--muted);display:inline-flex;flex-wrap:wrap;align-items:center}
+ .domall{margin-right:2px}
+ .domprog{font-size:12px}
+ .domlbl{cursor:pointer;margin-left:14px;white-space:nowrap}
+ .domlbl input{cursor:pointer;vertical-align:middle;margin:0 4px 0 0}
+ /* Mixture + all-tested are read-only indicators (disabled); they go green when on. */
+ .domlbl.ind{cursor:default}.domlbl.ind input{cursor:default}.domlbl.ind.on{color:var(--good)}
  .domgrp.collapsed .dombody{display:none}
  .domgrp .tablewrap{max-height:none;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0}
  .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
@@ -389,8 +404,8 @@ function buildReport(state, cfg, allow, partial) {
   <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extExpand">Expand all</button><button type="button" class="btn" id="extCollapse">Collapse all</button><span class="muted" style="font-size:12px">${byHost.size} domain${byHost.size === 1 ? "" : "s"}</span></div>${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
   <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + testBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
-  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + domainHelp + testBar("errext") + errextTools + errextDomainGroups(activeExt) : `<div class="tablewrap"><table><thead><tr><th>External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${errRows(activeExt)}</tbody></table></div>`}` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
-  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? blockedBar + blockedHelp + blockedCounter("blockd") : ""}${capNote(blocked.length)}<div class="tablewrap"><table${showPick ? ` class="blkpick"` : ``}><thead><tr>${showPick ? `<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken — counts it + adds to the fix tracker">Broken</th><th class="tcol" title="Manual check shows it works">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead><tbody>${showPick ? blockedPickRows(blocked) : blockedRows(blocked)}</tbody></table></div>` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + domainHelp + testBar("errext") + domainTools("errext") + domainGroups(activeExt, "errext", errextHead, triageCells) : `<div class="tablewrap"><table><thead><tr><th>External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${errRows(activeExt)}</tbody></table></div>`}` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
+  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? blockedBar + blockedHelp + domainHelp + blockedCounter("blockd") + domainTools("blockd") + domainGroups(blocked, "blockd", blockdHead, blockedCells) : `${capNote(blocked.length)}<div class="tablewrap"><table><thead><tr><th>URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead><tbody>${blockedRows(blocked)}</tbody></table></div>`}` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-suppressed">${suppressed.length ? `<p class="muted">Hidden from Errors via <code>${esc(cfg.allowlist)}</code>.</p><div class="tablewrap"><table><thead><tr><th>URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${errRows(suppressed)}</tbody></table></div>` : `<p class="muted">Nothing suppressed.</p>`}</div>
  </div>
  ${logCard}
@@ -685,27 +700,43 @@ ${trackerEmbed}
   // verdict to every link in that domain; its checked state is DERIVED from the children (all broken
   // -> Broken, all working -> Working, mixed -> neither), so it survives reload from the per-link
   // verdicts with no extra storage.
-  function rowsInDomain(host){ var p=panel('errext'); if(!p) return []; var all=p.querySelectorAll('tr[data-url]'), out=[], i; for(i=0;i<all.length;i++){ if(all[i].getAttribute('data-domain')===host) out.push(all[i]); } return out; }
-  function domBoxes(host){ var p=panel('errext'); if(!p) return null; var bs=p.querySelectorAll('.dombroken'), os=p.querySelectorAll('.domworking'), bb=null, ob=null, i; for(i=0;i<bs.length;i++){ if(bs[i].getAttribute('data-domain')===host) bb=bs[i]; } for(i=0;i<os.length;i++){ if(os[i].getAttribute('data-domain')===host) ob=os[i]; } return (bb&&ob)?{b:bb,o:ob}:null; }
-  function deriveDomain(host){ var bx=domBoxes(host); if(!bx) return; var rs=rowsInDomain(host), n=rs.length, br=0, wk=0, i; for(i=0;i<n;i++){ var b=rs[i].querySelector('.brokenbox'), o=rs[i].querySelector('.okbox'); if(b&&b.checked) br++; if(o&&o.checked) wk++; } bx.b.checked=(n>0&&br===n); bx.o.checked=(n>0&&wk===n); }
-  function syncDomain(tr){ if(!tr) return; var h=tr.getAttribute('data-domain'); if(h) deriveDomain(h); }
-  function applyDomain(host, want){ var rs=rowsInDomain(host), i; for(i=0;i<rs.length;i++){ applyVerdict(rs[i], rs[i].getAttribute('data-url'), want); } deriveDomain(host); update('errext'); }
+  function rowsInDomain(host, scope){ var p=panel(scope); if(!p) return []; var all=p.querySelectorAll('tr[data-url]'), out=[], i; for(i=0;i<all.length;i++){ if(all[i].getAttribute('data-domain')===host) out.push(all[i]); } return out; }
+  function domCtl(host, scope, cls){ var p=panel(scope); if(!p) return null; var xs=p.querySelectorAll(cls), i; for(i=0;i<xs.length;i++){ if(xs[i].getAttribute('data-domain')===host) return xs[i]; } return null; }
+  // Set a disabled indicator box + toggle an 'on' class on its label (so it can be highlighted).
+  function setInd(box, on){ if(!box) return; box.checked=on; var lbl=box.parentNode; if(lbl&&typeof lbl.className==='string'){ var has=(' '+lbl.className+' ').indexOf(' on ')>=0; if(on&&!has) lbl.className=lbl.className+' on'; else if(!on&&has) lbl.className=(' '+lbl.className+' ').split(' on ').join(' ').replace(/^\s+|\s+$/g,''); } }
+  // Derive a domain header from its rows: the bulk Broken/Working boxes (checked when ALL broken /
+  // ALL working), the Mixture indicator (both verdicts present), the all-tested indicator, and the
+  // "tested K/N" counter. Runs on load and after any per-link or bulk verdict change.
+  function deriveDomain(host, scope){
+    var rs=rowsInDomain(host, scope), n=rs.length, br=0, wk=0, i;
+    for(i=0;i<n;i++){ var b=rs[i].querySelector('.brokenbox'), o=rs[i].querySelector('.okbox'); if(b&&b.checked) br++; if(o&&o.checked) wk++; }
+    var tested=br+wk, db=domCtl(host,scope,'.dombroken'), dw=domCtl(host,scope,'.domworking');
+    if(db) db.checked=(n>0&&br===n);
+    if(dw) dw.checked=(n>0&&wk===n);
+    setInd(domCtl(host,scope,'.dommixture'), (br>0&&wk>0));
+    setInd(domCtl(host,scope,'.domalltested'), (n>0&&tested===n));
+    var pg=domCtl(host,scope,'.domprog'); if(pg) pg.textContent='· tested '+tested+'/'+n+' · '+br+' broken · '+wk+' working';
+  }
+  function syncDomain(tr){ if(!tr) return; var h=tr.getAttribute('data-domain'), sc=tr.getAttribute('data-scope'); if(h&&sc) deriveDomain(h, sc); }
+  function applyDomain(host, scope, want){ var rs=rowsInDomain(host, scope), i; for(i=0;i<rs.length;i++){ applyVerdict(rs[i], rs[i].getAttribute('data-url'), want); } deriveDomain(host, scope); update(scope); }
   function hasCls(el,c){ return !!(el&&typeof el.className==='string'&&(' '+el.className+' ').indexOf(' '+c+' ')>=0); }
   function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).replace(/^\s+/,''); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^\s+|\s+$/g,''); }
   function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
-  function wireDomains(){
-    var p=panel('errext'); if(!p) return;
+  // Wire the domain controls on BOTH grouped tabs (Errors·external + Blocked·uncertain).
+  function wireDomains(){ var sc=['errext','blockd'], k; for(k=0;k<sc.length;k++) wireDomainScope(sc[k]); }
+  function wireDomainScope(scope){
+    var p=panel(scope); if(!p) return;
     var tgs=p.querySelectorAll('.domtoggle'), bs=p.querySelectorAll('.dombroken'), os=p.querySelectorAll('.domworking'), i;
-    // Collapse/expand is a .collapsed class on the .domgrp — fully under our control (no native
-    // <details>), so Expand/Collapse all sets every group with certainty.
+    // Collapse/expand is a .collapsed class on .domgrp — under our control (no native <details>), so
+    // Expand/Collapse all set every group with certainty.
     for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
-    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.checked?'broken':''); }); }
-    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.checked?'working':''); }); }
-    var seen={}, all=p.querySelectorAll('tr[data-url]'); for(i=0;i<all.length;i++){ var h=all[i].getAttribute('data-domain'); if(h&&!seen[h]){ seen[h]=1; deriveDomain(h); } }
+    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'broken':''); }); }
+    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'working':''); }); }
+    var seen={}, all=p.querySelectorAll('tr[data-url]'); for(i=0;i<all.length;i++){ var h=all[i].getAttribute('data-domain'); if(h&&!seen[h]){ seen[h]=1; deriveDomain(h, scope); } }
     var grps=p.querySelectorAll('.domgrp');
     function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
-    var ex=document.getElementById('errextExpand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
-    var co=document.getElementById('errextCollapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
+    var ex=document.getElementById(scope+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
+    var co=document.getElementById(scope+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
   }
   function wire(scope){
     var p=panel(scope); if(!p) return;

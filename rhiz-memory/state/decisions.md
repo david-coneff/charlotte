@@ -56,6 +56,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-045** (2026-06-26) — GUI sizes its window to the content on open (adaptive, both tabs)
 - **AD-046** (2026-06-26) — Configurable report pagination breakpoint (--page-size + GUI dropdown)
 - **AD-047** (2026-06-26) — Fix tracker: reverse mapping (By page / By broken link) with synced Fixed flags
+- **AD-048** (2026-06-26) — Domain grouping generalized to Blocked tab + richer header (All:/Mixture/all-tested/counter)
 
 ---
 

@@ -751,3 +751,31 @@ localStorage) — tick By-page → checked in By-link and vice-versa, untouched 
 set in a row reflects in the other view's header; tracker3 suite still passes; rendered (headless) the
 By-broken-link layout. (tracker2's 3 "bake" failures are stale test data — it wants e1/e2 links absent
 from synth.html; exportTracker in report.js is unchanged.)
+
+## AD-048: Domain grouping generalized to the Blocked tab + a richer per-domain header
+**Date:** 2026-06-26
+**Problem:** the by-domain collapsible grouping with a bulk Broken/Working verdict (AD-043) lived only
+on Errors·external. Three gaps: (1) the **Blocked·uncertain** tab — where whole-domain false positives
+are even more common (anti-bot, rate-limiting) — still showed a flat table; (2) the bare "Broken /
+Working" pair read as if it might be a per-domain status, not a bulk action, and gave no signal when a
+domain was a *mix*; (3) a collapsed group showed no progress, so you had to expand every domain to see
+how far triage had got.
+**Decision:** generalize the renderer to **`domainGroups(arr, scope, headHtml, cellsFn)`** and call it
+for both tabs — `domainGroups(activeExt, "errext", errextHead, triageCells)` and
+`domainGroups(blocked, "blockd", blockdHead, blockedCells)` (new `blockedCells`/`blockdHead` carry the
+Kind column + neutral "uncertain" pill). `domainTools(scope)` emits the Expand/Collapse-all buttons with
+`<scope>Expand`/`<scope>Collapse` ids. The header gained: an **`All:`** prefix; the bulk boxes relabelled
+**"All: Broken / Working"** (label text after the input); a disabled **"Mixture of broken/working"**
+indicator (both verdicts present); a disabled **"all tested"** indicator; and a live **"· tested K/N · B
+broken · W working"** counter (`.domprog`) visible even when collapsed. Rows + every control carry
+`data-domain` AND `data-scope`. In the IIFE the wiring is generalized: `rowsInDomain(host,scope)`,
+`domCtl(host,scope,cls)`, `deriveDomain(host,scope)` (derives both bulk boxes + both indicators + the
+counter), `applyDomain(host,scope,want)`, and `wireDomains()` loops `['errext','blockd']` →
+`wireDomainScope(scope)`. The two indicators are disabled checkboxes whose label goes green via an `.on`
+class (`setInd`), so Mixture/all-tested are read-only signals the user can't toggle.
+**Verification:** structural grep of a generated report — panel-errext and panel-blockd each render
+domgrp/dombroken/domworking/dommixture/domalltested/domprog with rows+controls carrying the right
+data-scope. Headless real-click (dispatched MouseEvents): errext bulk-Broken → both rows broken,
+all-tested on, counter "tested 2/2"; flip one to Working → Mixture on; Blocked-tab bulk-Working → both
+rows working, domWorking on; Collapse-all collapses every group (2/2). domtest (now with data-scope +
+indicator asserts), vtest, sharetest, revtest, newwin all PASS.

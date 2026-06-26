@@ -949,3 +949,23 @@ gone, header line carries runtime + suppressed. Headless real-click probe: on lo
 (incl. brokenTotN) are amber; marking the internal-category links greens Broken·internal only; marking the
 rest greens all four; brokenTotN's value rises 3→5 as the two blocked links are confirmed broken.
 domtest/vtest/sharetest/revtest/exporttest/newwin/tracker3 all pass.
+
+## AD-056: Each broken stat shows count + a live "(percent)" of the total below it
+**Date:** 2026-06-26
+**Problem:** the operator wanted the headline broken stats to read as a combo — count *and* percent —
+not just a bare count.
+**Decision:** since the matrix (AD-055) already places each broken count directly above its total, the
+natural denominator is that total. The four broken stats now render `N (P%)` where P% = count ÷ the row-2
+total in the same column: Broken hyperlink instances ÷ Hyperlink instances, Broken·internal ÷ Internal
+destinations, Broken·external ÷ External destinations, Total-unique-destinations-broken ÷ Total unique
+destinations. A `brokenN(id,count,denom)` render helper emits the count span + a muted `.pct` span
+(`(60%)`, ~14px); `setStat(el,v,denom)` gained a denom arg and rewrites the `.pct` sibling, so the percent
+**updates live** with the count as you triage (denominators are the fixed row-2 totals, embedded as
+`DENOM={inst,int,ext,tot}` in the IIFE). Omitted when the denominator is 0. The percent is deliberately the
+share of the *displayed* total below it (transparent arithmetic — both numbers are visible in the column),
+so for Broken·internal it's "broken vs. crawled internal pages" (Internal destinations counts crawled
+pages, not broken ones); Blocked·uncertain (the col-5 outlier) and the row-2 totals stay bare counts.
+**Verification:** server-side render shows 6 (60%) / 2 (67%) / 1 (50%) / 3 (60%) for the synth fixture
+(= 6/10, 2/3, 1/2, 3/5). Headless real-click probe confirms live recompute: marking e1 Working →
+int 1 (33%), tot 2 (40%), inst 3 (30%); then confirming blocked b1 Broken → inst 8 (80%), int 2 (67%),
+tot 3 (60%). Full suite passes.

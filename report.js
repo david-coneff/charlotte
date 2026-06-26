@@ -205,13 +205,13 @@ function buildReport(state, cfg, allow, partial) {
   const domainHelp = `<p class="muted" style="margin:2px 0 10px">Grouped by domain. Each header has an <strong>All: Broken / Working</strong> pair that applies to <em>every</em> link in that domain at once — handy when a whole site (e.g. a social network) is systematically misread by the automated check but works in a browser. The header also shows a live <strong>tested K/N</strong> count, a <strong>Mixture</strong> flag (both verdicts present) and an <strong>all tested</strong> flag, so you can scan progress with the groups collapsed.</p>`;
   // Toolbar above an Errors table: a live count + copy/export actions (disabled
   // until something is ticked). The select-all lives in the table header cell.
-  const exportBar = (scope) => `<div class="exportbar">${showAllow ? `<span class="selcount" data-scope="${scope}">0 selected</span><span class="grow"></span><button type="button" class="btn copybtn" data-scope="${scope}" disabled>⧉ Copy lines</button><button type="button" class="btn exportbtn" data-scope="${scope}" disabled>⬇ Export to allowlist…</button><span class="vsep"></span>` : `<span class="grow"></span>`}<button type="button" class="btn trackbtn" title="Save an editable checklist (grouped by referrer page) of the broken links not marked 'Working', as a standalone HTML">🔧 Export fix tracker</button></div>`;
+  // The fix-tracker export button now lives once in the always-visible share bar (below), not on
+  // each tab. exportBar is just the (opt-in) allowlist-selection toolbar — empty when that's off.
+  const exportBar = (scope) => showAllow ? `<div class="exportbar"><span class="selcount" data-scope="${scope}">0 selected</span><span class="grow"></span><button type="button" class="btn copybtn" data-scope="${scope}" disabled>⧉ Copy lines</button><button type="button" class="btn exportbtn" data-scope="${scope}" disabled>⬇ Export to allowlist…</button></div>` : ``;
   // Live manual-testing progress for an Errors tab (updated by the script below as the
   // Broken / Working boxes are ticked): how far testing has gotten + confirmed broken/working.
   const testBar = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span></div>`;
-  // Blocked tab: just the fix-tracker button (no allowlist selection) + a live counter.
-  const blockedBar = `<div class="exportbar"><span class="grow"></span><button type="button" class="btn trackbtn" title="Save the fix tracker — includes broken links plus the blocked links you've confirmed broken here, grouped by referrer page">🔧 Export fix tracker</button></div>`;
-  const blockedHelp = `<p class="muted" style="margin:2px 0 10px">Two mutually-exclusive boxes per link: <strong>Broken</strong> confirms this uncertain link really is dead — confirmed ones are added to the <strong>Broken hyperlink instances</strong> count and the fix tracker (routed internal/external by their kind); <strong>Working</strong> confirms it actually loads. Leave both unticked to keep it uncertain (not counted). Either tick counts as tested and auto-fills the <strong>Last tested</strong> date &amp; time. Ticks are saved in this browser.</p>`;
+  const blockedHelp = `<p class="muted" style="margin:2px 0 10px">Two mutually-exclusive boxes per link: <strong>Broken</strong> confirms this uncertain link really is dead — confirmed ones join the <strong>Broken hyperlink instances</strong> count (routed internal/external by their kind); <strong>Working</strong> confirms it actually loads. Leave both unticked to keep it uncertain (not counted). <em>Until you mark one <strong>Working</strong>, an uncertain link stays in the fix-tracker export</em>, so the tracker is a complete to-review list. Either tick counts as tested and auto-fills the <strong>Last tested</strong> date &amp; time. Ticks are saved in this browser.</p>`;
   const blockedCounter = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span></div>`;
   // Embedded fix-tracker payload + self-rendering template (final report only).
   const brokenFor = (arr) => arr.slice(0, RENDER_CAP).map((e) => ({ url: e.url, reason: e.reason, refs: refsAll(e.url, e.source) }));
@@ -228,7 +228,7 @@ function buildReport(state, cfg, allow, partial) {
   // Share toolbar — only meaningful when there are links to triage. Lets you carry your
   // Broken/Working verdicts (which live in localStorage, not the file) to someone else.
   const hasTriage = showPick && (activeInt.length || activeExt.length || blocked.length);
-  const shareBar = `<div class="card sharebar"><p class="muted" style="margin:0 0 8px;font-size:13px"><strong>Share your testing verdicts.</strong> Your Broken/Working ticks &amp; timestamps are saved in <em>this</em> browser only — they don't travel if you just email this file. To hand them off:</p><div class="exportbar"><button type="button" class="btn" id="cwSaveCopy" title="Download a new self-contained report with your current verdicts baked in — email that file and the recipient just opens it">💾 Save shareable copy</button><span class="vsep"></span><button type="button" class="btn" id="cwExportV" title="Download your verdicts as a small JSON file to send alongside the report">⬇ Export verdicts</button><button type="button" class="btn" id="cwImportV" title="Load verdicts from a JSON file someone shared with you (merges by link, then reloads)">⬆ Import verdicts</button><input type="file" id="cwImportFile" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0"></div></div>`;
+  const shareBar = `<div class="card sharebar"><div class="exportbar" style="margin-bottom:12px;align-items:baseline"><button type="button" class="btn trackbtn" title="Build one editable, self-contained checklist of every link still to fix — all broken + blocked links across internal AND external, except those you've marked Working — grouped by referrer page">🔧 Export fix tracker</button><span class="muted" style="font-size:12px">One checklist of everything still to fix — every broken &amp; blocked link (internal + external) <strong>except those you've marked Working</strong>, grouped by page. No need to open each tab.</span></div><p class="muted" style="margin:0 0 8px;font-size:13px"><strong>Share your testing verdicts.</strong> Your Broken/Working ticks &amp; timestamps are saved in <em>this</em> browser only — they don't travel if you just email this file. To hand them off:</p><div class="exportbar"><button type="button" class="btn" id="cwSaveCopy" title="Download a new self-contained report with your current verdicts baked in — email that file and the recipient just opens it">💾 Save shareable copy</button><span class="vsep"></span><button type="button" class="btn" id="cwExportV" title="Download your verdicts as a small JSON file to send alongside the report">⬇ Export verdicts</button><button type="button" class="btn" id="cwImportV" title="Load verdicts from a JSON file someone shared with you (merges by link, then reloads)">⬆ Import verdicts</button><input type="file" id="cwImportFile" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0"></div></div>`;
   // One-line helper under each Errors table explaining the two kinds of checkbox.
   const pickHelp = `<p class="muted" style="margin:2px 0 10px">${showAllow ? `First box selects a link for the <strong>allowlist</strong>. Then two` : `Two`} mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The <strong>Last tested</strong> column auto-fills the date &amp; time of your latest verdict. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page, each broken link with its own Fixed checkbox). Verdicts are saved in this browser.</p>`;
 
@@ -383,6 +383,8 @@ function buildReport(state, cfg, allow, partial) {
  .selcount{color:var(--muted);font-size:12px}
  .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
  .btn.exportbtn:not(:disabled){background:var(--accent);color:#06121f;border-color:var(--accent);font-weight:600}
+ /* The fix-tracker export is the primary triage output — make the one share-bar button stand out. */
+ .sharebar .trackbtn{background:var(--accent);color:#06121f;border-color:var(--accent);font-weight:600}.sharebar .trackbtn:hover{color:#06121f;filter:brightness(1.08)}
  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}.toast.show{opacity:1}
  .vsep{display:inline-block;width:1px;height:20px;background:var(--border);margin:0 2px;vertical-align:middle}
  /* No-flash tab restore: a head script sets html.tab-NAME before first paint so
@@ -433,7 +435,7 @@ function buildReport(state, cfg, allow, partial) {
   ${oosPanel}
   <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + testBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + domainHelp + testBar("errext") + domainTools("errext") + domainGroups(activeExt, "errext", errextHead, triageCells) : `<div class="tablewrap"><table><thead><tr><th>External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${errRows(activeExt)}</tbody></table></div>`}` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
-  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? blockedBar + blockedHelp + domainHelp + blockedCounter("blockd") + domainTools("blockd") + domainGroups(blocked, "blockd", blockdHead, blockedCells) : `${capNote(blocked.length)}<div class="tablewrap"><table><thead><tr><th>URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead><tbody>${blockedRows(blocked)}</tbody></table></div>`}` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? blockedHelp + domainHelp + blockedCounter("blockd") + domainTools("blockd") + domainGroups(blocked, "blockd", blockdHead, blockedCells) : `${capNote(blocked.length)}<div class="tablewrap"><table><thead><tr><th>URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead><tbody>${blockedRows(blocked)}</tbody></table></div>`}` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-suppressed">${suppressed.length ? `<p class="muted">Hidden from Errors via <code>${esc(cfg.allowlist)}</code>.</p><div class="tablewrap"><table><thead><tr><th>URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${errRows(suppressed)}</tbody></table></div>` : `<p class="muted">Nothing suppressed.</p>`}</div>
  </div>
  ${logCard}
@@ -593,20 +595,16 @@ ${trackerEmbed}
   function exportTracker(){
     var tpl=window.__CW_TPL__; if(!tpl){ toast('Tracker template unavailable'); return; }
     var data=JSON.parse(JSON.stringify(window.__CW_BROKEN__||{host:'',internal:[],external:[]}));
-    // Drop Errors links marked "Working" (works on manual check) so a confirmed false
-    // positive — especially one referenced from many pages — can't flood the tracker.
-    // Scope to the Errors panels: Blocked "Working" ticks don't gate the tracker (blocked
-    // links only enter it when confirmed Broken, below).
-    var excl={}, ob=document.querySelectorAll('#panel-errint .okbox, #panel-errext .okbox'), z, nx=0;
-    for(z=0;z<ob.length;z++){ if(ob[z].checked){ if(!excl[ob[z].getAttribute('data-url')]){ nx++; } excl[ob[z].getAttribute('data-url')]=1; } }
-    function keep(list){ var out=[],q; for(q=0;q<list.length;q++){ if(!excl[list[q].url]) out.push(list[q]); } return out; }
-    data.internal=keep(data.internal||[]); data.external=keep(data.external||[]);
-    // Add blocked (uncertain) links the user CONFIRMED broken, routed internal/external by kind.
-    var conf={}, bb=document.querySelectorAll('.brokenbox'), w;
-    for(w=0;w<bb.length;w++){ if(bb[w].checked){ conf[bb[w].getAttribute('data-url')]=1; } }
-    function pickConf(list){ var out=[],q; for(q=0;q<(list||[]).length;q++){ if(conf[list[q].url]) out.push(list[q]); } return out; }
-    data.internal=data.internal.concat(pickConf(data.blockedInt));
-    data.external=data.external.concat(pickConf(data.blockedExt));
+    // A link belongs in the fix tracker UNLESS it's been manually marked "Working" — one uniform
+    // rule across Errors (assumed broken) AND Blocked (uncertain). So everything still untested is
+    // included by default and the tracker is a complete to-review list; marking Working is what
+    // drops a link. Scan the Working boxes on all three triage panels.
+    var excl={}, ob=document.querySelectorAll('#panel-errint .okbox, #panel-errext .okbox, #panel-blockd .okbox'), z, nx=0;
+    for(z=0;z<ob.length;z++){ if(ob[z].checked){ var du=ob[z].getAttribute('data-url'); if(!excl[du]){ nx++; } excl[du]=1; } }
+    function keep(list){ var out=[],q; for(q=0;q<(list||[]).length;q++){ if(!excl[list[q].url]) out.push(list[q]); } return out; }
+    // Blocked links are routed internal/external by kind, then merged into the same two tabs.
+    data.internal=keep(data.internal).concat(keep(data.blockedInt));
+    data.external=keep(data.external).concat(keep(data.blockedExt));
     delete data.blockedInt; delete data.blockedExt;
     // Carry each broken link's manual verdict (Broken/Working) + last-tested timestamp from the
     // report's localStorage into the tracker, so the standalone file shows them and can keep editing.
@@ -620,7 +618,7 @@ ${trackerEmbed}
       var blob=new Blob([doc],{type:'text/html;charset=utf-8'}), url=URL.createObjectURL(blob), a=document.createElement('a');
       a.href=url; a.download='charlotte-fix-tracker.html'; document.body.appendChild(a); a.click();
       setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
-      toast('Exported fix tracker'+(nx?' ('+nx+' not-broken link'+(nx===1?'':'s')+' excluded)':''));
+      toast('Exported fix tracker'+(nx?' ('+nx+' link'+(nx===1?'':'s')+' marked Working excluded)':''));
     }catch(e){ toast('Tracker export failed'); }
   }
   var tb=document.querySelectorAll('.trackbtn');

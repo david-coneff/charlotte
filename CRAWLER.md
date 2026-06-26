@@ -516,7 +516,7 @@ tabbed sections:
 - **Out of scope** — _(only when a scope/prefix is set)_ same-domain links outside the subsection: recorded, not crawled.
 - **Broken · internal** — broken internal destinations (HTTP 404/410, bad requests) — yours to fix.
 - **Broken · external** — unreachable external destinations (when `--check-external` is on) — a link to fix or remove.
-- **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them. Each row has the same two mutually-exclusive boxes as the **Broken** tabs — **Broken** and **Working** — but with the opposite default: blocked links start *uncertain and uncounted*, so ticking **Broken** *confirms* one really is dead and **adds** it to the **Broken hyperlink instances** count (live) and to the **fix tracker** — routed to internal or external by its **Kind** — while **Working** just records that it loads. (Leave both unticked to keep it uncertain.) That feeds the same cleanup workflow without needing to split the tab in two.
+- **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them. Each row has the same two mutually-exclusive boxes as the **Broken** tabs — **Broken** and **Working** — but with the opposite default: blocked links start *uncertain and uncounted*, so ticking **Broken** *confirms* one really is dead and **adds** it to the **Broken hyperlink instances** count (live), routed to internal or external by its **Kind**, while **Working** records that it loads. (Leave both unticked to keep it uncertain.) Either way, an uncertain link **stays in the fix-tracker export until you mark it Working** — like everything else untested — so the tracker is a complete to-review list. That feeds the same cleanup workflow without needing to split the tab in two.
 - **Suppressed** — broken links hidden via the allowlist, kept separately so you can still audit them.
 
 Across the top sits a row of **headline numbers**, split into two ideas a one-line legend
@@ -573,17 +573,22 @@ Clicking any link opens it in a **new window docked to the side** of the report 
 more room, reusing one window), so checking a link never covers your report or needs
 repositioning.
 
-Each broken link also lists the pages it was **found on**, each with its own checkbox.
-**🔧 Export fix tracker** (always available — you don't have to tick anything first)
-saves a **standalone HTML checklist grouped by referrer page**: one section per page that
-has broken links, with a free-form **Notes** field for that page and its broken links
-listed beneath. Each link row has an editable **Fixed** box — which stamps its own **Fixed
-on** date/time when you tick it — plus, mirroring the main report, a **Last tested**
-timestamp and a mutually-exclusive **Broken / Working** verdict pair. The verdict and
-last-tested time are **baked in from the report** at export time and stay editable: ticking
-Broken or Working auto-fills the timestamp, the boxes are exclusive, and because a link can
-be reached from several pages the verdict is **synced per URL** across every row it appears
-in. Links you marked *Working* in the report are excluded from the export. Two tabs
+Each broken link also lists the pages it was **found on**.
+
+A single **🔧 Export fix tracker** button lives in the report's **share toolbar above the
+tabs** — always visible, so you don't have to switch to a particular tab or tick anything
+first. It saves **one unified, standalone HTML checklist grouped by referrer page**: one
+section per page that has broken links, with a free-form **Notes** field for that page and
+its broken links beneath. The export includes **every link still to fix in one place** —
+**broken** *and* **blocked/uncertain**, internal *and* external — **except the ones you've
+marked Working**. Untested links are in by default (so the tracker is a complete to-review
+list you work down as you confirm each); marking a link **Working** in the report is what
+drops it. Each link row has an editable **Fixed** box — which stamps its own **Fixed on**
+date/time when you tick it — plus, mirroring the main report, a **Last tested** timestamp and
+a mutually-exclusive **Broken / Working** verdict pair. The verdict and last-tested time are
+**baked in from the report** at export time and stay editable: ticking Broken or Working
+auto-fills the timestamp, the boxes are exclusive, and because a link can be reached from
+several pages the verdict is **synced per URL** across every row it appears in. Two tabs
 (internal/external) styled like this report; **fixes, verdicts, timestamps, and notes
 persist in the browser** (localStorage), so it can be worked through and handed off over
 time.

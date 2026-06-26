@@ -434,10 +434,13 @@ tool bounds the other growth vectors so RAM stays predictable:
   each row, so its size grows with the crawl (~280 bytes/link — e.g. ~1.7 MB for
   6,000 links, ~28 MB for 100,000). For very large crawls the JSON stays the compact,
   machine-readable source of truth.
-- **`--paginate`** (off by default; GUI: *Paginate report (1,000 links/page)*) keeps
-  every row embedded but shows tables **1,000 rows at a time** with Prev/Next/Go-to
-  paging, so a report with tens of thousands of links opens and scrolls smoothly. This
-  includes each broken link's nested **"found on" referrer list**, which is otherwise
+- **`--paginate`** (off by default; GUI: *Paginate report* dropdown) keeps every row
+  embedded but shows tables **a page at a time** with Prev/Next/Go-to paging, so a
+  report with tens of thousands of links opens and scrolls smoothly. The page size is
+  **1,000 rows by default** and configurable with **`--page-size N`** (GUI dropdown:
+  Off / 250 / 500 / 1,000 / 2,500 / 5,000) — it applies to **every** data table
+  (internal pages, the Errors/Blocked tables, …). This includes each broken link's
+  nested **"found on" referrer list**, which is otherwise
   uncapped — every page that links to a broken URL is listed (a sitewide link can have
   thousands), and with `--paginate` you page through them. It is display-only —
   selection, the allowlist export, and the fix-tracker export all still act on every
@@ -748,15 +751,17 @@ concurrency  = 4
 rps          = 5
 checkExternal = false
 noPages      = true        # crawl every page
-paginate     = true        # 1,000-links-per-page report (on by default in the GUI)
+pageSize     = 1000        # report pagination breakpoint: off / 250 / 500 / 1000 / 2500 / 5000
 ```
 
 Keys mirror the form: `maxPages`, `maxDepth`, `concurrency`, `delay`, `rps`, `timeout`,
 `checkpoint`, `userAgent`, `pathPrefix`, `allowlist`, `out`, `json`, `log`, `workDir`,
-`scope` (domain/path/custom), `seen` (memory/compact/disk), and the toggles `noPages`,
-`noDepth`, `includeSub`, `checkExternal`, `recheck`, `scanDocs`, `browser`, `paginate`.
-A documented **`crawl-gui-config.txt.example`** ships alongside. (Report **pagination is on
-by default** in the GUI; set `paginate = false` here to turn it off.)
+`scope` (domain/path/custom), `seen` (memory/compact/disk), `pageSize` (report pagination
+breakpoint, or `off`), and the toggles `noPages`, `noDepth`, `includeSub`, `checkExternal`,
+`recheck`, `scanDocs`, `browser`.
+A documented **`crawl-gui-config.txt.example`** ships alongside. (Report **pagination
+defaults to 1,000 rows/page** in the GUI; set `pageSize = off` here to render every row at
+once, or to another breakpoint like `pageSize = 500`.)
 
 ### Use it
 

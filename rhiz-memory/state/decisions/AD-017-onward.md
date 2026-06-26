@@ -705,3 +705,20 @@ availWidth−40]`. Adaptive — follows whatever the UI needs, so layout changes
 number — and best-effort (try/catch; on any failure the window keeps its default size). Added
 `id="wrap"`. (Couldn't be exercised in the Linux dev env — no Trident/mshta — so it's reasoned +
 syntax/dialect-checked, with the no-op fallback as the safety net.)
+
+## AD-046: Configurable report pagination breakpoint (--page-size + GUI dropdown)
+**Date:** 2026-06-26
+**Problem:** report pagination (AD-018) was hardwired to 1,000 rows/page, and the GUI exposed only an
+on/off "Paginate report" checkbox. Users wanted to choose the breakpoint. (The internal-pages tab was
+already covered — the pager targets `.tablewrap > table` and that table is one — but it was worth
+confirming.)
+**Decision:** add **`--page-size N`** (cfg.pageSize, default 1,000; implies `--paginate`); the report's
+pager script now emits `var PAGE_SIZE=<cfg.pageSize>` instead of the hardcoded constant (the module
+`PAGE_SIZE=1000` stays as the fallback default). The GUI's paginate **checkbox became a `<select id=
+"pageSize">`** — Off / 250 / 500 / 1,000 / 2,500 / 5,000 — wired through a `pushPageArgs(a)` helper into
+all three command builders (crawl / re-check / rebuild): "off" emits nothing (render all), a number emits
+`--paginate --page-size N`. The generic config loader already handles `<select>`, so `pageSize` works in
+`crawl-gui-config.txt` (replaces the old `paginate` key). Default behavior unchanged (1,000/page).
+**Verification:** rebuilt a 25-internal-page report with `--page-size 10`; headless Chromium confirms the
+**internal-pages tab paginates** — pager present, 25 rows total, 10 visible, label "Page 1 of 3 · rows
+1–10 of 25". HTA parses + ES3/ES5-clean; pushPageArgs wired into all 3 builders; report/triage suites pass.

@@ -41,7 +41,8 @@ function parseArgs(argv) {
     suggest: "crawl-allowlist.suggested.txt",
     out: "crawl-report.html",
     json: "",
-    paginate: false,                 // client-side paginate report tables (1000 rows/page); off = render all at once
+    paginate: false,                 // client-side paginate report tables; off = render all at once
+    pageSize: 1000,                  // rows per page when --paginate is on (--page-size N; default 1,000)
     allowlistExport: false,          // in-report allowlist EXPORT UI (pick boxes + "Export to allowlist…"); off by default (superseded by fix tracker). --allowlist input is unaffected.
     state: "",                       // resume journal path ("" = off); --state FILE to enable
     resume: "",                      // replay this journal, then continue ("" = fresh crawl)
@@ -113,6 +114,7 @@ function parseArgs(argv) {
       case "--json": cfg.json = next(); break;
       case "--paginate": cfg.paginate = true; break;
       case "--no-paginate": cfg.paginate = false; break;
+      case "--page-size": cfg.pageSize = Math.max(1, num(next(), arg)); cfg.paginate = true; break;
       case "--allowlist-export": cfg.allowlistExport = true; break;
       case "--no-allowlist-export": cfg.allowlistExport = false; break;
       case "--state": cfg.state = next(); break;
@@ -216,10 +218,13 @@ Reconstruct a partitioned log into one composite stream:
   --suggest FILE          Write editable broken-link list (default crawl-allowlist.suggested.txt)
   --out FILE              Output report HTML             (default crawl-report.html)
   --json FILE             Also write raw JSON results
-  --paginate              In the HTML report, show large tables 1,000 rows at a
-                          time with Prev/Next paging (all rows stay embedded; keeps
-                          very large reports responsive). Off by default = render
-                          every row at once.
+  --paginate              In the HTML report, show large tables a page at a time
+                          with Prev/Next paging (all rows stay embedded; keeps very
+                          large reports responsive). Off by default = render every
+                          row at once. Applies to every data table (internal pages,
+                          errors, the nested "found on" lists, …).
+  --page-size N           Rows per page when paginating (default 1,000). Implies
+                          --paginate.
   --allowlist-export      Re-enable the in-report allowlist EXPORT UI (per-link pick
                           boxes + “Export to allowlist…” / “Copy lines” on the Errors
                           tabs). Off by default — the fix tracker and Broken/Working

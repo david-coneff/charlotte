@@ -232,7 +232,7 @@ function buildReport(state, cfg, allow, partial) {
   // referrer list (which is otherwise uncapped, however many pages link there).
   // Display-only: selection/export read every row regardless of which page is shown.
   const pagerScript = cfg.paginate ? `<script>(function(){
-  var PAGE_SIZE=${PAGE_SIZE};
+  var PAGE_SIZE=${Number(cfg.pageSize) > 0 ? Math.floor(Number(cfg.pageSize)) : PAGE_SIZE};
   function rows(tb){ var o=[],c=tb.children,i; for(i=0;i<c.length;i++){ if(c[i].tagName==='TR') o.push(c[i]); } return o; }
   function el(t,c,x){ var e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e; }
   function setup(table){

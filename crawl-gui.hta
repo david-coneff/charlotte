@@ -136,7 +136,15 @@
         <label class="opt"><input type="checkbox" id="recheck" checked onclick="updatePreview()"> Re-test failed links once at the end</label>
         <label class="opt"><input type="checkbox" id="scanDocs" checked onclick="updatePreview()"> Scan links inside documents (PDF/Office)</label>
         <label class="opt"><input type="checkbox" id="browser" checked onclick="onBrowserToggle()"> Browser mode (desktop UA, fewer false dead links)</label>
-        <label class="opt"><input type="checkbox" id="paginate" checked onclick="updatePreview()"> Paginate report (1,000 links/page)</label>
+        <label class="opt">Paginate report:
+          <select id="pageSize" onchange="updatePreview()" style="margin-left:6px;vertical-align:middle">
+            <option value="off">Off — show all rows on one page</option>
+            <option value="250">250 rows per page</option>
+            <option value="500">500 rows per page</option>
+            <option value="1000" selected>1,000 rows per page</option>
+            <option value="2500">2,500 rows per page</option>
+            <option value="5000">5,000 rows per page</option>
+          </select></label>
         <label class="opt"><input type="checkbox" id="allowlistExport" onclick="updatePreview()"> Allowlist export tools in report (legacy; off by default)</label>
       </div>
     </div>
@@ -270,6 +278,8 @@ function setStatus(msg, cls) {
 function q(s) { return '"' + String(s).replace(/"/g, "") + '"'; }
 function val(id) { return trim($(id).value); }
 function trim(s) { return String(s).replace(/^\s+|\s+$/g, ""); }
+// Pagination args from the page-size dropdown: "off" -> no paging; a number -> --paginate --page-size N.
+function pushPageArgs(a) { var ps = $("pageSize").value; if (ps && ps !== "off") { a.push("--paginate"); a.push("--page-size " + q(ps)); } }
 
 function buildArgs() {
   var a = [];
@@ -291,7 +301,7 @@ function buildArgs() {
   if (!$("recheck").checked)      a.push("--no-recheck");
   if (!$("scanDocs").checked)     a.push("--no-scan-docs");
   if ($("browser").checked)       a.push("--browser");
-  if ($("paginate").checked)      a.push("--paginate");
+  pushPageArgs(a);
   if ($("allowlistExport").checked) a.push("--allowlist-export");
   // In browser mode, the default UA box means "use the built-in browser UA" — so
   // only pass --user-agent when it's non-empty AND not the unchanged default.
@@ -330,7 +340,7 @@ function buildRecheckCommand() {
   if (uaVal !== "" && !($("browser").checked && uaVal === "charlotte-crawler/1.0 (+local)")) a.push("--user-agent " + q(uaVal));
   if (val("allowlist") !== "")   a.push("--allowlist " + q(val("allowlist")));
   if (val("out") !== "")         a.push("--out " + q(val("out")));
-  if ($("paginate").checked)     a.push("--paginate");
+  pushPageArgs(a);
   if ($("allowlistExport").checked) a.push("--allowlist-export");
   a.push("--json " + q(jsonName));
   // Re-check writes its progress to this log so the GUI's live feed + counters update as it runs.
@@ -346,7 +356,7 @@ function buildRebuildCommand() {
   var a = ["--rebuild-from " + q(jsonName)];
   if (val("allowlist") !== "") a.push("--allowlist " + q(val("allowlist")));
   if (val("out") !== "")       a.push("--out " + q(val("out")));
-  if ($("paginate").checked)   a.push("--paginate");
+  pushPageArgs(a);
   if ($("allowlistExport").checked) a.push("--allowlist-export");
   a.push("--json " + q(jsonName));
   return "node " + q(jsPath) + " " + a.join(" ");
@@ -414,7 +424,7 @@ function seedUrls() {
 
 // ---- optional crawl-gui-config.txt next to this file: override the form defaults
 //      (any field's saved default) without editing the GUI. One "key = value" per line;
-//      key is a field id (e.g. maxPages, concurrency, delay, rps, timeout, paginate,
+//      key is a field id (e.g. maxPages, concurrency, delay, rps, timeout, pageSize (off/250/500/1000/2500/5000),
 //      checkExternal, browser, scanDocs, recheck, includeSub, noPages, noDepth, scope,
 //      pathPrefix, seen, allowlist, allowlistExport, out, json, log, checkpoint, userAgent, workDir).
 //      Checkboxes take true/false (or 1/0, yes/no, on/off). '#' starts a comment; blank

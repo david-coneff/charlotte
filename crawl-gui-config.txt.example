@@ -40,7 +40,7 @@
 # recheck      = true                        # re-test failed links once at the end
 # scanDocs     = true                        # scan links inside PDF/Office documents
 # browser      = true                        # browser-mode UA (fewer false dead links)
-# paginate     = true                        # paginate the report (1,000 links/page)
+# pageSize     = 1000                        # report pagination breakpoint: off / 250 / 500 / 1000 / 2500 / 5000
 #
 # Example — a fast, unlimited crawl that does NOT verify external links:
 #

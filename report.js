@@ -154,13 +154,14 @@ function buildReport(state, cfg, allow, partial) {
     if (a.length) return a;
     return [fallback && /^https?:\/\//i.test(fallback) ? fallback : (fallback || "(start)")];
   };
-  // "Found on" cell for the Errors tabs — each referrer carries a fix checkbox so
-  // someone fixing referrer pages can tick them off (and export the set, below).
-  const reffix = (r, brokenUrl) => `<label class="reffix"><input type="checkbox" class="fixbox" data-ref="${esc(r)}" data-broken="${esc(brokenUrl)}"><span>${/^https?:\/\//i.test(r) ? link(r) : esc(r)}</span></label>`;
+  // "Found on" cell for the Errors/Blocked triage tabs — the referrer page(s) that link to the broken
+  // URL. (The per-referrer "Fixed" checkbox that used to sit here was removed: fix-tracking now lives
+  // entirely in the standalone fix tracker.) refsAll still feeds the tracker's data (brokenFor).
+  const refLink = (r) => /^https?:\/\//i.test(r) ? link(r) : esc(r);
   const refCellFix = (brokenUrl, fallback) => {
     const arr = refsAll(brokenUrl, fallback);
-    if (arr.length === 1) return reffix(arr[0], brokenUrl);
-    const rows = arr.map((r) => `<tr><td>${reffix(r, brokenUrl)}</td></tr>`).join("");
+    if (arr.length === 1) return refLink(arr[0]);
+    const rows = arr.map((r) => `<tr><td>${refLink(r)}</td></tr>`).join("");
     return `<details><summary>${arr.length} pages link here</summary><div class="tablewrap" style="max-height:220px;margin-top:6px"><table class="subtable"><tbody>${rows}</tbody></table></div></details>`;
   };
   // Error rows WITH a leading checkbox — only on the two "Errors" tabs. Each box
@@ -229,7 +230,7 @@ function buildReport(state, cfg, allow, partial) {
   const hasTriage = showPick && (activeInt.length || activeExt.length || blocked.length);
   const shareBar = `<div class="card sharebar"><p class="muted" style="margin:0 0 8px;font-size:13px"><strong>Share your testing verdicts.</strong> Your Broken/Working ticks &amp; timestamps are saved in <em>this</em> browser only — they don't travel if you just email this file. To hand them off:</p><div class="exportbar"><button type="button" class="btn" id="cwSaveCopy" title="Download a new self-contained report with your current verdicts baked in — email that file and the recipient just opens it">💾 Save shareable copy</button><span class="vsep"></span><button type="button" class="btn" id="cwExportV" title="Download your verdicts as a small JSON file to send alongside the report">⬇ Export verdicts</button><button type="button" class="btn" id="cwImportV" title="Load verdicts from a JSON file someone shared with you (merges by link, then reloads)">⬆ Import verdicts</button><input type="file" id="cwImportFile" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0"></div></div>`;
   // One-line helper under each Errors table explaining the two kinds of checkbox.
-  const pickHelp = `<p class="muted" style="margin:2px 0 10px">${showAllow ? `First box selects a link for the <strong>allowlist</strong>. Then two` : `Two`} mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The <strong>Last tested</strong> column auto-fills the date &amp; time of your latest verdict. The box beside each “found on” page marks that referrer <strong>fixed</strong>. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page). Ticks are saved in this browser.</p>`;
+  const pickHelp = `<p class="muted" style="margin:2px 0 10px">${showAllow ? `First box selects a link for the <strong>allowlist</strong>. Then two` : `Two`} mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The <strong>Last tested</strong> column auto-fills the date &amp; time of your latest verdict. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page, each broken link with its own Fixed checkbox). Verdicts are saved in this browser.</p>`;
 
   // Out-of-scope (same domain, outside the chosen subsection) — only shown when scoped.
   const scoped = !!state.pathPrefix;
@@ -383,7 +384,6 @@ function buildReport(state, cfg, allow, partial) {
  .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
  .btn.exportbtn:not(:disabled){background:var(--accent);color:#06121f;border-color:var(--accent);font-weight:600}
  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}.toast.show{opacity:1}
- .reffix{display:inline-flex;align-items:flex-start;gap:6px}.reffix input{margin-top:3px;cursor:pointer;flex:none}.reffix.done span{opacity:.55;text-decoration:line-through}
  .vsep{display:inline-block;width:1px;height:20px;background:var(--border);margin:0 2px;vertical-align:middle}
  /* No-flash tab restore: a head script sets html.tab-NAME before first paint so
     the correct tab/panel renders immediately, not the default then a swap. */
@@ -588,10 +588,8 @@ ${trackerEmbed}
   }
   for(var i=0;i<SCOPES.length;i++){ wire(SCOPES[i]); }
 
-  // ---- per-referrer fix checkboxes + standalone editable "fix tracker" export ----
-  var NL=String.fromCharCode(10), BS=String.fromCharCode(92);
-  var fixes=document.querySelectorAll('.fixbox');
-  for(var fi=0;fi<fixes.length;fi++){ fixes[fi].addEventListener('change', function(){ var l=this.parentNode; if(l){ l.className = this.checked ? 'reffix done' : 'reffix'; } }); }
+  // ---- standalone editable "fix tracker" export ----
+  var BS=String.fromCharCode(92);
   function exportTracker(){
     var tpl=window.__CW_TPL__; if(!tpl){ toast('Tracker template unavailable'); return; }
     var data=JSON.parse(JSON.stringify(window.__CW_BROKEN__||{host:'',internal:[],external:[]}));
@@ -615,9 +613,7 @@ ${trackerEmbed}
     function lg(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
     function annotate(list){ for(var q=0;q<list.length;q++){ var u=list[q].url; var vb=lg('cwbroken:'+HOST+':'+u)==='1', vo=lg('cwok:'+HOST+':'+u)==='1'; list[q].v=vb?'broken':(vo?'working':''); list[q].ts=lg('cwts:'+HOST+':'+u)||''; } }
     annotate(data.internal); annotate(data.external);
-    var ticked={}, fb=document.querySelectorAll('.fixbox'), j;
-    for(j=0;j<fb.length;j++){ if(fb[j].checked){ ticked[fb[j].getAttribute('data-ref')+NL+fb[j].getAttribute('data-broken')]=1; } }
-    data.ticked=ticked;
+    data.ticked={};   // fix-tracking lives in the tracker now — nothing to seed from the report
     var inj=JSON.stringify(data).split('</').join('<'+BS+'/');
     var doc=tpl.replace('"__DATA__"', function(){ return inj; });
     try{

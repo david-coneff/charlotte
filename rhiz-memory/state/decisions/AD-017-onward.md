@@ -848,3 +848,23 @@ newwin-test extended (16 asserts incl. URL/Blob stubs) — reuse still opens exa
 re-focuses each click, the interstitial names the LATEST link in both its display and meta-refresh, a
 reopened-after-close window shows the new link, and ampersands are escaped (a=1&amp;b=2). NEWWIN stays
 constraint-clean and parses as valid JS; all suites pass.
+
+## AD-052: Remove the per-referrer "Fixed" checkbox from the base crawl report
+**Date:** 2026-06-26
+**Problem:** the "Found on" cell of each broken-link triage row carried a per-referrer **Fixed**
+checkbox (`.fixbox`, AD-008-era). With the standalone **fix tracker** now owning fix-tracking end to
+end (per-referrer Fixed + "Fixed on" times + the By-page/By-link reverse mapping, AD-047), the report's
+boxes were redundant and, worse, ephemeral — they never persisted across reloads, unlike the tracker.
+Two competing "fixed" affordances was confusing.
+**Decision:** drop the report-side Fixed checkbox entirely. `refCellFix` now renders the referrer
+page(s) as plain links (single → link; many → the same `<details> N pages link here` disclosure), via
+a small `refLink` helper; `reffix` is deleted, as is the `.reffix` CSS and the `.fixbox` change-handler.
+`exportTracker` no longer reads `.fixbox` to seed the tracker's `ticked` map — it sets `data.ticked={}`
+(the tracker starts clean and manages its own Fixed state), so the now-unused `NL` constant is dropped
+too. `refsAll` STAYS (it still feeds the tracker's link→referrers data via `brokenFor`). The Broken/
+Working verdict boxes + Last-tested column are untouched. Help text updated: the pickHelp sentence
+about "the box beside each found on page" is removed and "Ticks are saved…" → "Verdicts are saved…".
+**Verification:** generated report has no `fixbox`/`reffix` and no stale help; "Found on" still renders
+referrer links (single `<a>` and multi `<details>`); headless screenshot of Errors·internal confirms a
+checkbox-free Found-on column with the verdict boxes intact; tracker3 export suite + domtest/vtest/
+sharetest/revtest/newwin all pass.

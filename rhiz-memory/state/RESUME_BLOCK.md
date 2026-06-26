@@ -27,27 +27,30 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: **Re-check GUI integration + report UX fixes** (2026-06-26), five ADRs.
-  (0) **AD-043 — Errors·external grouped by domain:** collapsible per-domain sections, each header with a
-  domain-level Broken/Working pair that bulk-applies to every link in the domain (derived from the per-link
-  verdicts; survives reload) — clear a whole misread site (e.g. facebook.com) in one click; Expand/Collapse
-  all. `applyVerdict()` now shared by per-link + domain handlers; 26-assert domtest.
-  (1) **AD-041 — re-check in the GUI:** "Re-check broken links" now streams live progress to the run log
-  the GUI tails (`# recheck-start`, per-link `RECHK ok|broken|blocked <url>`, `# recheck-done`), drives the
-  stat chips (re-labeled Re-checked K/N · Now OK · Still broken · Now blocked), and honors **Pause/Stop**
-  (`reprobe()` polls the control files; on Stop it restores links it never reached, so nothing is dropped).
-  Per the operator's request it writes a **separate `*.recheck.json`** first and only rewrites the live
-  report at completion (multi-site: re-probe all + sidecars in phase 1, rewrite reports + index in phase 2);
-  `buildReportJson()` was extracted from `writeOutputs` for the sidecar. (2) **AD-040 — triage table layout:**
-  `table-layout:fixed` on the Errors/Blocked tables so the "Last tested" column is tight (140px, 13px text)
-  and **Reason** gets the freed width (no more one-word-per-line); `.tcol` 80px so Broken/Working headers
-  don't clip. (3) **AD-039 — satellite link window** now truly **reuses one window** (held JS reference +
-  `location.replace`, not name targeting, which broke once `opener` was nulled). (4) **AD-042 — live
-  "Broken · internal/external" destination stats** now update on triage (were static). All suites pass
-  (triage incl. new destination asserts, share, newwin incl. reuse asserts); HTA parses + ES3/ES5-clean;
-  re-check verified end-to-end (single + multi-site, Stop retains links, GUI `processLine` over real logs).
-  (Prior step — partitioned `decisions.md` into an index + `decisions/` bodies and extracted
-  `report-templates.js` (AD-036); plus GUI resume-counter fix (AD-035).)
+- **last_completed_step**: **Report triage UX batch — domain grouping, nomenclature, config-line fix**
+  (2026-06-26). (a) **AD-048 — domain grouping generalized to the Blocked·uncertain tab** (was
+  Errors·external only) via a shared `domainGroups(arr, scope, headHtml, cellsFn)`; each per-domain
+  header now has an **All: Broken / Working** bulk pair, a disabled **Mixture of broken/working**
+  indicator, a disabled **all tested** indicator, and a live **"tested K/N · B broken · W working"**
+  counter visible while collapsed. Rows + every control carry `data-domain` AND `data-scope`; the IIFE
+  wiring (`rowsInDomain`/`domCtl`/`deriveDomain`/`applyDomain`) is generalized and `wireDomains()` loops
+  both tabs. (b) **"Internal pages" → "Internal destinations"** stat card + tab + multi-site row + --help,
+  for nomenclature consistency (destination = unique URL; instance = one link occurrence). data-tab /
+  panel ids stay `internal`. (c) **AD-049 — crawl settings persisted in the JSON** so a `--rebuild-from`
+  / `--recheck-from` REWRITE shows the real config line instead of the rewrite process's CLI defaults
+  (the GUI "Rebuild report" passes no tuning flags; "Re-check" only some — so a 2/3000/1/no-limit crawl
+  was shown as 4/100/no-rps/200/3). `effSettings(state,cfg)` prefers `state.settings` (restored by
+  `loadStateFromJson` from a new `settings` block in `buildReportJson`, Infinity↔null) over cfg; live cfg
+  still drives the re-probe; old JSONs fall back gracefully. Verified: cfgtest (19 asserts) + real CLI
+  `--rebuild-from` shows `2 concurrent · 3000ms · 1 rps cap · max unlimited pages / depth unlimited`;
+  domtest/vtest/sharetest/revtest/newwin all pass.
+  (Prior step — **AD-044** Requests stat = internal pages crawled + external destinations verified;
+  **AD-045** GUI sizes its window to content on open; **AD-046** configurable pagination breakpoint
+  (`--page-size` + GUI dropdown); **AD-047** fix tracker reverse mapping (By page / By broken link) with
+  synced Fixed flags.)
+  (Earlier — **AD-039–AD-043**: satellite link-window reuse, fixed-layout triage tables, live broken-
+  destination stats, re-check GUI integration with Pause/Stop + separate `*.recheck.json`, and the
+  initial Errors·external domain grouping.)
 
 - **prior_step**: Added a **"Fixed on" timestamp** and **shareable state** to the fix
   tracker (2026-06-25, AD-033). The Fixed box now stamps its own date/time when ticked (clears on

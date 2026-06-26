@@ -27,17 +27,17 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: Clarified the **save/persistence model** in the docs (2026-06-25, AD-034).
-  The operator asked for a plain "Save" button / general auto-save instead of baking a state HTML.
-  Decision: **keep the current model, add no new save mechanism** — state already auto-saves to
-  localStorage (reopen the same file in the same browser → work intact), a page can't write back to
-  its own `.html` (browser sandbox), and the only "real" save-to-file option (File System Access API)
-  is Chromium-only with permission prompts; operator chose to keep it simple. Docs-only change:
-  CRAWLER.md section renamed to **"Saving and sharing your verdicts"** with a lead paragraph spelling
-  out auto-save + the no-in-place-save constraint + that Export/Import/Save-copy are only for *moving*
-  state; same note mirrored into the tracker share paragraph. No code change. (See AD-034 for the
-  File System Access path if ever revisited.)
-  (Prior step — AD-033 — added the tracker's "Fixed on" timestamp + shareable state.)
+- **last_completed_step**: **Partitioned the repo's largest growing files** (2026-06-26) at the
+  operator's request, plus two bug fixes. (1) `rhiz-memory/state/decisions.md` (35 ADRs / ~808 lines)
+  → a one-line-per-ADR **index** over `decisions/AD-001-016.md` (migration + engine/resume) and
+  `decisions/AD-017-onward.md` (report/triage/sharing); every ADR body preserved byte-for-byte. New
+  ADRs append to `AD-017-onward.md` + an index row. (2) **report.js 894→743 lines**: extracted the two
+  big self-contained string constants — `NEWWIN` + `TRACKER_TEMPLATE` — into **report-templates.js**
+  (AD-036); report output byte-identical, full suite passes. Fixes: **NEWWIN `popup=yes`** so the
+  side-docked link window doesn't fall back to a browser tab (the feature was intact — an old report
+  file just predates it; regenerate/Rebuild to get it); **GUI resume counters** (AD-035) reset bug —
+  crawler now emits `# resume-stats …` which the GUI adds to its tallies.
+  (Prior step — AD-034 — kept the auto-save model (no File System Access "Save to file"); docs-only.)
 
 - **prior_step**: Added a **"Fixed on" timestamp** and **shareable state** to the fix
   tracker (2026-06-25, AD-033). The Fixed box now stamps its own date/time when ticked (clears on
@@ -94,7 +94,8 @@ One-screen save-state for Charlotte's development continuity.
 
 - **resume_instructions**:
   1. Read `rhiz-memory/state/SESSION_HANDOFF.md` for full context.
-  2. Read `rhiz-memory/state/decisions.md` for the migration ADRs.
+  2. Read `rhiz-memory/state/decisions.md` — the ADR **index**; bodies are in `decisions/` (migration
+     + engine in `AD-001-016.md`, report/triage/sharing in `AD-017-onward.md`).
   3. Pick up `next_action`.
 
 ---

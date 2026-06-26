@@ -531,3 +531,18 @@ report-assembly logic — a clean seam.
 **Verification:** report output is **byte-identical** before vs after the split (full synthetic-report
 diff clean); report.js + report-templates.js parse; the whole report suite (triage 38 / share 19 /
 fix-tracker export 6 / tracker verdict 15 / fixed-on+share 18 / newwin 7) passes; `crawl.js --help` OK.
+
+## AD-037: Partial reports were zeroing the "Broken hyperlink instances" header
+**Date:** 2026-06-26
+**Bug:** A partial (auto-refreshing) report renders the header server-side (e.g. `brokenInstN`=113)
+but the triage IIFE still ran `recomputeBroken()`, which sums `data-inst` over `tr[data-url]` rows.
+Partial reports use read-only `errRows` (no `data-url`, no boxes), so the sum was 0 and clobbered the
+header — the classic "flashes 113 then turns to 0". Surfaced on a **stopped/interrupted multi-site**
+crawl: per-site reports stay partial, the index shows the right per-site numbers (113 / 96 broken
+internal), but opening that site flashed to 0.
+**Fix:** the triage IIFE bails immediately — `if(!document.querySelector(tr[data-url])) return;`
+— when there are no triage rows (exactly the partial case), leaving the server-rendered header intact.
+Final reports (`pickRows`/`blockedPickRows` carry `data-url`) are unaffected; the share toolbar only
+exists when errors/blocked exist, so it always has rows and never bails wrongly.
+**Verification:** partial-report header stays at the server value (not 0); final-report triage (38) /
+share (19) / fix-tracker (6) / tracker (15+18) / newwin (7) suites all pass; report.js parses.

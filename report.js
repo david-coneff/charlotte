@@ -546,6 +546,10 @@ ${trackerEmbed}
   // Ticks + timestamps persist in this browser (cwbroken: / cwok: / cwts: keys). Because that
   // state lives in localStorage (not the file), a share toolbar can export/import the verdicts as
   // JSON or bake them into a self-contained "shareable copy" (window.__CW_SEED__) for emailing.
+  // Partial (auto-refreshing) reports render read-only error rows — no per-row data-url and no
+  // triage boxes — so there is nothing to wire here, and running recomputeBroken() would wrongly
+  // zero the server-rendered "Broken hyperlink instances" header. Bail when no triage rows exist.
+  if(!document.querySelector('tr[data-url]')) return;
   var HOST=${JSON.stringify(state.startHost)}, SCOPES=['errint','errext','blockd'], ERRS=['errint','errext'];
   function L(){ try{ return localStorage; }catch(e){ return null; } }
   function key(pfx,url){ return pfx+HOST+':'+url; }

@@ -4,7 +4,24 @@ const path = require("path");
 const { URL } = require("url");
 const { makeRateLimiter, makeThrottle, sleep } = require("./netutil.js");
 const { request, probe, linkDisposition } = require("./fetch.js");
-const { writeOutputs, buildIndexReport, writeCombinedJson } = require("./report.js");
+const { writeOutputs, buildReportJson, buildIndexReport, writeCombinedJson } = require("./report.js");
+const { makeLogWriter } = require("./log.js");
+
+// --recheck-from writes its results to a SEPARATE "*.recheck.json" sidecar first, and only
+// rewrites the live crawl report once the whole re-check has finished — so an interrupted or
+// failed re-probe never leaves the main report/JSON half-overwritten. Derive that sidecar
+// path from a report/JSON path (foo.json -> foo.recheck.json; foo.html -> foo.recheck.json).
+function recheckSidecarPath(p) {
+  if (!p) return "";
+  const ext = path.extname(p);
+  return ext ? p.slice(0, -ext.length) + ".recheck.json" : p + ".recheck.json";
+}
+// Re-check honors the same Stop/Pause control files as a crawl. Clean them up at the end so a
+// leftover Stop flag (from a stopped re-check) can't immediately halt the next run.
+function cleanupControlFiles(cfg) {
+  try { if (cfg.stopFile && fs.existsSync(cfg.stopFile)) fs.unlinkSync(cfg.stopFile); } catch { /* ignore */ }
+  try { if (cfg.pauseFile && fs.existsSync(cfg.pauseFile)) fs.unlinkSync(cfg.pauseFile); } catch { /* ignore */ }
+}
 
 // ----------------------------- re-check broken links -----------------------------
 // Reconstruct a crawl's state from a prior --json report so we can re-probe just the
@@ -37,22 +54,41 @@ function loadStateFromJson(file) {
 // settings, mutating state.errors/blocked: each flagged URL is probed once and
 // re-classified, links that now resolve are dropped, allowlisted (suppressed) errors
 // are preserved untouched. Returns the tallies. `srcLabel` is appended to the header log.
-async function reprobe(cfg, allow, state, srcLabel) {
+async function reprobe(cfg, allow, state, srcLabel, logger) {
+  const log = (s) => { if (logger) logger.line(s); };
   const isAllowed = (u) => allow.some((re) => re.test(u));
   const suppressed = state.errors.filter((e) => isAllowed(e.url));   // keep allowlisted as-is
-  // Dedup the links to re-probe: non-allowlisted broken links + blocked, each once.
+  // Dedup the links to re-probe: non-allowlisted broken links + blocked, each once. Keep each
+  // link's ORIGINAL reason + origin (error vs blocked) so a Stop mid-run can restore the ones we
+  // never got to, unchanged — a stopped re-check must never silently drop a still-broken link.
   const flaggedMap = new Map();
-  for (const e of state.errors) if (!isAllowed(e.url) && !flaggedMap.has(e.url)) flaggedMap.set(e.url, { url: e.url, kind: e.kind || "internal", source: e.source });
-  for (const b of state.blocked) if (!flaggedMap.has(b.url)) flaggedMap.set(b.url, { url: b.url, kind: b.kind || "internal", source: b.source });
+  for (const e of state.errors) if (!isAllowed(e.url) && !flaggedMap.has(e.url)) flaggedMap.set(e.url, { url: e.url, kind: e.kind || "internal", source: e.source, reason: e.reason, origin: "error" });
+  for (const b of state.blocked) if (!flaggedMap.has(b.url)) flaggedMap.set(b.url, { url: b.url, kind: b.kind || "internal", source: b.source, reason: b.reason, origin: "blocked" });
   const flagged = [...flaggedMap.values()];
   console.log(`Re-checking ${flagged.length} flagged link${flagged.length === 1 ? "" : "s"}${srcLabel || ""} (rate: ${cfg.rps ? cfg.rps + "/s" : "uncapped"}, ${cfg.concurrency} concurrent${cfg.browser ? ", browser UA" : ""})…`);
+  // Progress markers for the GUI live feed (only hit disk when --log is set). Per-link lines use
+  // a lowercase verdict token so they can't collide with a crawl's "URL OK/ERR/…" lines.
+  log(`# recheck-start total=${flagged.length} host=${state.startHost || "?"}`);
   const limiter = makeRateLimiter(cfg.rps > 0 ? 1000 / cfg.rps : 0);
   const throttle = makeThrottle(cfg.maxBackoff * 1000);
   const newErrors = [], newBlocked = [];
-  let i = 0, nowOk = 0, nowBlk = 0, stillBad = 0;
+  let i = 0, nowOk = 0, nowBlk = 0, stillBad = 0, stopped = false;
+  // Stop = drain right away; Pause = block here until the flag clears (or Stop). Same control
+  // files as a crawl (--stop-file / --pause-file), so the GUI's Pause/Stop buttons drive re-check too.
+  async function control() {
+    if (cfg.stopFile && fs.existsSync(cfg.stopFile)) { stopped = true; return; }
+    while (cfg.pauseFile && fs.existsSync(cfg.pauseFile)) {
+      if (cfg.stopFile && fs.existsSync(cfg.stopFile)) { stopped = true; return; }
+      await sleep(400);
+    }
+  }
   async function worker() {
-    while (i < flagged.length) {
-      const f = flagged[i++];
+    while (true) {
+      await control();
+      if (stopped) break;
+      const idx = i++;
+      if (idx >= flagged.length) break;
+      const f = flagged[idx];
       await throttle.gate(); await limiter();
       let disp, detail;
       if (f.kind === "external") {
@@ -62,18 +98,26 @@ async function reprobe(cfg, allow, state, srcLabel) {
         try { const r = await request(f.url, "GET", cfg); disp = linkDisposition(r.status, null); detail = "HTTP " + r.status; }
         catch (err) { const m = String(err && err.message || err); disp = linkDisposition(0, m); detail = m; }
       }
+      f.done = true;
       const ent = state.external.get(f.url);
-      if (disp === "ok") { nowOk++; if (ent) ent.status = "ok"; console.log(`  ok  ${f.url}`); }
-      else if (disp === "blocked") { nowBlk++; if (ent) ent.status = "blocked"; newBlocked.push({ url: f.url, reason: detail, source: f.source, kind: f.kind }); console.log(`  ?   ${f.url} — ${detail}`); }
-      else { stillBad++; if (ent) ent.status = "err"; newErrors.push({ url: f.url, reason: f.kind === "external" ? "external unreachable (" + detail + ")" : detail, source: f.source, kind: f.kind }); console.log(`  x   ${f.url} — ${detail}`); }
+      if (disp === "ok") { nowOk++; if (ent) ent.status = "ok"; console.log(`  ok  ${f.url}`); log(`RECHK ok ${f.url}`); }
+      else if (disp === "blocked") { nowBlk++; if (ent) ent.status = "blocked"; newBlocked.push({ url: f.url, reason: detail, source: f.source, kind: f.kind }); console.log(`  ?   ${f.url} — ${detail}`); log(`RECHK blocked ${f.url} — ${detail}`); }
+      else { stillBad++; if (ent) ent.status = "err"; const reason = f.kind === "external" ? "external unreachable (" + detail + ")" : detail; newErrors.push({ url: f.url, reason, source: f.source, kind: f.kind }); console.log(`  x   ${f.url} — ${detail}`); log(`RECHK broken ${f.url} — ${detail}`); }
       if (cfg.delay) await sleep(cfg.delay);
     }
   }
   await Promise.all(Array.from({ length: Math.max(1, cfg.concurrency) }, worker));
+  // Restore any links a Stop kept us from reaching, in their ORIGINAL state, so nothing is dropped.
+  if (stopped) for (const f of flagged) {
+    if (f.done) continue;
+    if (f.origin === "blocked") newBlocked.push({ url: f.url, reason: f.reason, source: f.source, kind: f.kind });
+    else newErrors.push({ url: f.url, reason: f.reason, source: f.source, kind: f.kind });
+  }
   state.errors = suppressed.concat(newErrors);   // corrected + deduped: suppressed + still-broken
   state.blocked = newBlocked;
   state.finishedMs = Date.now();
-  return { flagged: flagged.length, nowOk, nowBlk, stillBad };
+  log(`# recheck-done checked=${nowOk + nowBlk + stillBad} ok=${nowOk} blocked=${nowBlk} broken=${stillBad}${stopped ? " stopped=1" : ""}`);
+  return { flagged: flagged.length, nowOk, nowBlk, stillBad, stopped };
 }
 
 // --recheck-from entry point. Re-probes the broken links from a prior report with the
@@ -84,14 +128,25 @@ async function runRecheck(cfg, allow) {
   let j;
   try { j = JSON.parse(fs.readFileSync(cfg.recheckFrom, "utf8")); }
   catch (e) { console.error("Error: --recheck-from is not valid JSON: " + (e.message || e)); process.exit(1); }
-  if (Array.isArray(j.sites)) { await runRecheckMulti(cfg, allow, j); return; }
+  // One progress log for the whole re-check (the GUI tails it for the live feed). A no-op when
+  // --log isn't set, so CLI runs without --log behave exactly as before.
+  const logger = makeLogWriter(cfg, { run: "recheck", startUrl: cfg.startUrl || cfg.recheckFrom, startedAt: new Date().toISOString() });
+  if (Array.isArray(j.sites)) { await runRecheckMulti(cfg, allow, j, logger); return; }
 
   // ---- single-site report ----
   const state = loadStateFromJson(cfg.recheckFrom);
   if (!cfg.startUrl) cfg.startUrl = "http://" + state.startHost + "/ (re-check)";
-  const r = await reprobe(cfg, allow, state, ` from ${cfg.recheckFrom}`);
-  writeOutputs(state, cfg, allow, false);
-  console.log(`\nRe-check done: ${r.nowOk} now OK (removed), ${r.nowBlk} blocked/uncertain, ${r.stillBad} still broken.`);
+  const r = await reprobe(cfg, allow, state, ` from ${cfg.recheckFrom}`, logger);
+  // SAFETY (operator's request): write the corrected data to a SEPARATE re-check JSON first,
+  // and only THEN rewrite the live report + JSON. The re-probe above is the part that can fail;
+  // it runs before any of these writes, so a crash leaves the main report untouched.
+  const sidecar = recheckSidecarPath(cfg.json || cfg.out);
+  if (sidecar) { try { fs.writeFileSync(sidecar, buildReportJson(state, cfg, allow, false)); } catch (e) { console.error("Re-check JSON write failed: " + (e.message || e)); } }
+  writeOutputs(state, cfg, allow, false);   // completion: rewrite the live crawl report + JSON
+  logger.finalize(true);
+  cleanupControlFiles(cfg);
+  console.log(`\nRe-check ${r.stopped ? "stopped early" : "done"}: ${r.nowOk} now OK (removed), ${r.nowBlk} blocked/uncertain, ${r.stillBad} still broken.`);
+  if (sidecar) console.log(`Re-check JSON: ${sidecar}`);
   console.log(`Report:  ${cfg.out}`);
   if (cfg.json) console.log(`JSON:    ${cfg.json}`);
 }
@@ -99,7 +154,7 @@ async function runRecheck(cfg, allow) {
 // Multi-site index JSON: re-check each site from its full per-site JSON (written next to
 // the index by a multi-site crawl), rewrite each per-site report, then rebuild the
 // combined index + JSON. Per-site JSONs are resolved relative to the index JSON's folder.
-async function runRecheckMulti(cfg, allow, j) {
+async function runRecheckMulti(cfg, allow, j, logger) {
   const dir = path.dirname(cfg.recheckFrom);
   const sites = [], missing = [];
   for (const s of (j.sites || [])) {
@@ -115,20 +170,33 @@ async function runRecheckMulti(cfg, allow, j) {
   }
   if (!sites.length) { console.error("Re-check: no re-checkable per-site reports found — nothing was changed."); process.exit(1); }
 
-  let tOk = 0, tBlk = 0, tBad = 0;
+  // Phase 1 — re-probe every site IN MEMORY and write each one's SEPARATE re-check JSON. The live
+  // per-site reports + index are left untouched here, so a failure (or Stop) part-way through never
+  // leaves the multi-site report set half-rewritten.
+  let tOk = 0, tBlk = 0, tBad = 0, anyStopped = false;
   for (const s of sites) {
     console.log(`\n=== ${s.host} ===`);
-    const r = await reprobe(cfg, allow, s.state, ` for ${s.host}`);
-    tOk += r.nowOk; tBlk += r.nowBlk; tBad += r.stillBad;
-    const perCfg = Object.assign({}, cfg, { out: s.reportPath, json: s.jsonPath, startUrl: s.url });
-    writeOutputs(s.state, perCfg, allow, false);   // rewrite this site's HTML + JSON
+    const r = await reprobe(cfg, allow, s.state, ` for ${s.host}`, logger);
+    tOk += r.nowOk; tBlk += r.nowBlk; tBad += r.stillBad; anyStopped = anyStopped || r.stopped;
+    const sidecar = recheckSidecarPath(s.jsonPath || s.reportPath);
+    if (sidecar) { try { fs.writeFileSync(sidecar, buildReportJson(s.state, cfg, allow, false)); } catch (e) { console.error(`Re-check JSON write failed (${s.host}): ` + (e.message || e)); } }
+    if (r.stopped) break;   // honor Stop: don't start the remaining sites
   }
-  // Rebuild the combined index + JSON from the re-checked per-site states.
+  // Phase 2 (completion) — only now that the re-probing is finished, rewrite the live per-site
+  // reports we actually re-checked plus the combined index + JSON, in one pass. Sites never
+  // reached by a Stop keep their finishedMs unset and are left exactly as they were.
+  for (const s of sites) {
+    if (!s.state.finishedMs) continue;
+    const perCfg = Object.assign({}, cfg, { out: s.reportPath, json: s.jsonPath, startUrl: s.url });
+    writeOutputs(s.state, perCfg, allow, false);
+  }
   const startedAt = j.crawledAt || new Date().toISOString();
   try { fs.writeFileSync(cfg.out, buildIndexReport(sites, cfg, allow, false, startedAt)); } catch (e) { console.error("Index write failed: " + (e.message || e)); }
   if (cfg.json) { try { writeCombinedJson(sites, cfg, allow); } catch (e) { console.error("Combined JSON write failed: " + (e.message || e)); } }
+  logger.finalize(true);
+  cleanupControlFiles(cfg);
 
-  console.log(`\nRe-check done across ${sites.length} site${sites.length === 1 ? "" : "s"}: ${tOk} now OK (removed), ${tBlk} blocked/uncertain, ${tBad} still broken.`);
+  console.log(`\nRe-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${sites.length === 1 ? "" : "s"}: ${tOk} now OK (removed), ${tBlk} blocked/uncertain, ${tBad} still broken.`);
   console.log(`Index:   ${cfg.out}`);
   if (cfg.json) console.log(`JSON:    ${cfg.json}`);
 }

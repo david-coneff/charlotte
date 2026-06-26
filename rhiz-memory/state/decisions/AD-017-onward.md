@@ -560,3 +560,76 @@ set every `<details>` open/closed unconditionally. No state detection, no `toggl
 **Verification:** both buttons render (old `extToggle` gone); Collapse all closes every section, Expand
 all opens every section, and a desync scenario (collapse one manually, then Collapse all) still closes
 all — DOM-stub verified; full report suite still passes.
+
+## AD-039: Satellite link-window reuse — hold a JS reference, don't rely on name targeting
+**Date:** 2026-06-26
+**Problem:** clicking broken links opened a **new window for every link** instead of reusing one
+docked satellite window — leaving the user with dozens of windows to close. The `NEWWIN` script
+named the window `charlotteLink` (meant to reuse it) but also did `nw.opener=null` for reverse-
+tabnabbing safety; nulling the opener drops the popup into a separate browsing-context group, so the
+opener can no longer find it by name, and each `window.open(href,'charlotteLink',…)` spawns a fresh one.
+**Decision:** keep a module-level reference `SAT` to the opened window and **navigate that** on reuse
+(`SAT.location.replace(href)` — allowed cross-origin even after the opener is nulled) instead of relying
+on name-based targeting. Position the window only on first open; reuse just navigates + focuses. Still
+null the popup's `opener` (safety preserved) since reuse no longer depends on it. Reopens a fresh window
+if the user closed the satellite (`SAT.closed`). Lives in `report-templates.js` `NEWWIN`, shared by the
+report and the fix tracker. Stays backtick/`${}`/backslash-free.
+**Verification:** newwin-test gains reuse asserts — 3 clicks open exactly ONE window, navigate it to the
+latest link, re-focus each click, and reopen after close — all pass; geometry asserts unchanged; report
+(38) / share (19) suites pass; `NEWWIN` constraint scan clean.
+
+## AD-040: Triage tables — fixed layout so the timestamp column stops starving Reason
+**Date:** 2026-06-26
+**Problem:** the new "Last tested" column (AD-029) rendered ~360px wide with tiny text while the **Reason**
+column collapsed to one word per line. Root cause: the generic `th:first-child,td:first-child{min-width:360px}`
+rule (written for URL-first tables) now landed on the timestamp column (the new first column of the Errors/
+Blocked tables), and auto table-layout funneled slack into it, starving Reason.
+**Decision:** switch the three triage tables (`table.haspick`, `table.blkpick`) to **`table-layout:fixed`**,
+which ignores those cell min-widths and sizes columns from the header row's classes. Set `.tscell` to a tight
+`140px` with `13px` text (was `11px`); `.tcol` to `80px` so the "Broken"/"Working" headers don't clip; add
+`.reasoncol` (auto — shares the leftover with the URL column), `.foundcol` (`236px`), `.kindcol` (`92px`).
+Header `<th>`s carry the new classes; body cells inherit column widths, so row generators were untouched.
+Partial reports (plain tables, no triage columns) keep auto layout + the first-child rule.
+**Verification:** rendered (headless Chromium) — timestamp tight, Broken/Working headers fit, a long
+cert-error reason wraps comfortably across a wide column; header/body column counts match; triage/share/
+newwin suites pass.
+
+## AD-041: Re-check — GUI live integration + a separate JSON written before the report
+**Date:** 2026-06-26
+**Problem:** "Re-check broken links" in the GUI looked hung (no live-feed activity, counters stuck at 0)
+and offered no Pause/Stop. `reprobe()` logged only via `console.log` (which the GUI bat redirects to the
+err log, not the run log it tails), wasn't counted by `processLine()`, and never polled the control files;
+`recheckLinks()` disabled Pause/Stop. Separately, the operator asked that a re-check not endanger the main
+report if it fails midway.
+**Decision (two parts):**
+(1) **GUI integration.** `reprobe(cfg, allow, state, srcLabel, logger)` now emits markers to the `--log`
+file the GUI tails: `# recheck-start total=N`, per-link `RECHK ok|broken|blocked <url>` (lowercase verdict
+so they can't match the crawl's `URL OK/ERR/…` regex), and `# recheck-done … [stopped=1]`. It polls
+`cfg.stopFile`/`cfg.pauseFile` in the worker loop (Stop drains, Pause blocks), and on Stop **restores any
+links it never reached in their original state** so nothing is dropped. The GUI passes `--log` + the
+control files, enables Pause/Stop for `runMode==="recheck"`, parses the markers (re-using gCrawled/gGood/
+gBroken/gBlocked as re-checked / now-OK / still-broken / now-blocked + new `gReTotal`/`gReStopped`), and
+re-labels the stat chips ("Re-checked K/N · Now OK · Still broken · Now blocked").
+(2) **Separate JSON (operator's request).** Re-check writes its corrected state to a **`*.recheck.json`**
+sidecar first (shared `buildReportJson()` extracted from `writeOutputs`), and only **then** rewrites the
+live report + JSON. Multi-site re-probes every site (writing each sidecar) in phase 1 and rewrites the
+per-site reports + index in phase 2 — so a crash/Stop mid-pass never leaves the report set half-rewritten.
+Control files are cleaned up at the end.
+**Verification:** single + multi-site re-check runs emit the markers, write the sidecars, defer the main
+writes (pre-existing `OLD-*` reports only replaced at completion); a pre-set Stop flag yields
+`stopped=1`, retains all flagged links unchanged, and cleans the flag; a harness runs the GUI's real
+`processLine()` over the actual logs and gets the right counters; HTA parses + stays ES3/ES5.
+
+## AD-042: Live "Broken · internal/external" destination stats during triage
+**Date:** 2026-06-26
+**Problem:** marking a link **Working** updated the "Broken hyperlink instances" header stat but left the
+unique-destination stats ("Broken · internal", "Broken · external") frozen — they were rendered as static
+numbers with no id, so the triage script couldn't touch them.
+**Decision:** wrap those two numbers in `#brokenIntN` / `#brokenExtN` spans and extend `recomputeBroken()`
+(which already runs on load and on every verdict change) to recompute them in the same pass: an Errors row
+counts one destination unless confirmed Working; a Blocked row counts only when confirmed Broken, routed
+internal/external by its `data-kind`. A `setStat()` helper also keeps each card's red `bad` highlight in
+sync (added at >0, removed at 0) — now applied to the instances card too.
+**Verification:** vtest gains destination-stat asserts — initial 2/1, drop on Working, re-add on Broken,
+blocked-internal vs blocked-external routing, card `bad` toggling at 0, and reload restoring the post-
+triage counts — all pass alongside the existing 38 triage / 19 share / newwin asserts.

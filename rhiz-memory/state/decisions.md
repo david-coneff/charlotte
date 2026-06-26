@@ -47,6 +47,10 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-036** (2026-06-26) — Extract NEWWIN + TRACKER_TEMPLATE into report-templates.js
 - **AD-037** (2026-06-26) — Partial reports were zeroing the “Broken hyperlink instances” header
 - **AD-038** (2026-06-26) — External tab: two Expand/Collapse buttons instead of a single toggle
+- **AD-039** (2026-06-26) — Satellite link-window reuse via a held JS reference (not name targeting)
+- **AD-040** (2026-06-26) — Triage tables: `table-layout:fixed` so the timestamp column stops starving Reason
+- **AD-041** (2026-06-26) — Re-check: GUI live progress + Pause/Stop + a separate `*.recheck.json` written first
+- **AD-042** (2026-06-26) — Live “Broken · internal/external” destination stats update during triage
 
 ---
 

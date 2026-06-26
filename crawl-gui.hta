@@ -185,10 +185,10 @@
   <div class="status" id="status">&nbsp;</div>
 
   <div id="statsBar" style="display:none">
-    <span class="statchip">Crawled: <b id="statCount">0</b></span>
-    <span class="statchip ok" id="goodChip">Good: <b id="statGood">0</b></span>
-    <span class="statchip" id="brokenChip">Broken (internal): <b id="statBroken">0</b></span>
-    <span class="statchip" id="blockedChip">Blocked/uncertain: <b id="statBlocked">0</b></span>
+    <span class="statchip"><span id="lblCount">Crawled</span>: <b id="statCount">0</b></span>
+    <span class="statchip ok" id="goodChip"><span id="lblGood">Good</span>: <b id="statGood">0</b></span>
+    <span class="statchip" id="brokenChip"><span id="lblBroken">Broken (internal)</span>: <b id="statBroken">0</b></span>
+    <span class="statchip" id="blockedChip"><span id="lblBlocked">Blocked/uncertain</span>: <b id="statBlocked">0</b></span>
     <span class="statchip" id="extChip">External: <b>0</b> found</span>
     <span class="statchip">Elapsed: <b id="statTime">0:00</b></span>
     <span class="statchip">Rate: <b id="statRate">0</b>/min</span>
@@ -229,11 +229,16 @@ var gPos = 0, gBuf = "", gTail = "";
 var gCrawled = 0, gGood = 0, gBroken = 0, gBlocked = 0;
 var gExtFound = 0, gExtChecked = 0, gExtTotal = 0, gExtBad = 0;
 var gRecent = [], gBackoffUntil = 0, gSiteI = 0, gSiteN = 0, gDoneCode = null;
+// Re-check progress (runMode === "recheck"): re-uses gCrawled/gGood/gBroken/gBlocked as
+// re-checked / now-OK / still-broken / now-blocked; gReTotal is how many were flagged to
+// re-check (for the "K / N" readout) and gReStopped flags a re-check that was Stopped early.
+var gReTotal = 0, gReStopped = false;
 function resetLiveState() {
   gPos = 0; gBuf = ""; gTail = "";
   gCrawled = 0; gGood = 0; gBroken = 0; gBlocked = 0;
   gExtFound = 0; gExtChecked = 0; gExtTotal = 0; gExtBad = 0;
   gRecent = []; gBackoffUntil = 0; gSiteI = 0; gSiteN = 0; gDoneCode = null;
+  gReTotal = 0; gReStopped = false;
 }
 
 function $(id) { return document.getElementById(id); }
@@ -328,6 +333,9 @@ function buildRecheckCommand() {
   if ($("paginate").checked)     a.push("--paginate");
   if ($("allowlistExport").checked) a.push("--allowlist-export");
   a.push("--json " + q(jsonName));
+  // Re-check writes its progress to this log so the GUI's live feed + counters update as it runs.
+  a.push("--log " + q(val("log") || "crawl-gui-run.log"));
+  a.push("--log-max-bytes 0");
   return "node " + q(jsPath) + " " + a.join(" ");
 }
 
@@ -540,8 +548,8 @@ function startCrawl(resume) {
 }
 
 // Re-check ONLY the broken links from the last crawl's JSON, with the current form
-// settings. Reuses the same launch + DONE-marker + poll machinery as a crawl. No
-// Pause/Stop (it runs to completion over just the flagged links).
+// settings. Reuses the same launch + DONE-marker + poll machinery as a crawl, including
+// live counters (re-checked / now OK / still broken / blocked) and the Pause/Stop buttons.
 function recheckLinks() {
   if (running) return;
   if (!fso.FileExists(jsPath)) { setStatus("crawl.js not found at " + jsPath, "bad"); return; }
@@ -555,9 +563,14 @@ function recheckLinks() {
   livePath = isAbsolute(logName) ? logName : (workDir + "\\" + logName);
   errPath  = workDir + "\\crawl-gui-err.log";
   batPath  = workDir + "\\crawl-gui-run.bat";
+  stopPath = workDir + "\\crawl-gui-stop.flag";
+  pausePath = workDir + "\\crawl-gui-pause.flag";
+  tunePath = "";   // live re-tuning isn't supported during re-check — keep togglePause's writeTune a no-op
 
-  var bat = "@echo off\r\ncd /d " + q(workDir) + "\r\n" + buildRecheckCommand() + " > " + q(errPath) + " 2>&1\r\necho DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
-  try { deleteIfExists(livePath); writeFile(batPath, bat); }
+  // Re-check honors the same Stop/Pause control files as a crawl, so those buttons work here too.
+  var runCmd = buildRecheckCommand() + " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath);
+  var bat = "@echo off\r\ncd /d " + q(workDir) + "\r\n" + runCmd + " > " + q(errPath) + " 2>&1\r\necho DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
+  try { deleteIfExists(stopPath); deleteIfExists(pausePath); deleteIfExists(livePath); writeFile(batPath, bat); }
   catch (e) { setStatus("Couldn't write helper files to " + workDir + " — " + e.message + ". Click “Copy command” and run it in a terminal.", "bad"); return; }
 
   runMode = "recheck";
@@ -565,7 +578,7 @@ function recheckLinks() {
   $("liveout").value = "Re-checking the broken links from the last crawl with the current settings…";
   $("recent").innerHTML = "";
   $("startBtn").disabled = true; $("recheckBtn").disabled = true; $("rebuildBtn").disabled = true; $("resumeBtn").disabled = true;
-  $("pauseBtn").disabled = true; $("stopBtn").disabled = true;
+  $("pauseBtn").disabled = false; $("pauseBtn").innerHTML = "Pause"; $("stopBtn").disabled = false;
   running = true; isPaused = false; startMs = new Date().getTime(); lastCount = 0; lastChangeMs = startMs;
   resetLiveState();
   $("statsBar").style.display = ""; $("recentBox").style.display = "";
@@ -746,6 +759,19 @@ function processLine(ln) {
   // external is an absolute total (like extTotal=) so it's set.
   var rs = ln.match(/^# resume-stats crawled=(\d+) good=(\d+) broken=(\d+) blocked=(\d+) external=(\d+)/);
   if (rs) { gCrawled += parseInt(rs[1], 10); gGood += parseInt(rs[2], 10); gBroken += parseInt(rs[3], 10); gBlocked += parseInt(rs[4], 10); gExtFound = parseInt(rs[5], 10); return; }
+  // Re-check progress (--recheck-from). Lowercase verdict tokens so these never match the crawl
+  // "URL OK/ERR/…" regex above; they re-use the crawl counters with re-check meaning.
+  var rst = ln.match(/^# recheck-start total=(\d+)/);
+  if (rst) { gReTotal += parseInt(rst[1], 10); return; }
+  var rk = ln.match(/^RECHK (ok|broken|blocked) (.*)$/);
+  if (rk) {
+    gCrawled++;
+    if (rk[1] === "ok") gGood++; else if (rk[1] === "broken") gBroken++; else gBlocked++;
+    gRecent.push(rk[1] + "  " + rk[2]); if (gRecent.length > 5) gRecent.shift();
+    lastChangeMs = (new Date()).getTime();
+    return;
+  }
+  if (ln.indexOf("# recheck-done") === 0) { if (/ stopped=1/.test(ln)) gReStopped = true; return; }
   var ex = ln.match(/^# extcheck (\d+)\/(\d+) (\w+)/);
   if (ex) { gExtChecked = parseInt(ex[1], 10); gExtTotal = parseInt(ex[2], 10); if (ex[3] === "err") gExtBad++; else if (ex[3] === "blocked") gBlocked++; return; }
   var bo = ln.match(/untilMs=(\d+)/); if (ln.indexOf("# BACKOFF") === 0 && bo) { gBackoffUntil = parseInt(bo[1], 10); return; }
@@ -771,29 +797,44 @@ function poll() {
 
   var now = (new Date()).getTime();
   var secs = Math.floor((now - startMs) / 1000);
-  $("statCount").innerHTML = gCrawled;
-  $("statGood").innerHTML = gGood;
-  $("statBroken").innerHTML = gBroken;
-  $("brokenChip").className = gBroken > 0 ? "statchip warn" : "statchip";
-  $("statBlocked").innerHTML = gBlocked;
-  $("blockedChip").className = gBlocked > 0 ? "statchip warn" : "statchip";
+  if (runMode === "recheck") {
+    // Same chips, re-check meaning: re-checked K/N · now OK · still broken · now blocked.
+    $("lblCount").innerHTML = "Re-checked";  $("statCount").innerHTML = gReTotal ? (gCrawled + " / " + gReTotal) : gCrawled;
+    $("lblGood").innerHTML = "Now OK";       $("statGood").innerHTML = gGood;
+    $("lblBroken").innerHTML = "Still broken"; $("statBroken").innerHTML = gBroken;
+    $("brokenChip").className = gBroken > 0 ? "statchip warn" : "statchip";
+    $("lblBlocked").innerHTML = "Now blocked"; $("statBlocked").innerHTML = gBlocked;
+    $("blockedChip").className = gBlocked > 0 ? "statchip warn" : "statchip";
+    $("extChip").style.display = "none";
+    $("statRate").innerHTML = secs > 0 ? Math.round(gCrawled / secs * 60) : 0;
+  } else {
+    $("lblCount").innerHTML = "Crawled";     $("statCount").innerHTML = gCrawled;
+    $("lblGood").innerHTML = "Good";         $("statGood").innerHTML = gGood;
+    $("lblBroken").innerHTML = "Broken (internal)"; $("statBroken").innerHTML = gBroken;
+    $("brokenChip").className = gBroken > 0 ? "statchip warn" : "statchip";
+    $("lblBlocked").innerHTML = "Blocked/uncertain"; $("statBlocked").innerHTML = gBlocked;
+    $("blockedChip").className = gBlocked > 0 ? "statchip warn" : "statchip";
+    $("extChip").style.display = "";
+    // Rate counts every request — pages AND external checks.
+    $("statRate").innerHTML = secs > 0 ? Math.round((gCrawled + gExtChecked) / secs * 60) : 0;
+    if (gExtChecked > 0) {
+      $("extChip").innerHTML = "External: <b>" + gExtChecked + "/" + gExtTotal + "</b> verified" + (gExtBad ? " · <b>" + gExtBad + "</b> broken" : "");
+      $("extChip").className = gExtBad ? "statchip warn" : "statchip";
+    } else {
+      $("extChip").innerHTML = "External: <b>" + gExtFound + "</b> found";
+      $("extChip").className = "statchip";
+    }
+  }
   $("statTime").innerHTML = fmtTime(secs);
-  // Rate counts every request — pages AND external checks.
-  $("statRate").innerHTML = secs > 0 ? Math.round((gCrawled + gExtChecked) / secs * 60) : 0;
   $("recent").innerHTML = escHtml(gRecent.join("\n"));
   $("recent").scrollTop = $("recent").scrollHeight;
 
-  if (gExtChecked > 0) {
-    $("extChip").innerHTML = "External: <b>" + gExtChecked + "/" + gExtTotal + "</b> verified" + (gExtBad ? " · <b>" + gExtBad + "</b> broken" : "");
-    $("extChip").className = gExtBad ? "statchip warn" : "statchip";
-  } else {
-    $("extChip").innerHTML = "External: <b>" + gExtFound + "</b> found";
-    $("extChip").className = "statchip";
-  }
-
   var done = (gDoneCode !== null);
-  if (!done && runMode !== "crawl") {
-    setActivity(runMode === "rebuild" ? "rebuilding report&hellip;" : "re-checking links&hellip;", false);
+  if (!done && runMode === "rebuild") {
+    setActivity("rebuilding report&hellip;", false);
+  } else if (!done && runMode === "recheck") {
+    if (isPaused) setActivity("paused", true);
+    else setActivity("re-checking links " + (gReTotal ? (gCrawled + "/" + gReTotal) : gCrawled) + "&hellip;", false);
   } else if (!done) {
     var siteTag = gSiteN ? " (site " + gSiteI + "/" + gSiteN + ")" : "";
     if (isPaused) setActivity("paused" + siteTag, true);
@@ -815,10 +856,17 @@ function poll() {
     deleteIfExists(stopPath); deleteIfExists(pausePath);
     if (gDoneCode === 0) {
       $("reportBtn").disabled = false;
-      setActivity("finished", false);
-      if (runMode === "recheck") setStatus("Re-check complete — the report’s broken-link list has been updated. Click “Open crawl report”.", "ok");
-      else if (runMode === "rebuild") setStatus("Report rebuilt from existing data — this version's report features are now applied. Click “Open crawl report”.", "ok");
-      else setStatus("Done — " + gCrawled + " crawled (" + gGood + " good, " + gBroken + " broken" + (gBlocked ? ", " + gBlocked + " blocked/uncertain" : "") + ") in " + fmtTime(secs) + ". Click “Open crawl report”.", "ok");
+      if (runMode === "recheck") {
+        var rsum = gCrawled + " re-checked · " + gGood + " now OK · " + gBlocked + " blocked · " + gBroken + " still broken";
+        if (gReStopped) {
+          setActivity("stopped", false);
+          setStatus("Re-check stopped — " + rsum + ". The report was updated with the links checked so far (the rest are kept as broken). Click “Open crawl report”.", "muted");
+        } else {
+          setActivity("finished", false);
+          setStatus("Re-check complete — " + rsum + ". The report’s broken-link list has been updated. Click “Open crawl report”.", "ok");
+        }
+      } else if (runMode === "rebuild") { setActivity("finished", false); setStatus("Report rebuilt from existing data — this version's report features are now applied. Click “Open crawl report”.", "ok"); }
+      else { setActivity("finished", false); setStatus("Done — " + gCrawled + " crawled (" + gGood + " good, " + gBroken + " broken" + (gBlocked ? ", " + gBlocked + " blocked/uncertain" : "") + ") in " + fmtTime(secs) + ". Click “Open crawl report”.", "ok"); }
     } else if (gDoneCode === 130) {
       $("reportBtn").disabled = false;
       setActivity("stopped", false);

@@ -272,10 +272,22 @@ function buildReport(state, cfg, allow, partial) {
  /* Triage tables — columns sized by CLASS so the layout holds with or without the (opt-in)
     allowlist pick column: .pickcol pick box · .tscell timestamp · .tcol Broken/Working · .urlcol URL. */
  .pickcol{min-width:34px;width:34px;text-align:center}
- .tcol{min-width:62px;width:62px;text-align:center}
- .tscell{min-width:122px;width:122px;white-space:nowrap}
- td.tscell{font-size:11px;color:var(--muted)}
+ .tcol{min-width:80px;width:80px;text-align:center}
+ .tscell{width:140px;white-space:nowrap}
+ td.tscell{font-size:13px;color:var(--muted)}
+ th.tscell{white-space:nowrap}
  .urlcol{min-width:340px}
+ .reasoncol{min-width:220px}
+ /* Triage tables (Errors · internal/external + Blocked) use a FIXED layout so column
+    widths are predictable. Auto layout piled slack onto the first column — the generic
+    first-child min-width (meant for URL-first tables) landed on the timestamp column and
+    starved Reason. Widths come from the header-cell classes; URL + Reason (auto) split the
+    leftover, so a long reason no longer wraps one word per line. */
+ table.haspick,table.blkpick{table-layout:fixed}
+ table.haspick th:first-child,table.haspick td:first-child,table.blkpick th:first-child,table.blkpick td:first-child{min-width:0}
+ table.haspick td:last-child,table.blkpick td:last-child{min-width:0}
+ table.haspick .foundcol,table.blkpick .foundcol{width:236px}
+ .blkpick .kindcol{width:92px}
  .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
  .testbar{margin:0 0 12px}.tcount{color:var(--muted);font-size:12px}
  tr.notbroken td:not(.tcol):not(.tscell):not(.pickcol){opacity:.45;text-decoration:line-through}
@@ -311,8 +323,8 @@ function buildReport(state, cfg, allow, partial) {
   ${stat(linkInstances.toLocaleString(), "Hyperlink instances", "", "Every hyperlink occurrence across all crawled pages (internal + external), NOT deduplicated — a destination linked from N pages counts N times. So this runs much larger than the unique destination counts.")}
   ${stat(`<span id="brokenInstN">${brokenInstances.toLocaleString()}</span>`, "Broken hyperlink instances", brokenInstances ? "bad" : "", "Hyperlink instances that point at a broken destination — each broken destination counted once per page that links to it (the real cleanup workload). Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”.")}
   ${oosStat}
-  ${stat(activeInt.length.toLocaleString(), "Broken · internal", activeInt.length ? "bad" : "", "Unique broken internal destinations — pages on your site that don't load.")}
-  ${stat(activeExt.length.toLocaleString(), "Broken · external", activeExt.length ? "bad" : "", "Unique broken external destinations — off-site URLs that don't resolve.")}
+  ${stat(`<span id="brokenIntN">${activeInt.length.toLocaleString()}</span>`, "Broken · internal", activeInt.length ? "bad" : "", "Unique broken internal destinations — pages on your site that don't load. Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”.")}
+  ${stat(`<span id="brokenExtN">${activeExt.length.toLocaleString()}</span>`, "Broken · external", activeExt.length ? "bad" : "", "Unique broken external destinations — off-site URLs that don't resolve. Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”.")}
   ${stat(blocked.length, "Blocked · uncertain", blocked.length ? "warn" : "")}
   ${stat(suppressed.length, "Suppressed", "")}
   ${partial ? stat(state.queue.length, "Queued", "") : stat(state.crawled, "Requests", "")}
@@ -334,9 +346,9 @@ function buildReport(state, cfg, allow, partial) {
   <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table class="pagestbl"><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
   <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extExpand">Expand all</button><button type="button" class="btn" id="extCollapse">Collapse all</button><span class="muted" style="font-size:12px">${byHost.size} domain${byHost.size === 1 ? "" : "s"}</span></div>${extGroups}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
-  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + testBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>Broken URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
-  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + testBar("errext") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>External URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${showPick ? pickRows(activeExt) : errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
-  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? blockedBar + blockedHelp + blockedCounter("blockd") : ""}${capNote(blocked.length)}<div class="tablewrap"><table${showPick ? ` class="blkpick"` : ``}><thead><tr>${showPick ? `<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken — counts it + adds to the fix tracker">Broken</th><th class="tcol" title="Manual check shows it works">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>URL</th><th>Why uncertain</th><th>Kind</th><th>Found on</th></tr></thead><tbody>${showPick ? blockedPickRows(blocked) : blockedRows(blocked)}</tbody></table></div>` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + testBar("errint") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${showPick ? pickRows(activeInt) : errRows(activeInt)}</tbody></table></div>` : `<p class="muted">No internal errors. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + testBar("errext") : ""}<div class="tablewrap"><table${showPick ? ` class="haspick"` : ``}><thead><tr>${showPick ? `${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${showPick ? pickRows(activeExt) : errRows(activeExt)}</tbody></table></div>` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
+  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? blockedBar + blockedHelp + blockedCounter("blockd") : ""}${capNote(blocked.length)}<div class="tablewrap"><table${showPick ? ` class="blkpick"` : ``}><thead><tr>${showPick ? `<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken — counts it + adds to the fix tracker">Broken</th><th class="tcol" title="Manual check shows it works">Working</th>` : ``}<th${showPick ? ` class="urlcol"` : ``}>URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead><tbody>${showPick ? blockedPickRows(blocked) : blockedRows(blocked)}</tbody></table></div>` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-suppressed">${suppressed.length ? `<p class="muted">Hidden from Errors via <code>${esc(cfg.allowlist)}</code>.</p><div class="tablewrap"><table><thead><tr><th>URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${errRows(suppressed)}</tbody></table></div>` : `<p class="muted">Nothing suppressed.</p>`}</div>
  </div>
  ${logCard}
@@ -597,17 +609,26 @@ ${trackerEmbed}
     var el=p.querySelector('.tcount'); if(el) el.textContent='Manually tested: '+tested+' / '+n+' · confirmed broken: '+broke+' · confirmed working: '+ok;
     recomputeBroken();
   }
-  // Live header stat. Errors: every flagged link counts UNLESS confirmed Working, so
-  // clearing a false positive drops its many referrer instances. Blocked: only the links
-  // confirmed Broken count (default uncertain). Leaves the header accurate after triage.
+  // Set a header stat number and keep its card's red "bad" highlight in sync with the count.
+  function setStat(el, v){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var card=el.parentNode&&el.parentNode.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').replace(/^\s+|\s+$/g,''); } }
+  // Live header stats, recomputed on load and on every verdict change. Errors tabs: each flagged
+  // link counts (one unique destination + its referrer instances) UNLESS confirmed Working, so
+  // clearing a false positive drops it from the instances total AND its Broken·internal/external
+  // destination count. Blocked tab: only links confirmed Broken count (default uncertain), routed
+  // internal/external by their kind. Keeps all three top-level broken stats accurate after triage.
   function recomputeBroken(){
-    var el=document.getElementById('brokenInstN'); if(!el) return;
-    var total=0, sc, p, trs, i;
+    var inst=0, uInt=0, uExt=0, sc, p, trs, i;
     for(sc=0;sc<ERRS.length;sc++){ p=panel(ERRS[sc]); if(!p) continue; trs=p.querySelectorAll('tr[data-url]');
-      for(i=0;i<trs.length;i++){ var o=trs[i].querySelector('.okbox'); if(o&&o.checked) continue; total+=(parseInt(trs[i].getAttribute('data-inst'),10)||0); } }
+      for(i=0;i<trs.length;i++){ var o=trs[i].querySelector('.okbox'); if(o&&o.checked) continue;
+        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
+        if(ERRS[sc]==='errint') uInt++; else uExt++; } }
     p=panel('blockd'); if(p){ trs=p.querySelectorAll('tr[data-url]');
-      for(i=0;i<trs.length;i++){ var b=trs[i].querySelector('.brokenbox'); if(b&&b.checked) total+=(parseInt(trs[i].getAttribute('data-inst'),10)||0); } }
-    el.textContent=total.toLocaleString?total.toLocaleString():(''+total);
+      for(i=0;i<trs.length;i++){ var b=trs[i].querySelector('.brokenbox'); if(!(b&&b.checked)) continue;
+        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
+        if(trs[i].getAttribute('data-kind')==='external') uExt++; else uInt++; } }
+    setStat(document.getElementById('brokenInstN'), inst);
+    setStat(document.getElementById('brokenIntN'), uInt);
+    setStat(document.getElementById('brokenExtN'), uExt);
   }
   function wire(scope){
     var p=panel(scope); if(!p) return;
@@ -645,24 +666,29 @@ ${pagerScript}${NEWWIN}</body></html>`;
 
 // Write the report HTML and (optionally) JSON from current state. Used both for
 // periodic checkpoints (partial=true) and the final write (partial=false).
+// Build the report's machine-readable JSON (the full crawl state) as a string. Shared by
+// writeOutputs and by --recheck-from's separate "re-check JSON" sidecar so both emit the
+// identical shape (and a re-check sidecar can itself be re-fed to --rebuild-from).
+function buildReportJson(state, cfg, allow, partial) {
+  const suppressed = [], active = [];
+  for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);
+  const refsOf = (url) => { const s = state.refs.get(url); return s ? [...s] : []; };
+  const errOut = (e) => ({ url: e.url, reason: e.reason, kind: e.kind || "internal", foundOn: refsOf(e.url).length ? refsOf(e.url) : (e.source ? [e.source] : []) });
+  return JSON.stringify({
+    crawledAt: state.startedAt, partial: !!partial, scope: state.pathPrefix || "(whole domain)",
+    log: { manifest: state.logManifest || "", singleFile: !!state.logSingleFile, parts: state.logParts || [] },
+    summary: { pagesCrawled: state.pages.length, queued: state.queue.length, externalLinks: state.external.size, linkInstances: state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0), brokenLinkInstances: active.reduce((n, e) => n + (refsOf(e.url).length || 1), 0), outOfScope: state.outOfScope.size, errorsInternal: active.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: active.filter((e) => e.kind === "external").length, blocked: (state.blocked || []).length, suppressed: suppressed.length, retries: state.retries || 0, runtimeMs: Number.isFinite(state.runtimeMs) ? state.runtimeMs : Math.max(0, (state.finishedMs || Date.now()) - (state.startedMs || Date.parse(state.startedAt) || Date.now())) },
+    internalPages: state.pages,
+    externalLinks: [...state.external.values()].map((e) => ({ url: e.url, host: e.host, status: e.status, foundOn: refsOf(e.url) })),
+    outOfScopeLinks: [...state.outOfScope.values()].map((e) => ({ url: e.url, foundOn: refsOf(e.url) })),
+    errors: active.map(errOut), suppressedErrors: suppressed.map(errOut),
+    blocked: (state.blocked || []).map((e) => ({ url: e.url, reason: e.reason, kind: e.kind || "internal", foundOn: refsOf(e.url).length ? refsOf(e.url) : (e.source ? [e.source] : []) })),
+  }, null, 2);
+}
+
 function writeOutputs(state, cfg, allow, partial) {
   fs.writeFileSync(cfg.out, buildReport(state, cfg, allow, partial));
-  if (cfg.json) {
-    const suppressed = [], active = [];
-    for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);
-    const refsOf = (url) => { const s = state.refs.get(url); return s ? [...s] : []; };
-    const errOut = (e) => ({ url: e.url, reason: e.reason, kind: e.kind || "internal", foundOn: refsOf(e.url).length ? refsOf(e.url) : (e.source ? [e.source] : []) });
-    fs.writeFileSync(cfg.json, JSON.stringify({
-      crawledAt: state.startedAt, partial: !!partial, scope: state.pathPrefix || "(whole domain)",
-      log: { manifest: state.logManifest || "", singleFile: !!state.logSingleFile, parts: state.logParts || [] },
-      summary: { pagesCrawled: state.pages.length, queued: state.queue.length, externalLinks: state.external.size, linkInstances: state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0), brokenLinkInstances: active.reduce((n, e) => n + (refsOf(e.url).length || 1), 0), outOfScope: state.outOfScope.size, errorsInternal: active.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: active.filter((e) => e.kind === "external").length, blocked: (state.blocked || []).length, suppressed: suppressed.length, retries: state.retries || 0, runtimeMs: Number.isFinite(state.runtimeMs) ? state.runtimeMs : Math.max(0, (state.finishedMs || Date.now()) - (state.startedMs || Date.parse(state.startedAt) || Date.now())) },
-      internalPages: state.pages,
-      externalLinks: [...state.external.values()].map((e) => ({ url: e.url, host: e.host, status: e.status, foundOn: refsOf(e.url) })),
-      outOfScopeLinks: [...state.outOfScope.values()].map((e) => ({ url: e.url, foundOn: refsOf(e.url) })),
-      errors: active.map(errOut), suppressedErrors: suppressed.map(errOut),
-      blocked: (state.blocked || []).map((e) => ({ url: e.url, reason: e.reason, kind: e.kind || "internal", foundOn: refsOf(e.url).length ? refsOf(e.url) : (e.source ? [e.source] : []) })),
-    }, null, 2));
-  }
+  if (cfg.json) fs.writeFileSync(cfg.json, buildReportJson(state, cfg, allow, partial));
 }
 
 function buildIndexReport(sites, cfg, allow, partial, startedAt) {
@@ -732,4 +758,4 @@ function writeCombinedJson(sites, cfg, allow) {
 }
 
 
-module.exports = { buildReport, writeOutputs, buildIndexReport, writeCombinedJson };
+module.exports = { buildReport, buildReportJson, writeOutputs, buildIndexReport, writeCombinedJson };

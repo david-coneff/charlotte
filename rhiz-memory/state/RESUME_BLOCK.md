@@ -27,17 +27,23 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: **Partitioned the repo's largest growing files** (2026-06-26) at the
-  operator's request, plus two bug fixes. (1) `rhiz-memory/state/decisions.md` (35 ADRs / ~808 lines)
-  → a one-line-per-ADR **index** over `decisions/AD-001-016.md` (migration + engine/resume) and
-  `decisions/AD-017-onward.md` (report/triage/sharing); every ADR body preserved byte-for-byte. New
-  ADRs append to `AD-017-onward.md` + an index row. (2) **report.js 894→743 lines**: extracted the two
-  big self-contained string constants — `NEWWIN` + `TRACKER_TEMPLATE` — into **report-templates.js**
-  (AD-036); report output byte-identical, full suite passes. Fixes: **NEWWIN `popup=yes`** so the
-  side-docked link window doesn't fall back to a browser tab (the feature was intact — an old report
-  file just predates it; regenerate/Rebuild to get it); **GUI resume counters** (AD-035) reset bug —
-  crawler now emits `# resume-stats …` which the GUI adds to its tallies.
-  (Prior step — AD-034 — kept the auto-save model (no File System Access "Save to file"); docs-only.)
+- **last_completed_step**: **Re-check GUI integration + report UX fixes** (2026-06-26), four ADRs.
+  (1) **AD-041 — re-check in the GUI:** "Re-check broken links" now streams live progress to the run log
+  the GUI tails (`# recheck-start`, per-link `RECHK ok|broken|blocked <url>`, `# recheck-done`), drives the
+  stat chips (re-labeled Re-checked K/N · Now OK · Still broken · Now blocked), and honors **Pause/Stop**
+  (`reprobe()` polls the control files; on Stop it restores links it never reached, so nothing is dropped).
+  Per the operator's request it writes a **separate `*.recheck.json`** first and only rewrites the live
+  report at completion (multi-site: re-probe all + sidecars in phase 1, rewrite reports + index in phase 2);
+  `buildReportJson()` was extracted from `writeOutputs` for the sidecar. (2) **AD-040 — triage table layout:**
+  `table-layout:fixed` on the Errors/Blocked tables so the "Last tested" column is tight (140px, 13px text)
+  and **Reason** gets the freed width (no more one-word-per-line); `.tcol` 80px so Broken/Working headers
+  don't clip. (3) **AD-039 — satellite link window** now truly **reuses one window** (held JS reference +
+  `location.replace`, not name targeting, which broke once `opener` was nulled). (4) **AD-042 — live
+  "Broken · internal/external" destination stats** now update on triage (were static). All suites pass
+  (triage incl. new destination asserts, share, newwin incl. reuse asserts); HTA parses + ES3/ES5-clean;
+  re-check verified end-to-end (single + multi-site, Stop retains links, GUI `processLine` over real logs).
+  (Prior step — partitioned `decisions.md` into an index + `decisions/` bodies and extracted
+  `report-templates.js` (AD-036); plus GUI resume-counter fix (AD-035).)
 
 - **prior_step**: Added a **"Fixed on" timestamp** and **shareable state** to the fix
   tracker (2026-06-25, AD-033). The Fixed box now stamps its own date/time when ticked (clears on

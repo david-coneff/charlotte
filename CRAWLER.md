@@ -244,6 +244,13 @@ and rebuilds the index + each per-site report. A multi-site crawl writes those p
 JSONs automatically; if you re-check an older index that predates them, it tells you to
 re-run the crawl once rather than touching the report.
 
+Re-check writes its results to a **separate `*.recheck.json`** sidecar first and only
+rewrites the live report + JSON once the whole pass has finished — so an interrupted or
+failed re-probe never leaves the main report half-overwritten. In the GUI it streams live
+progress (re-checked / now OK / still broken / blocked) to the run log and honors the
+**Pause** and **Stop** buttons just like a crawl (`--stop-file` / `--pause-file`); a Stop
+keeps every link it hadn't reached yet in its existing state, so nothing is lost.
+
 ### Rebuilding a report from saved data (`--rebuild-from`)
 
 Upgraded Charlotte and want the new report features on a crawl you already ran — without

@@ -27,8 +27,18 @@ One-screen save-state for Charlotte's development continuity.
   in broodforge via the GitHub UI — this session is blocked from it (branch-write
   policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
 
-- **last_completed_step**: **Report triage UX batch — domain grouping, nomenclature, config-line fix**
-  (2026-06-26). (a) **AD-048 — domain grouping generalized to the Blocked·uncertain tab** (was
+- **last_completed_step**: **Triage polish — untested-domain highlight, popup interstitial, drop report-side Fixed box**
+  (2026-06-26). (d) **AD-050 — dashed-amber header** on any per-domain group that still has untested links
+  (inset outline; toggled by `deriveDomain`, the inverse of the all-tested flag), so unfinished domains
+  stand out across collapsed groups. (e) **AD-051 — satellite popup interstitial:** each (re)use first
+  shows a brief blob: page naming the link being loaded (spinner + URL + "Open it directly"), then
+  meta-refreshes to it — so testing several links that share one 404 page is distinguishable. data: is
+  blocked for top-level nav, so it's a blob the opener creates (same-origin → may navigate even a
+  cross-origin popup; verified from file://); `go()` falls back to a direct load. (f) **AD-052 — removed
+  the per-referrer Fixed checkbox** from the base report ("Found on" now shows plain referrer links):
+  fix-tracking lives entirely in the standalone fix tracker now; `refsAll` stays (feeds tracker data),
+  `exportTracker` seeds `ticked={}`. New cfgtest/border/interstitial coverage; all suites green.
+  (Earlier this session: (a) **AD-048 — domain grouping generalized to the Blocked·uncertain tab** (was
   Errors·external only) via a shared `domainGroups(arr, scope, headHtml, cellsFn)`; each per-domain
   header now has an **All: Broken / Working** bulk pair, a disabled **Mixture of broken/working**
   indicator, a disabled **all tested** indicator, and a live **"tested K/N · B broken · W working"**
@@ -43,7 +53,7 @@ One-screen save-state for Charlotte's development continuity.
   `loadStateFromJson` from a new `settings` block in `buildReportJson`, Infinity↔null) over cfg; live cfg
   still drives the re-probe; old JSONs fall back gracefully. Verified: cfgtest (19 asserts) + real CLI
   `--rebuild-from` shows `2 concurrent · 3000ms · 1 rps cap · max unlimited pages / depth unlimited`;
-  domtest/vtest/sharetest/revtest/newwin all pass.
+  domtest/vtest/sharetest/revtest/newwin all pass.)
   (Prior step — **AD-044** Requests stat = internal pages crawled + external destinations verified;
   **AD-045** GUI sizes its window to content on open; **AD-046** configurable pagination breakpoint
   (`--page-size` + GUI dropdown); **AD-047** fix tracker reverse mapping (By page / By broken link) with

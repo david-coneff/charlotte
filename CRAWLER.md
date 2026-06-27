@@ -634,10 +634,12 @@ tracker file in the same browser and your progress is intact, no Save step neede
 the report, that state doesn't ride along if you just email the file, so the tracker has its
 **own share toolbar** — the same idea as the report's (below): **⬇ Export** writes the whole
 tracker state (every Fixed tick + Fixed-on time, verdict + last-tested time, and note) as a
-JSON file; **⬆ Import** loads such a file (merging by entry, then reloading); and **💾 Save
-copy** downloads a **self-contained copy of the tracker with all of that baked in** — email
-that single file and the recipient opens it with your progress already in place. Imports are
-checked to the same site, and a saved copy still displays where `file://` storage is locked
+JSON file; **⬆ Import** loads **one or more** such files at once (multi-select a whole folder of
+contributors' exports — it merges them all by entry, then reloads); and **💾 Save copy**
+downloads a **self-contained copy of the tracker with all of that baked in** — email that single
+file and the recipient opens it with your progress already in place. Imports are checked to the
+same site and only apply keys under this tracker's own `cwfix:<host>:` namespace (a dropped file
+can't inject stray storage), and a saved copy still displays where `file://` storage is locked
 down.
 
 **🗂 Per-page** turns the tracker into a delegation hub: it **batch-exports one mini-tracker
@@ -653,6 +655,11 @@ their mini-tracker, and you **⬆ Import** their JSON back here — because ever
 the same *(page → link)* pair and the site matches, Import simply merges their ticks in, with
 no boxes to re-find. (The minis carry only their own page's links — the other pages' rendered
 lists are stripped out, so each file stays small and scoped to its owner.)
+
+To scale that beyond email — a central tracker on **SharePoint** consuming a folder that owners
+drop their JSON into, merged by a **Power Automate** flow (or the `merge-fix-state.js` CLI) — see
+[`SHAREPOINT-MERGE.md`](SHAREPOINT-MERGE.md). The multi-select **⬆ Import** above is the no-flow
+fallback for that same loop.
 
 #### Saving and sharing your verdicts
 

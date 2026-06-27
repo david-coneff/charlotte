@@ -144,7 +144,7 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
   sanitized page address** (`pageFileName`: scheme dropped, non-`[A-Za-z0-9-._]`→`_`). Delegate
   a page, get the owner's JSON back, Import merges it by the same per-pair keys (same host).
 
-### Sharing (AD-030, AD-033, AD-069/070)
+### Sharing (AD-030, AD-033, AD-069/070, AD-073)
 - Report and tracker both: **Export / Import** verdicts (JSON, merge-by-link, host-checked)
   and **Save shareable copy** — bake current state into a `window.__CW_SEED__` /
   `__CW_TRK_SEED__` island injected before `</head>` so a recipient just opens the file.
@@ -152,6 +152,12 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
   picker** (folder + name chosen by the operator; `<a download>` fallback where the API is
   absent; AD-069) and pre-stamps the suggested name with a **`_YYYY-MM-DD_HH-MM_SS` timestamp**
   so each export is its own versioned file (AD-070).
+- **Team consolidation** (AD-073): **⬆ Import** is multi-file (`importStateFiles` merges a whole
+  folder of contributors' drops in one action, one reload); `applyState` is namespace-guarded
+  (only `cwfix:<host>:` keys land). `merge-fix-state.js` (repo root) is the dependency-free
+  reference/CLI merger (union, later-wins, host-isolated); `SHAREPOINT-MERGE.md` is the
+  Power-Automate-merge guide for a locked-down tenant (browser-side SP REST ruled out by
+  custom-script policy + CORS — so a flow merges the drop folder into one `state.json`).
 
 ### Windows GUI (`crawl-gui.hta`, ~1017 lines, JScript)
 - Form front-end that builds the `crawl.js` command line and launches it; live progress

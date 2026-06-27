@@ -1368,3 +1368,39 @@ itself proof no other page's link leaked into DATA). Tracker template stays 0/0/
 and false-positived — `savePerPage` clones the live doc, which at click time includes the probe `<script>`
 whose own source contained those URL literals; the authoritative no-leak signal is the parsed scoped DATA and
 the `bInst` count, not a substring scan of the cloned document.
+
+## AD-073: Team consolidation path — multi-file Import + namespace-guarded merge + SharePoint/Power-Automate guide
+**Date:** 2026-06-27
+**Problem:** with per-page minis (AD-072) fanned out, the *return* path was still "email one JSON, Import one
+file." The user asked whether the tracker could instead live on internal SharePoint and consume JSON dropped
+into a shared folder via REST. Reality check: on a locked-down tenant **custom script is disabled** (an
+inline-`<script>` HTML can't execute from a doc library; the supported route, SPFx, needs a build pipeline and
+breaks the single-file design) and **cross-origin SharePoint REST is CORS-blocked** (would need Azure AD +
+MSAL). So a browser-side REST consumer isn't viable there. The robust shape is server-side: contributors drop
+files, **one consumer merges**, the central tracker reads the result — which also dodges the multi-writer race
+of a single shared state file.
+**Decision:** chose the **Power-Automate-merge** architecture (the tracker stays a viewer) and delivered three
+things. (1) **Multi-file Import** in the tracker: the `cwImpF` input gains `multiple`; a new `importStateFiles`
+reads N files, applies each valid same-host one (`app` + `host` checked per file), tallies applied/skipped, and
+reloads **once**. This is the pure-`file://` no-flow fallback (multi-select a whole inbox folder). (2)
+**Namespace hardening** of `applyState`: it now writes only keys starting with `NS` (`cwfix:<host>:`), so an
+ingested/merged file — trusted or not — can never inject stray localStorage keys. (3) `merge-fix-state.js`
+(repo root, dependency-free): the **reference implementation** of the union merge AND an unattended CLI
+(`node merge-fix-state.js --out state.json inbox/*.json`) for when even Power Automate is restricted — same
+semantics as the flow (one host; first valid file sets it, different-host skipped; namespace-guarded; **later
+file wins** on key collision, mirroring WDL `union(current.v, incoming.v)`). Plus `SHAREPOINT-MERGE.md`: the
+end-to-end build guide (library layout `inbox/`/`archive/`/`state.json`; trigger with **parallelism = 1** to
+serialize merges; the `@union(...)` merge step; first-run handled by pre-seeding an empty `state.json`;
+optional flow-side key filter; conflict = last-arrival-wins with an Office-Script/Function escape hatch for
+newest-by-timestamp; three ways to hand the consolidated state back, incl. a flow-baked `__CW_TRK_SEED__` HTML).
+The whole loop needs **no new tracker code to consume the flow's output** — the mini Export and the central
+Import already speak the same `{app,host,v}` contract; the merge is just a dictionary union.
+**Verification:** new `merge-test` (12) covers the reference merger — union of disjoint fixes, **later-wins** on
+a shared `vd:` key, host isolation (different-host keys excluded), NS guard (stray key dropped), report counts,
+importState-shaped output, and the from-disk CLI path incl. an unreadable file counted as skipped. CLI smoke:
+`node merge-fix-state.js --out` writes a clean consolidated file + stderr summary. `tracker3-test` gains a
+**C2 multi-file** section (6): two same-host files merge together, the recipient's own mark is preserved, a
+stray non-`cwfix` key is NOT written (NS guard), a wrong-host file in the same batch is skipped, and the whole
+batch triggers exactly one reload. Tracker template stays 0/0/0. Full suite **211/0** (was 193 + 6 multi-import
++ 12 merge). Note: the locked-down-tenant constraints (custom script, CORS) are the real design driver here —
+documented so the "why not just fetch the folder from the page" question doesn't get reopened.

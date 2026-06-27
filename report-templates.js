@@ -158,7 +158,7 @@ tr.done td:not(.c):not(.v):not(.ft):not(.ts){opacity:.5;text-decoration:line-thr
   <div class="tabs"><button class="tab active" data-t="int" type="button">Internal</button><button class="tab" data-t="ext" type="button">External</button></div>
   <div class="tabs" style="margin-left:8px"><button class="gtab active" data-g="page" type="button" title="Group by referrer page, listing the broken links on each page — confirm a page has all its broken links fixed">By page</button><button class="gtab" data-g="link" type="button" title="Group by broken link, listing every page that links to it — confirm a broken link is resolved everywhere it appears">By broken link</button></div>
   <button id="expAll" class="btn" type="button" title="Expand every group on this tab">Expand all</button><button id="colAll" class="btn" type="button" title="Collapse every group on this tab">Collapse all</button>
-  <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">⬇ Export</button><button id="cwImp" class="btn" type="button" title="Load a tracker-state JSON someone shared (merges by entry, then reloads)">⬆ Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in — email that single file">💾 Save copy</button><button id="cwPages" class="btn" type="button" title="Batch-save one mini-tracker per referrer page — each scoped to just that page's broken links and named after the page address — into a folder you pick. Hand a page's file to whoever owns it; they fix &amp; export, you Import their JSON back here.">🗂 Per-page</button><input type="file" id="cwImpF" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
+  <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">⬇ Export</button><button id="cwImp" class="btn" type="button" title="Load one or more tracker-state JSON files (e.g. a folder of contributors' exports) — merges them all by entry, then reloads">⬆ Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in — email that single file">💾 Save copy</button><button id="cwPages" class="btn" type="button" title="Batch-save one mini-tracker per referrer page — each scoped to just that page's broken links and named after the page address — into a folder you pick. Hand a page's file to whoever owns it; they fix &amp; export, you Import their JSON back here.">🗂 Per-page</button><input type="file" id="cwImpF" accept="application/json,.json" multiple style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
  </div>
  <div class="tabview" id="tv-int"><div class="pagerbar" id="pager-int"></div><div class="trkview" id="view-int"><div id="panel-int"></div></div></div>
  <div class="tabview hidden" id="tv-ext"><div class="pagerbar" id="pager-ext"></div><div class="trkview" id="view-ext"><div id="panel-ext"></div></div></div>
@@ -342,8 +342,40 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   function collectState(){var out={app:'charlotte-fix-tracker',host:(DATA.host||''),v:{}},s=lsObj();if(!s){var sd=SEED();if(sd&&sd.v){for(var kk in sd.v){if(sd.v.hasOwnProperty(kk))out.v[kk]=sd.v[kk];}}return out;}var i,k,n=0;try{n=s.length;}catch(e){n=0;}for(i=0;i<n;i++){try{k=s.key(i);}catch(e){k=null;}if(k&&k.indexOf(NS)===0)out.v[k]=s.getItem(k);}return out;}
   function countState(st){var n=0,k;for(k in st.v){if(st.v.hasOwnProperty(k))n++;}return n;}
   function exportState(){var st=collectState();if(!countState(st)){toast('Nothing to export yet — tick something first');return;}saveBlob(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}),'charlotte-fix-tracker-'+(DATA.host||'state')+'.json','Exported tracker state');}
-  function applyState(obj){var s=lsObj();if(!s||!obj||!obj.v)return 0;var k,c=0;for(k in obj.v){if(obj.v.hasOwnProperty(k)){try{s.setItem(k,obj.v[k]);c++;}catch(e){}}}return c;}
+  // Apply only keys under THIS site's namespace — a dropped/merged file (e.g. one consolidated from
+  // many contributors) can never write stray localStorage keys outside cwfix:<host>:. Returns the
+  // count actually applied.
+  function applyState(obj){var s=lsObj();if(!s||!obj||!obj.v)return 0;var k,c=0;for(k in obj.v){if(obj.v.hasOwnProperty(k)&&k.indexOf(NS)===0){try{s.setItem(k,obj.v[k]);c++;}catch(e){}}}return c;}
   function importState(file){if(!file)return;if(!lsObj()){toast('This browser blocks storage for local files — serve the tracker over a local web server to import');return;}var r=new FileReader();r.onload=function(){var obj;try{obj=JSON.parse(String(r.result));}catch(e){obj=null;}if(!obj||obj.app!=='charlotte-fix-tracker'||!obj.v){toast('Not a Charlotte fix-tracker state file');return;}if((obj.host||'')!==(DATA.host||'')){toast('That state is for a different site — not applied');return;}var c=countState(obj);applyState(obj);toast('Imported '+c+' entr'+(c===1?'y':'ies')+' — reloading…');setTimeout(function(){try{location.reload();}catch(e){}},700);};r.onerror=function(){toast('Could not read the file');};try{r.readAsText(file);}catch(e){toast('Could not read the file');}}
+  // Import one OR MANY state files in a single action and merge them all, then reload once. Lets the
+  // operator pull a whole folder of contributors' exports together (the manual counterpart to the
+  // SharePoint/Power-Automate merge described in SHAREPOINT-MERGE.md) without importing one at a time.
+  function importStateFiles(files){
+    if(!files||!files.length)return;
+    if(!lsObj()){toast('This browser blocks storage for local files — serve the tracker over a local web server to import');return;}
+    var list=[],i;for(i=0;i<files.length;i++)list.push(files[i]);
+    var total=list.length,done=0,okFiles=0,okEntries=0,skipBad=0,skipHost=0;
+    function finish(){
+      if(okFiles===0){toast(skipHost?('No files applied — '+skipHost+' for a different site'):'No valid fix-tracker state files');return;}
+      var m='Imported '+okEntries+' entr'+(okEntries===1?'y':'ies')+' from '+okFiles+' file'+(okFiles===1?'':'s');
+      if(skipHost)m+=' ('+skipHost+' for a different site, skipped)';
+      if(skipBad)m+=' ('+skipBad+' not a tracker file, skipped)';
+      toast(m+' — reloading…');
+      setTimeout(function(){try{location.reload();}catch(e){}},900);
+    }
+    function tick(){if(++done===total)finish();}
+    function one(file){
+      var r=new FileReader();
+      r.onload=function(){var obj;try{obj=JSON.parse(String(r.result));}catch(e){obj=null;}
+        if(!obj||obj.app!=='charlotte-fix-tracker'||!obj.v){skipBad++;}
+        else if((obj.host||'')!==(DATA.host||'')){skipHost++;}
+        else {okFiles++;okEntries+=applyState(obj);}
+        tick();};
+      r.onerror=function(){skipBad++;tick();};
+      try{r.readAsText(file);}catch(e){skipBad++;tick();}
+    }
+    for(i=0;i<list.length;i++)one(list[i]);
+  }
   function saveCopy(){var st=collectState();var SO='<scr'+'ipt>window.__CW_TRK_SEED__=',SC='</scr'+'ipt>';var seed=SO+JSON.stringify(st).split('<').join(BS+'u003c')+';'+SC;var src='<!doctype html>'+NL+document.documentElement.outerHTML,pos;while((pos=src.indexOf(SO))>=0){var en=src.indexOf(SC,pos);if(en<0)break;src=src.slice(0,pos)+src.slice(en+SC.length);}if(src.indexOf('</head>')>=0)src=src.replace('</head>',function(){return seed+'</head>';});else src=seed+src;saveBlob(new Blob([src],{type:'text/html;charset=utf-8'}),'charlotte-fix-tracker-'+(DATA.host||'state')+'-shared.html','Saved a self-contained copy with your state baked in');}
   // ---- Per-page mini-trackers ------------------------------------------------------------------
   // Batch-export one self-contained tracker per referrer page, scoped to just that page's broken
@@ -439,7 +471,7 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   var bcp=document.getElementById('cwCopy');if(bcp)bcp.addEventListener('click',saveCopy);
   var bpp=document.getElementById('cwPages');if(bpp)bpp.addEventListener('click',savePerPage);
   var bi=document.getElementById('cwImp'),bif=document.getElementById('cwImpF');
-  if(bi&&bif){bi.addEventListener('click',function(){bif.click();});bif.addEventListener('change',function(){var f=this.files&&this.files[0];importState(f);try{this.value='';}catch(e){}});}
+  if(bi&&bif){bi.addEventListener('click',function(){bif.click();});bif.addEventListener('change',function(){importStateFiles(this.files);try{this.value='';}catch(e){}});}
   var ci=count('int'),ce=count('ext');
   document.getElementById('sub').textContent=(DATA.host||'')+' · generated '+(DATA.generatedAt||'')+' · '+(ci.pages+ce.pages)+' referrer page(s), '+(ci.total+ce.total)+' broken-link instance(s) · fixes, verdicts, times & notes saved in this browser';
   fill();

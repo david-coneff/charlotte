@@ -387,10 +387,13 @@ function buildReport(state, cfg, allow, partial) {
  .pagestbl th:nth-child(5),.pagestbl td:nth-child(5){width:58px}
  .pagestbl th:last-child,.pagestbl td:last-child{min-width:0;width:58px}
  td a,a{color:var(--link);text-decoration:none}td a:hover,a:hover{text-decoration:underline}
- .tablewrap{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:8px}
+ /* Fixed-height scroll viewport. resize:vertical adds a bottom-right grip so the operator can drag the
+    pane taller/shorter to taste (min-height keeps it from collapsing). Applies to flat tables here and to
+    the grouped .groupview below. The triage groups' own .dombody is overflow:visible (no grip there). */
+ .tablewrap{max-height:460px;min-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;resize:vertical}
  /* Every tab's list lives in a FIXED-HEIGHT viewport that scrolls internally (consistent with the flat
     .tablewrap tables) — so a long grouped list scrolls in place instead of stretching the whole page. */
- .groupview{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px}
+ .groupview{max-height:460px;min-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;resize:vertical}
  .groupview .domgrp:last-child{margin-bottom:0}
  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}.pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.err{background:rgba(248,113,113,.15);color:var(--bad)}.pill.skip{background:rgba(251,191,36,.15);color:var(--warn)}
  .muted{color:var(--muted)}h2{font-size:15px;margin:0 0 12px}details summary{cursor:pointer;font-weight:600;padding:6px 0}
@@ -442,7 +445,10 @@ function buildReport(state, cfg, allow, partial) {
  .domgrp.collapsed .dombody{display:none}
  /* The domain's OWN table wrapper shows in full (no inner scrollbar); scope this to .dombody so it does
     NOT also hit the nested "Found on" <details> wrapper, whose inline max-height + scroll must stay. */
- .domgrp .dombody{max-height:none;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0}
+ .domgrp .dombody{max-height:none;min-height:0;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0;resize:none}
+ /* The drag-to-resize grip + min-height belong only to TOP-LEVEL viewports. Nested .tablewrap (the
+    "Found on" referrer sublists, error subtables) must size to content and never sprout their own grip. */
+ .tablewrap .tablewrap{min-height:0;resize:none}
  .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
  .testbar{margin:0 0 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.tcount{color:var(--muted);font-size:12px}
  .colreset{margin-left:auto;font-size:12px;padding:4px 10px}

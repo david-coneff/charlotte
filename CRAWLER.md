@@ -511,13 +511,16 @@ when pages are unlimited (it defaults to 1,000,000 with a notice otherwise). The
 `report.html` is self-contained (inline CSS/JS — email it, archive it) with
 tabbed sections:
 
-- **Internal pages** — every page crawled, with depth, title, status, and link counts.
-- **External destinations** — the *unique* off-site URLs your pages link to, grouped by destination host (each a collapsible section), with the pages they were found on. An **Expand all / Collapse all** toggle at the top of the tab opens or closes every domain section at once.
-- **Out of scope** — _(only when a scope/prefix is set)_ same-domain links outside the subsection: recorded, not crawled.
+- **Internal destinations** — every page crawled, with depth, title, status, and link counts — **grouped into collapsible sections by first-level folder** (e.g. `site.gov/about/` vs `site.gov/blog/`; root pages under the bare host), each with a count, plus an **Expand all / Collapse all** toggle.
+- **External destinations** — the *unique* off-site URLs your pages link to, grouped by destination host (each a collapsible section, with a count), with the pages they were found on. An **Expand all / Collapse all** toggle at the top of the tab opens or closes every domain section at once.
+- **Out of scope** — _(only when a scope/prefix is set)_ same-domain links outside the subsection: recorded, not crawled — also **grouped into collapsible folder sections** (count each, Expand/Collapse all).
 - **Broken · internal** — broken internal destinations (HTTP 404/410, bad requests) — yours to fix.
 - **Broken · external** — unreachable external destinations (when `--check-external` is on) — a link to fix or remove.
 - **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them. Each row has the same two mutually-exclusive boxes as the **Broken** tabs — **Broken** and **Working** — but with the opposite default: blocked links start *uncertain and uncounted*, so ticking **Broken** *confirms* one really is dead and **adds** it to the **Broken hyperlink instances** count (live), routed to internal or external by its **Kind**, while **Working** records that it loads. (Leave both unticked to keep it uncertain.) Either way, an uncertain link **stays in the fix-tracker export until you mark it Working** — like everything else untested — so the tracker is a complete to-review list. That feeds the same cleanup workflow without needing to split the tab in two.
 - **Suppressed** — broken links hidden via the allowlist, kept separately so you can still audit them.
+
+Each tab's list sits in a **fixed-height viewport that scrolls internally** (so a long list never
+stretches the whole page) — and you can **drag its bottom-right corner to resize** the height to taste.
 
 Across the top sits a row of **headline numbers**, split into two ideas a one-line legend
 spells out:
@@ -592,6 +595,15 @@ several pages the verdict is **synced per URL** across every row it appears in. 
 (internal/external) styled like this report; **fixes, verdicts, timestamps, and notes
 persist in the browser** (localStorage), so it can be worked through and handed off over
 time.
+
+Within each tab the groups are **collapsible sections** — grouped **By page** (referrer page →
+its broken links) or **By broken link** (link → every page that links to it), toggled at the
+top — and each section header shows a live **K/N fixed** counter and a **dashed completion
+outline**: *amber* while the section still has links to fix, turning *green* once every one is
+ticked **Fixed**. **Expand all / Collapse all** buttons open or close every section at once. The
+list sits in a **fixed-height viewport that scrolls internally** — **drag its bottom-right corner
+to resize** the height — and when a tab has more than 50 groups it **paginates** (‹ Prev · Page X
+of Y · Next ›) so even a tracker with thousands of pages stays light.
 
 Like the report, the tracker **auto-saves** to localStorage as you work — reopen the same
 tracker file in the same browser and your progress is intact, no Save step needed. And like

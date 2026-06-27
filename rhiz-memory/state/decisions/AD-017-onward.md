@@ -1094,3 +1094,49 @@ with per-section counts; clicking a `.domtoggle` collapses just that group; Coll
 every group; no group ever gets the `untested` amber class. A scoped fixture confirms Out-of-scope groups
 by folder (`x/blog/ (2)`, `x/ (1)`, `x/news/ (1)`). Screenshot confirms the look matches the other tabs.
 Full suite (domtest/vtest/sharetest/revtest/exporttest/cfgtest/cfgtest2/newwin/tracker3) passes.
+
+## AD-062: Fix tracker gets the report's grouping affordances — collapsible sections, fixed-counters, completion outline, viewport + pagination
+**Date:** 2026-06-27
+**Problem:** the standalone fix tracker rendered every group (By page = referrer→its broken links; By
+broken link = link→the pages linking it) as an always-open card in a page-height list. With thousands of
+referrer pages that is unscannable and heavy, and there was no at-a-glance sense of which groups are done.
+The operator wants the report's grouping vocabulary here too: collapsible sections, a per-section fixed
+counter, an amber-dashed "still needs a fix" outline, Expand/Collapse-all, a fixed-height internal-scroll
+viewport, and pagination so a huge set doesn't all render at once — on every tab (By page / By broken link
+× Internal / External).
+**Decision:** `render()`/`renderByLink()` now RETURN AN ARRAY of group-HTML strings (not one joined blob).
+Each group is a collapsible `.grp` with a caret `.grptoggle` button (toggles a `.collapsed` class hiding a
+new `.grpbody` wrapper that holds the reason + table), plus a `.grpfix` "K/N fixed" counter. A
+`refreshGroup(g)` recomputes that counter live from the group's own Fixed boxes on every tick and sets the
+completion outline: `.needfix` (amber dashed) while any link is unfixed, `.alldone` (green dashed) once all
+are ticked. The two panels are wrapped in `.trkview` fixed-height viewports (max-height:72vh, internal
+scroll). Group-level pagination: `PER_PAGE=50`, a per-tab `pageState`, `fillPanel()` slices the array and
+renders a `.pager` (‹ Prev · Page X of Y · N groups · Next ›) above+below when a tab exceeds PER_PAGE;
+Prev/Next just bump pageState and re-`fill()`. Global Expand all / Collapse all buttons set every rendered
+`.grp`. All wiring uses tiny `hasCls/addCls/toggleCls/grpOf` helpers (no classList/closest) so the same code
+runs under the DOM-stub tracker tests and matches the report IIFE idiom. Authored within the template's
+no-backtick / no-`${}` / no-backslash constraint (caret glyphs are literal ▼/▶, not CSS escapes).
+**Verification:** a real-browser probe on a 121-group synthetic tracker — 50 groups render per page
+("Page 1 of 3 · 121 groups"), caret collapses a group, Collapse-all/Expand-all flip every group, ticking a
+group's only Fixed box flips it `0/1 fixed` amber → `1/1 fixed` green, and Next advances to "Page 2 of 3".
+Screenshot confirms amber outlines on partially/zero-fixed groups and a green outline on a fully-fixed one.
+The maintained suite (domtest/vtest/sharetest/revtest/exporttest/cfgtest/cfgtest2/newwin/tracker3 = 170
+assertions) stays green; the stale scratchpad tracker-test/tracker2-test failures pre-date this change
+(they assert an older fixture shape and were never in the maintained set).
+
+## AD-063: User-resizable viewport height (drag the bottom-right grip) across the report + tracker
+**Date:** 2026-06-27
+**Problem:** every list now lives in a fixed-height internal-scroll viewport (report `.groupview` /
+`.tablewrap`, tracker `.trkview`). A single fixed height can't suit every screen or list, and the operator
+wants to drag a viewport taller/shorter rather than accept one height.
+**Decision:** add CSS `resize:vertical` (+ a sensible `min-height`) to the top-level viewports — the
+report's `.groupview` (160px) and flat `.tablewrap` (140px), and the tracker's `.trkview` (160px) — so each
+grows a bottom-right drag grip (works because they're already `overflow:auto`). Crucially this is scoped to
+TOP-LEVEL viewports only: the report's triage group bodies `.domgrp .dombody` (which are `overflow:visible`,
+size-to-content) get `min-height:0;resize:none`, and any NESTED `.tablewrap .tablewrap` (the "Found on"
+referrer sublists, error subtables) get `min-height:0;resize:none` — so a 2-referrer Found-on list is never
+forced to 140px or sprouts its own grip.
+**Verification:** computed-style probe — `.groupview` resize=vertical / min-height=160px; the first
+`.domgrp .dombody` resize=none / min-height=0px; a nested Found-on `.tablewrap` resize=none / min-height=0px;
+the tracker `#view-int` resize=vertical. Screenshots show the diagonal resize grip at the bottom-right of
+both the report's grouped viewport and the tracker viewport.

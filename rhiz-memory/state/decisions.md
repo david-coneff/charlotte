@@ -70,6 +70,8 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-059** (2026-06-27) — Broken·internal grouped by first-level path folder (reuses the domain-grouping infra via a keyOf)
 - **AD-060** (2026-06-27) — Consistent fixed-height internal-scroll viewport across all tabs (.groupview wraps grouped lists)
 - **AD-061** (2026-06-27) — Non-triage tabs (Internal destinations / External / Out-of-scope) use the same folder/host-grouped `.domgrp` collapsibles (count per section, Expand/Collapse-all), via a `simpleGroups` helper
+- **AD-062** (2026-06-27) — Fix tracker gets the report's grouping affordances: collapsible sections, per-group "K/N fixed" counter, amber/green completion outline, Expand/Collapse-all, fixed-height viewport + group-level pagination
+- **AD-063** (2026-06-27) — User-resizable viewport height (drag the bottom-right grip; `resize:vertical`) across the report's viewports and the tracker — scoped to top-level viewports (nested Found-on lists / triage bodies stay size-to-content)
 
 ---
 

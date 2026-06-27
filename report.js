@@ -392,7 +392,9 @@ function buildReport(state, cfg, allow, partial) {
  /* Mixture + all-tested are read-only indicators (disabled); they go green when on. */
  .domlbl.ind{cursor:default}.domlbl.ind input{cursor:default}.domlbl.ind.on{color:var(--good)}
  .domgrp.collapsed .dombody{display:none}
- .domgrp .tablewrap{max-height:none;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0}
+ /* The domain's OWN table wrapper shows in full (no inner scrollbar); scope this to .dombody so it does
+    NOT also hit the nested "Found on" <details> wrapper, whose inline max-height + scroll must stay. */
+ .domgrp .dombody{max-height:none;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0}
  .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
  .testbar{margin:0 0 12px}.tcount{color:var(--muted);font-size:12px}
  tr.notbroken td:not(.tcol):not(.tscell):not(.pickcol){opacity:.45;text-decoration:line-through}

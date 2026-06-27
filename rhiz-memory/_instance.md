@@ -10,8 +10,8 @@
 
 When starting a session on Charlotte under the Rhizome methodology:
 
-1. `david-coneff/rhizome` — `rhizome/core/rhiz-core.md` (always loaded)
-2. `david-coneff/rhizome` — `rhizome/core/rhiz-core.manifest.yaml` (select modules for task)
+1. `david-coneff/rhizome` — `protocol/core/rhiz-core.md` (always loaded)
+2. `david-coneff/rhizome` — `protocol/core/rhiz-core.manifest.yaml` (select modules for task)
 3. `rhiz-memory/_instance.md` (this file — project identity + startup)
 4. `rhiz-memory/state/SESSION_HANDOFF.md` (current work context and next action)
 
@@ -50,7 +50,7 @@ Charlotte:
 **MAY (added 2026-06-27, AD-081):**
 - Author the core source as **small modules compiled by a build-time roll-up**
   (Vite / rollup / esbuild, per `david-coneff/rhizome` →
-  `rhizome/docs/cross-project-design-standards.md`, **DS-002**)
+  `protocol/docs/cross-project-design-standards.md`, **DS-002**)
   into the single shipped file — so source stays small and AI-digestible while
   the deliverable stays single-file. The build is a **dev-time** convenience: the
   build tools are `devDependencies` only, and the **built artifact must preserve

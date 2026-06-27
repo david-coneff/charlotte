@@ -609,10 +609,12 @@ date/time when you tick it — plus, mirroring the main report, a **Last triaged
 a mutually-exclusive **Broken / Working** verdict pair. The verdict and last-tested time are
 **baked in from the report** at export time and stay editable: ticking Broken or Working
 auto-fills the timestamp, the boxes are exclusive, and because a link can be reached from
-several pages the verdict is **synced per URL** across every row it appears in. Two tabs
-(internal/external) styled like this report; **fixes, verdicts, timestamps, and notes
-persist in the browser** (localStorage), so it can be worked through and handed off over
-time.
+several pages the verdict is **synced per URL** across every row it appears in. **Internal and
+external broken links are worked together in one view** — whoever owns a page fixes *all* of its
+broken links at once, so a page's section lists **every broken link on it regardless of type**, with
+a **Type** column flagging each as internal or external (the By-broken-link view shows the type as a
+badge in the section header instead). **Fixes, verdicts, timestamps, and notes persist in the
+browser** (localStorage), so it can be worked through and handed off over time.
 
 At the top, a **stat matrix** scores the work across four columns: the **bottom row is Broken**
 (verdict-driven — broken hyperlink instances, broken internal destinations, broken external destinations,
@@ -626,9 +628,9 @@ one of its broken links is Fixed — so you can see how many distinct pages (and
 still need attention, not just how many links. The two axes are independent: *Broken/Working* is whether the
 link loads; *Fixed* is whether the page's reference to it has been removed or corrected.
 
-Within each tab the groups are **collapsible sections** — grouped **By page** (referrer page →
-its broken links) or **By broken link** (link → every page that links to it), toggled at the
-top — and those sections **roll up under a collapsible folder/domain parent** (first-level path
+The groups are **collapsible sections** — grouped **By page** (referrer page → all its broken
+links, internal and external) or **By broken link** (link → every page that links to it), toggled
+at the top — and those sections **roll up under a collapsible folder/domain parent** (first-level path
 folder for internal, host for external), mirroring the report's tabs, so you can collapse a whole
 section of the site at once. (**Collapse all** folds every parent to a folder/domain bird's-eye;
 **Expand all** opens everything.) Because the grouped key is a full (often long) URL, each header **stacks**: the link on its

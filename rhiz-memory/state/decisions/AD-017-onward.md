@@ -1468,3 +1468,28 @@ report checks confirm the new card/labels/relocated legend, no "Manually tested"
 broadened. `newwin-test` (its anchors are http+_blank) still 16/0; `vtest`/`blocked`-style counter assertions
 updated to "Manually triaged". Tracker template stays 0/0/0; suite 232/0. (blocked-test/manual-test are stale,
 pre-existing doctype-slice crashes, not in the suite.)
+
+## AD-076: Fix tracker — merge internal/external into one view with a Type column (drop the int/ext tab)
+**Date:** 2026-06-27
+**Problem:** the tracker split broken links into separate **Internal** / **External** tabs. But fixing is
+**page-centric** — whoever owns a page wants to see and clear ALL its broken links at once, not hop between two
+tabs to find the internal ones and then the external ones. Splitting by type at the page level fights the
+actual workflow.
+**Decision:** removed the Internal/External tab entirely; both lists are now worked together. An `allList()`
+helper concatenates `DATA.internal`+`DATA.external`, tagging each entry `type:'internal'|'external'`; `groups()`
+and `groupsByLink()` carry that tag through. **By page** now lists every broken link on a page (both types) in
+one section with a new **Type** column (a `typeBadge()` pill: muted "internal" / accent "external"); **By
+broken link** shows the type as a badge in the section header. The two panels collapsed to one (`panel-all`/
+`pager-all`/`view-all`, `pageState={all:0}`); `render`/`renderByLink`/`count` dropped their `which` arg and use
+`allList()`; By-link nesting keeps folder-for-internal / host-for-external per link. The **stat matrix keeps its
+int/ext breakdown** (recompute reads `DATA.internal`/`external` directly — untouched), so the aggregate
+internal-vs-external numbers survive even though the working view is unified. Subtitle simplified: `count().pages`
+is already the distinct referrer-page union and `count().total` the instance count (removed the now-redundant
+`distinctRefPages` helper from AD-074). The per-page/per-subfolder export was already type-agnostic (it bakes
+both arrays), so mini-trackers automatically show the merged view too.
+**Verification:** new headless `trk-merge` (8) — a page linking one internal + one external broken link renders
+**one** section with **two** rows, a Type column header, both internal+external badges, the int/ext tab gone,
+and the By-page/By-link toggle intact. Tracker stubs in `tracker3-test`/`revtest` updated to the single
+`panel-all` (+ dropped the dead `.tab` buttons); `pageE2E` blank-check now targets `panel-all`. Tracker template
+stays 0/0/0; full suite 240/0. (Lesson reinforced: several test files build their OWN tracker DOM stub — a panel
+rename means updating each `mkEls`/`mkDoc`, e.g. revtest crashed on a null `panel-all` until its stub was fixed.)

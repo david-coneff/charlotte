@@ -93,6 +93,9 @@ a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}td a{
 .c{width:54px;text-align:center}.c input{width:16px;height:16px;cursor:pointer}
 .v{width:54px;text-align:center}.v input{width:16px;height:16px;cursor:pointer}
 .ts,.ft{width:118px;white-space:nowrap;color:var(--muted);font-size:11px}
+.ltcol{width:84px}
+.lt{display:inline-block;font-size:10px;text-transform:uppercase;letter-spacing:.03em;padding:1px 7px;border-radius:10px;border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+.lt-ext{color:var(--accent);border-color:var(--accent)}
 .notelbl{display:flex;align-items:center;gap:6px;flex:1;min-width:240px;color:var(--muted);font-size:12px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 /* Two-level nesting: a folder/domain .parent wraps its page/link .grp sections (collapsible). */
@@ -161,13 +164,11 @@ tr.done td:not(.c):not(.v):not(.ft):not(.ts){opacity:.5;text-decoration:line-thr
 </div>
 <div class="card">
  <div class="bar">
-  <div class="tabs"><button class="tab active" data-t="int" type="button">Internal</button><button class="tab" data-t="ext" type="button">External</button></div>
-  <div class="tabs" style="margin-left:8px"><button class="gtab active" data-g="page" type="button" title="Group by referrer page, listing the broken links on each page — confirm a page has all its broken links fixed">By page</button><button class="gtab" data-g="link" type="button" title="Group by broken link, listing every page that links to it — confirm a broken link is resolved everywhere it appears">By broken link</button></div>
+  <div class="tabs"><button class="gtab active" data-g="page" type="button" title="Group by referrer page, listing ALL its broken links (internal and external together) — fix a whole page at once">By page</button><button class="gtab" data-g="link" type="button" title="Group by broken link, listing every page that links to it — confirm a broken link is resolved everywhere it appears">By broken link</button></div>
   <button id="expAll" class="btn" type="button" title="Expand every group on this tab">Expand all</button><button id="colAll" class="btn" type="button" title="Collapse every group on this tab">Collapse all</button>
   <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">⬇ Export</button><button id="cwImp" class="btn" type="button" title="Load one or more tracker-state JSON files (e.g. a folder of contributors' exports) — merges them all by entry, then reloads">⬆ Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in — email that single file">💾 Save copy</button><button id="cwPages" class="btn" type="button" title="Batch-save one mini-tracker per referrer PAGE — each scoped to just that page's broken links and named after the page address — into a folder you pick. Hand a page's file to whoever owns it; they fix &amp; export, you Import their JSON back here.">🗂 Bulk export: per page</button><button id="cwFolders" class="btn" type="button" title="Batch-save one mini-tracker per tier-1 site SUBFOLDER — every page under e.g. /about/ goes in one file, scoped to those pages' broken links and named after the folder — into a folder you pick. For delegating a whole section of the site to one owner.">🗁 Bulk export: per subfolder</button><input type="file" id="cwImpF" accept="application/json,.json" multiple style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
  </div>
- <div class="tabview" id="tv-int"><div class="pagerbar" id="pager-int"></div><div class="trkview" id="view-int"><div id="panel-int"></div></div></div>
- <div class="tabview hidden" id="tv-ext"><div class="pagerbar" id="pager-ext"></div><div class="trkview" id="view-ext"><div id="panel-ext"></div></div></div>
+ <div class="tabview" id="tv-all"><div class="pagerbar" id="pager-all"></div><div class="trkview" id="view-all"><div id="panel-all"></div></div></div>
 </div></main>
 <script>
 var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
@@ -176,11 +177,16 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
   function isUrl(s){return s.indexOf('http://')===0||s.indexOf('https://')===0;}
   function cell(s){return isUrl(s)?'<a href="'+esc(s)+'" target="_blank" rel="noopener">'+esc(s)+'</a>':esc(s);}
+  // Internal and external broken links are worked TOGETHER: whoever owns a page fixes every broken
+  // link on it regardless of type, so the views combine both lists and a Type column / badge records
+  // which is which. allList() tags each entry with its type; the stat matrix still breaks out int/ext.
+  function allList(){var out=[],a=DATA.internal||[],b=DATA.external||[],i;for(i=0;i<a.length;i++)out.push({url:a[i].url,reason:a[i].reason,refs:a[i].refs,v:a[i].v,ts:a[i].ts,type:'internal'});for(i=0;i<b.length;i++)out.push({url:b[i].url,reason:b[i].reason,refs:b[i].refs,v:b[i].v,ts:b[i].ts,type:'external'});return out;}
+  function typeBadge(t){return t==='external'?'<span class="lt lt-ext">external</span>':'<span class="lt lt-int">internal</span>';}
   // Group broken links BY the referrer page that links to them: one person usually
   // owns a whole page, so its broken links sit together under a single contact note.
   function groups(list){
     var map={}, order=[], i, j;
-    for(i=0;i<list.length;i++){var e=list[i],r=e.refs||[];for(j=0;j<r.length;j++){var ref=r[j];if(!map.hasOwnProperty(ref)){map[ref]=[];order.push(ref);}map[ref].push({broken:e.url,reason:e.reason,v:e.v||'',ts:e.ts||''});}}
+    for(i=0;i<list.length;i++){var e=list[i],r=e.refs||[];for(j=0;j<r.length;j++){var ref=r[j];if(!map.hasOwnProperty(ref)){map[ref]=[];order.push(ref);}map[ref].push({broken:e.url,reason:e.reason,v:e.v||'',ts:e.ts||'',type:e.type||''});}}
     order.sort();
     for(i=0;i<order.length;i++)map[order[i]].sort(function(a,b){return a.broken<b.broken?-1:a.broken>b.broken?1:0;});
     return {order:order,map:map};
@@ -219,15 +225,15 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   // Sync a URL's verdict everywhere it shows — boxes carry data-broken, so this works whether they
   // sit in a row (By page) or a group header (By broken link), and across both groupings at once.
   function setVerdict(url,v){saveV(url,v);saveT(url,v?nowStr():'');var t=initTs(url,''),i;var vbs=document.querySelectorAll('.vb'),vos=document.querySelectorAll('.vo'),tsd=document.querySelectorAll('.tsd');for(i=0;i<vbs.length;i++){if(vbs[i].getAttribute('data-broken')===url)vbs[i].checked=(v==='broken');}for(i=0;i<vos.length;i++){if(vos[i].getAttribute('data-broken')===url)vos[i].checked=(v==='working');}for(i=0;i<tsd.length;i++){if(tsd[i].getAttribute('data-broken')===url)tsd[i].textContent=t;}}
-  function render(which){
-    var list=(which==='int')?(DATA.internal||[]):(DATA.external||[]),g=groups(list),i,j;
-    if(!g.order.length)return '<p class="muted">No '+(which==='int'?'internal':'external')+' broken links recorded. 🎉</p>';
+  function render(){
+    var g=groups(allList()),i,j;
+    if(!g.order.length)return '<p class="muted">No broken links recorded. 🎉</p>';
     var out=[];
     for(i=0;i<g.order.length;i++){
       var ref=g.order[i],links=g.map[ref],rows='';
       for(j=0;j<links.length;j++){var bk=links[j],pk=pkey(ref,bk.broken),ck=initChecked(ref,bk.broken),ft=initFt(pk),vd=initVerdict(bk.broken,bk.v),tv=initTs(bk.broken,bk.ts);
-        rows+='<tr'+(ck?' class="done"':'')+' data-ref="'+esc(ref)+'" data-broken="'+esc(bk.broken)+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td class="ft">'+esc(ft)+'</td><td class="ts tsd" data-broken="'+esc(bk.broken)+'">'+esc(tv)+'</td><td class="v"><input type="checkbox" class="vb" data-broken="'+esc(bk.broken)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></td><td class="v"><input type="checkbox" class="vo" data-broken="'+esc(bk.broken)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></td><td>'+cell(bk.broken)+'</td><td class="muted">'+esc(bk.reason)+'</td></tr>';}
-      out.push({p:folderOf(ref),html:'<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(ref)+'</span></div><div class="grpctl"><span class="cnt">'+links.length+' broken link'+(links.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark every broken link on this page Fixed at once (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label></div><div class="grpnote"><label class="notelbl">Notes <input type="text" class="pnote" data-ref="'+esc(ref)+'" placeholder="notes…" value="'+esc(initNote(ref))+'"></label></div></div><div class="grpbody"><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th class="ts">Last triaged</th><th class="v">Broken</th><th class="v">Working</th><th>Broken link it points to</th><th>Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>'});
+        rows+='<tr'+(ck?' class="done"':'')+' data-ref="'+esc(ref)+'" data-broken="'+esc(bk.broken)+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td class="ft">'+esc(ft)+'</td><td class="ts tsd" data-broken="'+esc(bk.broken)+'">'+esc(tv)+'</td><td class="v"><input type="checkbox" class="vb" data-broken="'+esc(bk.broken)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></td><td class="v"><input type="checkbox" class="vo" data-broken="'+esc(bk.broken)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></td><td>'+cell(bk.broken)+'</td><td class="ltcol">'+typeBadge(bk.type)+'</td><td class="muted">'+esc(bk.reason)+'</td></tr>';}
+      out.push({p:folderOf(ref),html:'<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(ref)+'</span></div><div class="grpctl"><span class="cnt">'+links.length+' broken link'+(links.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark every broken link on this page Fixed at once (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label></div><div class="grpnote"><label class="notelbl">Notes <input type="text" class="pnote" data-ref="'+esc(ref)+'" placeholder="notes…" value="'+esc(initNote(ref))+'"></label></div></div><div class="grpbody"><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th class="ts">Last triaged</th><th class="v">Broken</th><th class="v">Working</th><th>Broken link it points to</th><th class="ltcol">Type</th><th>Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>'});
     }
     return out;
   }
@@ -236,25 +242,25 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   // same underlying flag — switch views and the equivalent box is already ticked.
   function groupsByLink(list){
     var map={}, order=[], i, j;
-    for(i=0;i<list.length;i++){var e=list[i],r=e.refs||[];if(!map.hasOwnProperty(e.url)){map[e.url]={reason:e.reason,v:e.v||'',ts:e.ts||'',refs:[]};order.push(e.url);}for(j=0;j<r.length;j++)map[e.url].refs.push(r[j]);}
+    for(i=0;i<list.length;i++){var e=list[i],r=e.refs||[];if(!map.hasOwnProperty(e.url)){map[e.url]={reason:e.reason,v:e.v||'',ts:e.ts||'',type:e.type||'',refs:[]};order.push(e.url);}for(j=0;j<r.length;j++)map[e.url].refs.push(r[j]);}
     order.sort();
     for(i=0;i<order.length;i++)map[order[i]].refs.sort();
     return {order:order,map:map};
   }
-  function renderByLink(which){
-    var list=(which==='int')?(DATA.internal||[]):(DATA.external||[]),g=groupsByLink(list),i,j;
-    if(!g.order.length)return '<p class="muted">No '+(which==='int'?'internal':'external')+' broken links recorded. 🎉</p>';
+  function renderByLink(){
+    var g=groupsByLink(allList()),i,j;
+    if(!g.order.length)return '<p class="muted">No broken links recorded. 🎉</p>';
     var out=[];
     for(i=0;i<g.order.length;i++){
       var url=g.order[i],info=g.map[url],refs=info.refs,vd=initVerdict(url,info.v),tv=initTs(url,info.ts),rows='';
       for(j=0;j<refs.length;j++){var ref=refs[j],pk=pkey(ref,url),ck=initChecked(ref,url),ft=initFt(pk);
         rows+='<tr'+(ck?' class="done"':'')+' data-ref="'+esc(ref)+'" data-broken="'+esc(url)+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td class="ft">'+esc(ft)+'</td><td>'+cell(ref)+'</td></tr>';}
-      out.push({p:(which==='ext'?hostOf(url):folderOf(url)),html:'<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(url)+'</span></div><div class="grpctl"><span class="cnt">'+refs.length+' page'+(refs.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark this broken link Fixed on every page that links to it (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label><span class="vlbl">Last triaged <span class="tsd" data-broken="'+esc(url)+'">'+esc(tv)+'</span></span><label class="vlbl">Broken <input type="checkbox" class="vb" data-broken="'+esc(url)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></label><label class="vlbl">Working <input type="checkbox" class="vo" data-broken="'+esc(url)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></label></div></div><div class="grpbody"><div class="grpreason muted">'+esc(info.reason)+'</div><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th>Page that links here</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>'});
+      out.push({p:(info.type==='external'?hostOf(url):folderOf(url)),html:'<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(url)+'</span> '+typeBadge(info.type)+'</div><div class="grpctl"><span class="cnt">'+refs.length+' page'+(refs.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark this broken link Fixed on every page that links to it (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label><span class="vlbl">Last triaged <span class="tsd" data-broken="'+esc(url)+'">'+esc(tv)+'</span></span><label class="vlbl">Broken <input type="checkbox" class="vb" data-broken="'+esc(url)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></label><label class="vlbl">Working <input type="checkbox" class="vo" data-broken="'+esc(url)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></label></div></div><div class="grpbody"><div class="grpreason muted">'+esc(info.reason)+'</div><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th>Page that links here</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>'});
     }
     return out;
   }
-  function count(which){var list=(which==='int')?(DATA.internal||[]):(DATA.external||[]),g=groups(list),done=0,total=0,i,j;for(i=0;i<g.order.length;i++){var ref=g.order[i],links=g.map[ref];for(j=0;j<links.length;j++){total++;if(initChecked(ref,links[j].broken))done++;}}return {done:done,total:total,pages:g.order.length};}
-  function progress(){var a=count('int'),b=count('ext');document.getElementById('prog').textContent='Fixed: internal '+a.done+'/'+a.total+' · external '+b.done+'/'+b.total;recompute();}
+  function count(){var g=groups(allList()),done=0,total=0,i,j;for(i=0;i<g.order.length;i++){var ref=g.order[i],links=g.map[ref];for(j=0;j<links.length;j++){total++;if(initChecked(ref,links[j].broken))done++;}}return {done:done,total:total,pages:g.order.length};}
+  function progress(){var a=count();document.getElementById('prog').textContent='Fixed: '+a.done+'/'+a.total+' link reference'+(a.total===1?'':'s');recompute();}
   // Top-level stat matrix. BROKEN (bottom row) is verdict-driven: a link counts while its verdict is not
   // Working; instances = the sum of its referrer pages. FIXED (top row) is remediation-driven: an instance
   // is fixed when its (page->link) Fixed box is ticked, a destination when ALL its references are fixed —
@@ -326,18 +332,16 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   var viewMode='page';
   // Group-level pagination: with thousands of referrer pages / broken links, render at most PER_PAGE
   // groups per tab behind Prev/Next so the document stays light. The current page is tracked per tab.
-  var PER_PAGE=50, pageState={int:0,ext:0};
-  function rmode(which){var r=viewMode==='link'?renderByLink(which):render(which);return (typeof r==='string')?r:orderByParent(r);}
+  var PER_PAGE=50, pageState={all:0};
+  function rmode(){var r=viewMode==='link'?renderByLink():render();return (typeof r==='string')?r:orderByParent(r);}
   function pager(which,p,pages,total){return '<div class="pager" data-which="'+which+'"><button type="button" class="btn pgbtn pgprev"'+(p<=0?' disabled':'')+'>‹ Prev</button><span class="pgnum">Page '+(p+1)+' of '+pages+' · '+total+' sections</span><button type="button" class="btn pgbtn pgnext"'+(p>=pages-1?' disabled':'')+'>Next ›</button></div>';}
   // The pager goes in the OUTSIDE .pagerbar (above the scroll viewport) so Prev/Next stay put while you
   // scroll. Sections are paginated (PER_PAGE/page); each page wraps its sections under their folder/domain
   // parent — a parent that straddles a page boundary just repeats its header on the next page.
-  function fillPanel(which){var arr=rmode(which),host=document.getElementById('panel-'+which),pbar=document.getElementById('pager-'+which);if(typeof arr==='string'){host.innerHTML=arr;if(pbar)pbar.innerHTML='';return;}var totals={},i;for(i=0;i<arr.length;i++)totals[arr[i].p]=(totals[arr[i].p]||0)+1;var total=arr.length,pages=Math.max(1,Math.ceil(total/PER_PAGE));if(pageState[which]>=pages)pageState[which]=pages-1;if(pageState[which]<0)pageState[which]=0;var p=pageState[which],slice=arr.slice(p*PER_PAGE,p*PER_PAGE+PER_PAGE),html='',cur=null,buf='';for(i=0;i<slice.length;i++){if(slice[i].p!==cur){if(cur!==null)html+=parentWrap(cur,totals[cur],buf);buf='';cur=slice[i].p;}buf+=slice[i].html;}if(cur!==null)html+=parentWrap(cur,totals[cur],buf);if(pbar)pbar.innerHTML=(total>PER_PAGE)?pager(which,p,pages,total):'';host.innerHTML=html;}
-  function fill(){fillPanel('int');fillPanel('ext');wire();refreshAllGroups();progress();}
-  var tabs=document.querySelectorAll('.tab'),i;
-  for(i=0;i<tabs.length;i++){tabs[i].addEventListener('click',function(){var t=this.getAttribute('data-t'),j;for(j=0;j<tabs.length;j++)tabs[j].className='tab'+(tabs[j]===this?' active':'');var ti=document.getElementById('tv-int'),te=document.getElementById('tv-ext');if(ti)ti.className=(t==='int')?'tabview':'tabview hidden';if(te)te.className=(t==='ext')?'tabview':'tabview hidden';});}
+  function fillPanel(which){var arr=rmode(),host=document.getElementById('panel-'+which),pbar=document.getElementById('pager-'+which);if(typeof arr==='string'){host.innerHTML=arr;if(pbar)pbar.innerHTML='';return;}var totals={},i;for(i=0;i<arr.length;i++)totals[arr[i].p]=(totals[arr[i].p]||0)+1;var total=arr.length,pages=Math.max(1,Math.ceil(total/PER_PAGE));if(pageState[which]>=pages)pageState[which]=pages-1;if(pageState[which]<0)pageState[which]=0;var p=pageState[which],slice=arr.slice(p*PER_PAGE,p*PER_PAGE+PER_PAGE),html='',cur=null,buf='';for(i=0;i<slice.length;i++){if(slice[i].p!==cur){if(cur!==null)html+=parentWrap(cur,totals[cur],buf);buf='';cur=slice[i].p;}buf+=slice[i].html;}if(cur!==null)html+=parentWrap(cur,totals[cur],buf);if(pbar)pbar.innerHTML=(total>PER_PAGE)?pager(which,p,pages,total):'';host.innerHTML=html;}
+  function fill(){fillPanel('all');wire();refreshAllGroups();progress();}
   var gtabs=document.querySelectorAll('.gtab'),gi;
-  for(gi=0;gi<gtabs.length;gi++){gtabs[gi].addEventListener('click',function(){var g=this.getAttribute('data-g'),j;if(g===viewMode)return;viewMode=g;pageState={int:0,ext:0};for(j=0;j<gtabs.length;j++)gtabs[j].className='gtab'+(gtabs[j]===this?' active':'');fill();});}
+  for(gi=0;gi<gtabs.length;gi++){gtabs[gi].addEventListener('click',function(){var g=this.getAttribute('data-g'),j;if(g===viewMode)return;viewMode=g;pageState={all:0};for(j=0;j<gtabs.length;j++)gtabs[j].className='gtab'+(gtabs[j]===this?' active':'');fill();});}
   var bExp=document.getElementById('expAll');if(bExp)bExp.addEventListener('click',function(){setAllParents(false);setAllGroups(false);});
   var bCol=document.getElementById('colAll');if(bCol)bCol.addEventListener('click',function(){setAllParents(true);});
   document.getElementById('reset').addEventListener('click',function(){if(!window.confirm('Clear all Fixed ticks (and their times) in this tracker? Verdicts and notes are kept.'))return;var lists=(DATA.internal||[]).concat(DATA.external||[]),g=groups(lists),i,j;for(i=0;i<g.order.length;i++){var ref=g.order[i],links=g.map[ref];for(j=0;j<links.length;j++){var pk=pkey(ref,links[j].broken);save(pk,false);saveFt(pk,'');}}fill();});
@@ -450,7 +454,7 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
     // strip any baked seed island, then splice scoped DATA between the boundary markers per page.
     var clone=document.documentElement.cloneNode(true);
     function blank(id){var el=clone.querySelector('#'+id);if(el)el.innerHTML='';}
-    blank('panel-int');blank('panel-ext');blank('pager-int');blank('pager-ext');
+    blank('panel-all');blank('pager-all');
     var shell='<!doctype html>'+NL+clone.outerHTML;
     var SO='<scr'+'ipt>window.__CW_TRK_SEED__=',SC='</scr'+'ipt>',pos;
     while((pos=shell.indexOf(SO))>=0){var en=shell.indexOf(SC,pos);if(en<0)break;shell=shell.slice(0,pos)+shell.slice(en+SC.length);}
@@ -496,13 +500,11 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   var bpf=document.getElementById('cwFolders');if(bpf)bpf.addEventListener('click',function(){saveBatch('folder');});
   var bi=document.getElementById('cwImp'),bif=document.getElementById('cwImpF');
   if(bi&&bif){bi.addEventListener('click',function(){bif.click();});bif.addEventListener('change',function(){importStateFiles(this.files);try{this.value='';}catch(e){}});}
-  var ci=count('int'),ce=count('ext');
-  // DISTINCT referrer pages across both tabs — a page that links both a broken internal AND a broken
-  // external destination is ONE page, not two (counting ci.pages+ce.pages would double it). This is the
-  // same set the per-page export enumerates, so the two numbers line up.
-  function distinctRefPages(){var s={},n=0,add=function(list){var g=groups(list),i;for(i=0;i<g.order.length;i++){if(!s.hasOwnProperty(g.order[i])){s[g.order[i]]=1;n++;}}};add(DATA.internal||[]);add(DATA.external||[]);return n;}
-  var refPages=distinctRefPages();
-  document.getElementById('sub').textContent=(DATA.host||'')+' · generated '+(DATA.generatedAt||'')+' · '+refPages+' referrer page(s), '+(ci.total+ce.total)+' broken-link instance(s) · fixes, verdicts, times & notes saved in this browser';
+  // count() groups the COMBINED internal+external list, so .pages is the DISTINCT referrer-page count (a
+  // page linking both an internal and an external broken link counts once) and .total is the broken-link
+  // instance count — both line up with what the per-page export enumerates.
+  var cAll=count();
+  document.getElementById('sub').textContent=(DATA.host||'')+' · generated '+(DATA.generatedAt||'')+' · '+cAll.pages+' referrer page(s), '+cAll.total+' broken-link instance(s) · fixes, verdicts, times & notes saved in this browser';
   fill();
 })();
 </script>

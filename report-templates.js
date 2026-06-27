@@ -259,7 +259,10 @@ var DATA = "__DATA__";
     function tally(list,isInt){var i,j;for(i=0;i<list.length;i++){var e=list[i],url=e.url,refs=e.refs||[];if(initVerdict(url,e.v)==='working')continue;if(isInt)s.bInt++;else s.bExt++;var allFixed=refs.length>0;for(j=0;j<refs.length;j++){s.bInst++;if(initChecked(refs[j],url))s.fInst++;else allFixed=false;}if(allFixed){if(isInt)s.fInt++;else s.fExt++;}}}
     tally(DATA.internal||[],true);tally(DATA.external||[],false);
     function setN(id,v){var e=document.getElementById(id);if(e)e.textContent=v.toLocaleString();}
-    function setP(id,num,den){var e=document.getElementById(id);if(e)e.textContent=den>0?'('+Math.round(num/den*100)+'%)':'';}
+    // Mirror the report's adaptive percent convention (AD-056): at least one decimal, and expand the
+    // precision when the fixed share is so small it would round to 0.0 at one decimal.
+    function fmtPct(p){if(!(p>0))return '0.0';var d=1;while(d<10&&Number(p.toFixed(d))===0)d++;return p.toFixed(d);}
+    function setP(id,num,den){var e=document.getElementById(id);if(e)e.textContent=den>0?'('+fmtPct(num/den*100)+'%)':'';}
     setN('st-bInst',s.bInst);setN('st-bInt',s.bInt);setN('st-bExt',s.bExt);
     setN('st-fInst',s.fInst);setN('st-fInt',s.fInt);setN('st-fExt',s.fExt);
     setP('st-fInstP',s.fInst,s.bInst);setP('st-fIntP',s.fInt,s.bInt);setP('st-fExtP',s.fExt,s.bExt);
@@ -335,7 +338,7 @@ var DATA = "__DATA__";
   function dl(blob,name){try{var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},0);return true;}catch(e){return false;}}
   // Save through the File System Access "Save As" PICKER (operator chooses folder + name); falls back to a
   // plain download where the API is unavailable/restricted. Cancelling the picker is silent.
-  function saveBlob(blob,name,okMsg){function fb(){toast(dl(blob,name)?okMsg:'Save failed');}if(window.showSaveFilePicker){var dot=name.lastIndexOf('.'),ext=dot>=0?name.slice(dot):'.txt',acc={};acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];window.showSaveFilePicker({suggestedName:name,types:[{description:'File',accept:acc}]}).then(function(h){return h.createWritable();}).then(function(w){return w.write(blob).then(function(){return w.close();});}).then(function(){toast(okMsg);}).catch(function(e){if(e&&e.name==='AbortError')return;fb();});return;}fb();}
+  function saveBlob(blob,name,okMsg){var td=new Date(),tz=function(x){return (x<10?'0':'')+x;},ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()),tdot=name.lastIndexOf('.');name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));function fb(){toast(dl(blob,name)?okMsg:'Save failed');}if(window.showSaveFilePicker){var dot=name.lastIndexOf('.'),ext=dot>=0?name.slice(dot):'.txt',acc={};acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];window.showSaveFilePicker({suggestedName:name,types:[{description:'File',accept:acc}]}).then(function(h){return h.createWritable();}).then(function(w){return w.write(blob).then(function(){return w.close();});}).then(function(){toast(okMsg);}).catch(function(e){if(e&&e.name==='AbortError')return;fb();});return;}fb();}
   function collectState(){var out={app:'charlotte-fix-tracker',host:(DATA.host||''),v:{}},s=lsObj();if(!s){var sd=SEED();if(sd&&sd.v){for(var kk in sd.v){if(sd.v.hasOwnProperty(kk))out.v[kk]=sd.v[kk];}}return out;}var i,k,n=0;try{n=s.length;}catch(e){n=0;}for(i=0;i<n;i++){try{k=s.key(i);}catch(e){k=null;}if(k&&k.indexOf(NS)===0)out.v[k]=s.getItem(k);}return out;}
   function countState(st){var n=0,k;for(k in st.v){if(st.v.hasOwnProperty(k))n++;}return n;}
   function exportState(){var st=collectState();if(!countState(st)){toast('Nothing to export yet — tick something first');return;}saveBlob(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}),'charlotte-fix-tracker-'+(DATA.host||'state')+'.json','Exported tracker state');}

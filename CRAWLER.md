@@ -606,7 +606,10 @@ time.
 At the top, a **stat matrix** scores the work: the **bottom row is Broken** (verdict-driven — broken
 hyperlink instances, broken internal destinations, broken external destinations; a link drops out the
 moment you mark it **Working**), and the **top row is Fixed** (how many of those references/destinations
-you've **remediated**, with the % of the broken total). The two axes are independent: *Broken/Working* is
+you've **remediated**, each with its **% of the broken total** shown beneath — formatted like the report's
+broken-stats percentages: at least one decimal, and *more* precision when the fixed share is a tiny sliver
+of the broken total, so a handful of fixes among thousands never rounds to a misleading `0%`). The two axes
+are independent: *Broken/Working* is
 whether the link loads; *Fixed* is whether the page's reference to it has been removed or corrected.
 
 Within each tab the groups are **collapsible sections** — grouped **By page** (referrer page →
@@ -653,8 +656,10 @@ Because that state lives in localStorage and *not* inside the report file, simpl
 verdicts** toolbar (above the tabs, on the final report) carries it across:
 
 > Every **Export / Save** action here (and in the fix tracker) opens a **"Save As" file picker** so
-> you choose the folder and filename, rather than dropping the file into your Downloads folder. (In
-> browsers without the File System Access API it falls back to a normal download.)
+> you choose the folder and filename, rather than dropping the file into your Downloads folder. The
+> suggested filename arrives **pre-stamped with a timestamp** (`<name>_YYYY-MM-DD_HH-MM_SS.<ext>`) so
+> each export is its own versioned file — you're free to edit it before saving. (In browsers without
+> the File System Access API it falls back to a normal download, with the same stamped name.)
 
 - **💾 Save shareable copy** — downloads a *new* self-contained report HTML with your current
   verdicts and timestamps **baked in** (as a `window.__CW_SEED__` island). Email that single

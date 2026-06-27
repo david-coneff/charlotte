@@ -665,6 +665,10 @@ ${trackerEmbed}
   // picker as the share toolbar's IIFE below (the two scripts are separate scopes — like toast above).
   function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
   function saveBlob(blob, name, okMsg){
+    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
+    // its own versioned file; the picker pre-fills it (the operator can still edit it).
+    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
+    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
     function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
     if(window.showSaveFilePicker){
       var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
@@ -779,6 +783,10 @@ ${trackerEmbed}
   // restricted it falls back to a plain download (dl). Cancelling the picker is silent. This is the additive,
   // download-as-fallback enhancement AD-034 left for "if revisited".
   function saveBlob(blob, name, okMsg){
+    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
+    // its own versioned file; the picker pre-fills it (the operator can still edit it).
+    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
+    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
     function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
     if(window.showSaveFilePicker){
       var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};

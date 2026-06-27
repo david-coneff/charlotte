@@ -117,7 +117,7 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
   the tab's groups, persisted `cwcol:host:scope`, with a Reset button). The lengthy per-tab
   help collapses into a **"How this tab works"** disclosure.
 
-### Fix tracker (standalone, AD-008, AD-030–033, AD-047, AD-062/064)
+### Fix tracker (standalone, AD-008, AD-030–033, AD-047, AD-062/064, AD-066–068, AD-071)
 - **Export fix tracker** bakes the still-broken links into a separate self-contained
   HTML, grouped **By page** (referrer → its broken links, one Notes field per page) or
   **By broken link** (link → every page that links to it). A **Fixed** checkbox per
@@ -129,13 +129,23 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
   clears once every link is fixed *or* working. The list scrolls in a resizable fixed-height
   viewport with the **pager kept ABOVE it** (visible while scrolling), and **group-level
   pagination** (50/page) keeps thousands of groups light.
+- Sections **roll up under a collapsible folder/domain parent** (first-level path folder for
+  internal, host for external — two-level nesting, AD-067). A **light/dark theme toggle** sits
+  upper-right (AD-066). An **inverted Fixed/Broken stat matrix** scores the work above the tabs
+  (top row Fixed = remediation-driven, bottom row Broken = verdict-driven; AD-068) — each Fixed
+  card's "% of broken" uses the report's **adaptive `fmtPct`** (one-decimal floor, precision
+  expands so a tiny fixed share never rounds to a misleading `0%`; AD-071, mirrors AD-056).
 - State persists in the tracker's own `cwfix:host:` namespace (`ft:`/`vd:`/`vt:`/`n:`),
   pkey = `ref + NL + broken`.
 
-### Sharing (AD-030, AD-033)
+### Sharing (AD-030, AD-033, AD-069/070)
 - Report and tracker both: **Export / Import** verdicts (JSON, merge-by-link, host-checked)
   and **Save shareable copy** — bake current state into a `window.__CW_SEED__` /
   `__CW_TRK_SEED__` island injected before `</head>` so a recipient just opens the file.
+- Every Export/Save routes through `saveBlob`, which opens a File System Access **"Save As"
+  picker** (folder + name chosen by the operator; `<a download>` fallback where the API is
+  absent; AD-069) and pre-stamps the suggested name with a **`_YYYY-MM-DD_HH-MM_SS` timestamp**
+  so each export is its own versioned file (AD-070).
 
 ### Windows GUI (`crawl-gui.hta`, ~1017 lines, JScript)
 - Form front-end that builds the `crawl.js` command line and launches it; live progress

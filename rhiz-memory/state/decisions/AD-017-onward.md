@@ -1287,3 +1287,46 @@ a stubbed picker: clicking "Export fix tracker" calls
 `showSaveFilePicker({suggestedName:'charlotte-fix-tracker.html', types:[{accept:{'text/html':['.html']}}]})`
 and writes the 43 KB blob to the handle. With the picker absent (the DOM-stub suites) it falls back to
 download — full suite 170/0 including exporttest (13) and tracker3 (18).
+
+## AD-070: Export filenames carry an auto-appended timestamp in the suggested name
+**Date:** 2026-06-27
+**Problem:** with the "Save As" picker (AD-069) the operator now names every export, but the *suggested* name
+was a fixed string (`charlotte-fix-tracker.html`, `charlotte-verdicts-<host>.json`, …). Re-exporting through
+a day's triage either silently overwrites the previous file or forces the operator to hand-type a version
+suffix every time. They wanted the picker to pre-fill a timestamped name so each export is naturally its own
+versioned file.
+**Decision:** stamp the timestamp inside `saveBlob(blob, name, okMsg)` — at the very top, before either the
+picker or the download branch — so it covers BOTH paths and EVERY caller (Export verdicts, Save shareable
+copy, Export fix tracker, allowlist export; tracker Export + Save copy) with one edit per scope. Format is
+`<name>_YYYY-MM-DD_HH-MM_SS.<ext>` (e.g. `charlotte-fix-tracker_2026-06-27_14-03_09.html`), matching the
+literal shape the operator asked for (date dash-joined, an underscore to the time, hour-minute dash-joined, an
+underscore to seconds). Built from `new Date()` with a 2-digit `tz()` zero-pad — no `Intl`/locale dependence,
+deterministic, filesystem-safe (no colons/slashes). The insertion point is `name.lastIndexOf('.')`, NOT the
+first dot, so a dotted hostname keeps its real extension (`tracker-www.example.com.html` →
+`tracker-www.example.com_<ts>.html`); a name with no extension just gets `_<ts>` appended. The timestamp
+itself contains no dots, so a second `lastIndexOf('.')` downstream (the picker's accept-map) still resolves
+the true extension. Lives in all THREE `saveBlob` copies — report.js script A + script B (separate IIFE
+scopes, byte-identical) and the tracker's single IIFE (constraint-clean: no backtick/`${}`/backslash).
+**Verification:** extracted the exact stamping logic from the live template and ran it — `report.json` →
+`report_2026-06-27_14-03_09.json`, `tracker-www.example.com.html` →
+`tracker-www.example.com_2026-06-27_14-03_09.html`, `NOEXT` → `NOEXT_2026-06-27_14-03_09`. Format matches
+`YYYY-MM-DD_HH-MM_SS` exactly. Tracker template stays 0/0/0; full suite 170/0.
+
+## AD-071: Fix-tracker stat-card percentages adopt the report's adaptive `fmtPct` convention
+**Date:** 2026-06-27
+**Problem:** the tracker's Fixed stat cards showed their "% of broken" via `Math.round(num/den*100)` — a whole
+percent. On a real site the fixed share early on is a tiny sliver of the broken total (e.g. 1 fixed reference
+among 5,000 broken instances = 0.02%), and whole-percent rounding collapses every such value to a flat,
+misleading `0%`, hiding real progress. The report's broken-stats already solved this (AD-056) with an adaptive
+formatter; the tracker should match it for a single percentage convention across both surfaces.
+**Decision:** drop in the report's exact `fmtPct` next to `recompute()`'s `setP` and route the percentage
+through it: `function fmtPct(p){if(!(p>0))return '0.0';var d=1;while(d<10&&Number(p.toFixed(d))===0)d++;return
+p.toFixed(d);}`, with `setP` now emitting `'('+fmtPct(num/den*100)+'%)'`. Behaviour: a floor of **one** decimal
+always (`50.0%`, `100.0%`, and `0.0%` for a zero/empty share), expanding the precision one digit at a time
+(capped at 10) only while the value would still render as `0.0` — so a non-zero-but-tiny share keeps its first
+significant digit (`0.02%`, `0.0001%`) instead of vanishing. Identical wording/logic to report.js's `fmtPct`,
+so the two stay in lockstep. Constraint-clean (single-quoted `'0.0'`, no backtick/`${}`/backslash).
+**Verification:** extracted the template's `fmtPct` and exercised the convention — `0/4→0.0%`, `5/10→50.0%`,
+`3/7→42.9%`, `1/800→0.1%`, `1/10000→0.01%`, `1/1000000→0.0001%`. End-to-end headless render with one fixed
+reference seeded among 5,000 broken instances: the live `#st-fInstP` card reads `(0.02%)` where the old
+`Math.round` would have shown `(0%)`, and `#st-fIntP` reads `(0.0%)` (one-decimal floor). Full suite 170/0.

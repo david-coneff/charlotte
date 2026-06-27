@@ -1068,3 +1068,29 @@ keep their own 220px inner scroll.
 **Verification:** headless render of a 14-folder Broken·internal fixture — the groups sit in a bordered
 fixed-height viewport with a visible internal scrollbar (page no longer grows); the toolbars/counter stay
 outside it. Full suite (domtest/vtest/sharetest/revtest/exporttest/newwin/tracker3) passes.
+
+## AD-061: Non-triage tabs (Internal destinations / External / Out-of-scope) get the same folder/host-grouped collapsibles
+**Date:** 2026-06-27
+**Problem:** the triage tabs and Broken·internal all group into collapsible `.domgrp` sections (caret +
+name + count) inside the `.groupview` viewport, but the NON-triage tabs were a mix: External used native
+`<details>` while Internal destinations and Out-of-scope were one flat multi-thousand-row table. The
+operator wants "simple folder-grouped collapsible sections" with "a count under each section" everywhere —
+and, per the scroll-consistency ask (AD-060), the same single internal scrollbar on every tab.
+**Decision:** a `simpleGroups(items, keyOf, headHtml, rowFn, tcls)` helper renders the SAME `.domgrp`
+collapsible the triage tabs use (caret + `.domname` + muted `(count)`) but WITHOUT the verdict controls,
+and a `groupCount(items, keyOf)` gives the header's "N folders / N domains". `keyOf` is `hostOf` for
+External (group by domain) and `folderOf` for Internal destinations + Out-of-scope (group by first-level
+folder). All three render `groupView(simpleGroups(...))` with Expand/Collapse-all buttons. The old inline
+`extGroups`/`byHost`/`rowsInternal`/`oosRows` are gone; External migrated off `<details>` so every tab now
+uses one collapsible mechanism + one scroll viewport. A SEPARATE collapse-only IIFE wires the three
+non-triage panels (`['panel-external','ext'],['panel-internal','int'],['panel-outscope','oos']`): it
+toggles `.collapsed` on click and Expand/Collapse-all — and deliberately never calls `deriveDomain`, so
+these groups never pick up the triage tabs' amber "untested" outline (a triage-only signal). Pagination
+still works: each group's body is `.tablewrap.dombody`, so the `--paginate` pager (`.tablewrap > table`)
+paginates a huge folder just as it did the old single table; small folders no-op. `pagestbl` column widths
+are reused for the Internal groups.
+**Verification:** headless probe on the synthetic report — Internal groups by folder (`x/`, `x/a/`, `x/p/`)
+with per-section counts; clicking a `.domtoggle` collapses just that group; Collapse-all/Expand-all set
+every group; no group ever gets the `untested` amber class. A scoped fixture confirms Out-of-scope groups
+by folder (`x/blog/ (2)`, `x/ (1)`, `x/news/ (1)`). Screenshot confirms the look matches the other tabs.
+Full suite (domtest/vtest/sharetest/revtest/exporttest/cfgtest/cfgtest2/newwin/tracker3) passes.

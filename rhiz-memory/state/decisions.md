@@ -69,6 +69,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-058** (2026-06-27) — Triage tables size to content (no mid-table gap) + drag-resizable columns (persisted, broadcast across domain groups); + Found-on overflow fix
 - **AD-059** (2026-06-27) — Broken·internal grouped by first-level path folder (reuses the domain-grouping infra via a keyOf)
 - **AD-060** (2026-06-27) — Consistent fixed-height internal-scroll viewport across all tabs (.groupview wraps grouped lists)
+- **AD-061** (2026-06-27) — Non-triage tabs (Internal destinations / External / Out-of-scope) use the same folder/host-grouped `.domgrp` collapsibles (count per section, Expand/Collapse-all), via a `simpleGroups` helper
 
 ---
 

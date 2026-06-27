@@ -131,19 +131,7 @@ function buildReport(state, cfg, allow, partial) {
   const capNote = (total) => total > RENDER_CAP ? `<p class="muted">Showing first ${RENDER_CAP.toLocaleString()} of ${total.toLocaleString()} — full set in the JSON/log output.</p>` : "";
 
   const pages = state.pages.slice().sort((a, b) => a.depth - b.depth || a.url.localeCompare(b.url));
-  const rowsInternal = pages.slice(0, RENDER_CAP).map((p) =>
-    `<tr><td>${p.depth}</td><td>${link(p.url)}</td><td>${esc(p.title || "—")}</td><td><span class="pill ok">${p.status}</span></td><td>${p.internal}</td><td>${p.external}</td></tr>`).join("");
-
   const extVals = [...state.external.values()].slice(0, RENDER_CAP);
-  const byHost = new Map();
-  for (const e of extVals) { if (!byHost.has(e.host)) byHost.set(e.host, []); byHost.get(e.host).push(e); }
-  const extGroups = [...byHost.entries()].sort((a, b) => b[1].length - a[1].length).map(([host, list]) => {
-    const rows = list.map((e) => {
-      const st = e.status === "ok" ? `<span class="pill ok">reachable</span>` : e.status === "err" ? `<span class="pill err">unreachable</span>` : `<span class="pill skip">not checked</span>`;
-      return `<tr><td>${link(e.url)}</td><td>${st}</td><td class="muted">${srcCell(e.url)}</td></tr>`;
-    }).join("");
-    return `<details open><summary>${esc(host)} <span class="muted">(${list.length})</span></summary><div class="tablewrap"><table><thead><tr><th>External URL</th><th>Status</th><th>Found on</th></tr></thead><tbody>${rows}</tbody></table></div></details>`;
-  }).join("");
 
   const errRows = (arr) => arr.slice(0, RENDER_CAP).map((e) => `<tr><td>${link(e.url)}</td><td><span class="pill err">${esc(e.reason)}</span></td><td class="muted">${refCell(e.url, e.source)}</td></tr>`).join("");
   // Blocked rows: a neutral "uncertain" pill + the kind (internal/external).
@@ -189,6 +177,32 @@ function buildReport(state, cfg, allow, partial) {
   // Broken·internal tab groups by section the way the external tab groups by domain. Root pages
   // (no folder) group under the bare host. Subdomains naturally land in separate groups.
   const folderOf = (u) => { const m = /^[a-z][a-z0-9+.\-]*:\/\/([^/?#]+)([^?#]*)/i.exec(String(u)); if (!m) return "(unknown)"; let h = m[1]; const at = h.indexOf("@"); if (at >= 0) h = h.slice(at + 1); h = h.replace(/:\d+$/, "").toLowerCase(); const seg = (m[2] || "").split("/").filter(Boolean)[0]; return seg ? h + "/" + seg + "/" : h + "/"; };
+  // ---- Non-triage tabs: simple folder/host-grouped collapsible sections ----------------------------
+  // The External, Internal-destinations and Out-of-scope tabs aren't triaged (no Broken/Working), but a
+  // flat multi-thousand-row table is hard to scan. Reuse the SAME .domgrp collapsible the triage tabs use
+  // (caret + name + count) MINUS the verdict controls, wrapped in the same .groupview viewport — so every
+  // tab looks, scrolls and collapses identically. keyOf picks the grouping key: hostOf groups External by
+  // domain; folderOf groups Internal / Out-of-scope by first-level folder. A separate collapse-only IIFE
+  // wires these — it never calls deriveDomain, so these groups never get the triage tabs' amber outline.
+  const simpleGroups = (items, keyOf, headHtml, rowFn, tcls) => {
+    const m = new Map();
+    for (const it of items.slice(0, RENDER_CAP)) { const h = keyOf(it.url); if (!m.has(h)) m.set(h, []); m.get(h).push(it); }
+    return [...m.entries()].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0])).map(([host, list]) => {
+      const rows = list.map(rowFn).join("");
+      return `<div class="domgrp"><div class="domhead"><button type="button" class="domtoggle"><span class="caret"></span> <span class="domname">${esc(host)}</span> <span class="muted">(${list.length.toLocaleString()})</span></button></div><div class="tablewrap dombody"><table${tcls ? ` class="${tcls}"` : ""}>${headHtml}<tbody>${rows}</tbody></table></div></div>`;
+    }).join("");
+  };
+  const groupCount = (items, keyOf) => { const s = new Set(); for (const it of items.slice(0, RENDER_CAP)) s.add(keyOf(it.url)); return s.size; };
+  // External — grouped by domain (host).
+  const extRow = (e) => { const st = e.status === "ok" ? `<span class="pill ok">reachable</span>` : e.status === "err" ? `<span class="pill err">unreachable</span>` : `<span class="pill skip">not checked</span>`; return `<tr><td>${link(e.url)}</td><td>${st}</td><td class="muted">${srcCell(e.url)}</td></tr>`; };
+  const extHead = `<thead><tr><th>External URL</th><th>Status</th><th>Found on</th></tr></thead>`;
+  const extGroups = simpleGroups(extVals, hostOf, extHead, extRow);
+  const extGroupN = groupCount(extVals, hostOf);
+  // Internal destinations — grouped by first-level folder (pagestbl keeps the narrow Depth/Status/Int/Ext).
+  const pageRow = (p) => `<tr><td>${p.depth}</td><td>${link(p.url)}</td><td>${esc(p.title || "—")}</td><td><span class="pill ok">${p.status}</span></td><td>${p.internal}</td><td>${p.external}</td></tr>`;
+  const internalHead = `<thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead>`;
+  const intGroups = simpleGroups(pages, folderOf, internalHead, pageRow, "pagestbl");
+  const intGroupN = groupCount(pages, folderOf);
   const errextHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
   const errintHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
   // Inner cells of a BLOCKED triage row (mirrors triageCells, but a neutral "uncertain" pill + a Kind
@@ -252,11 +266,13 @@ function buildReport(state, cfg, allow, partial) {
 
   // Out-of-scope (same domain, outside the chosen subsection) — only shown when scoped.
   const scoped = !!state.pathPrefix;
-  const oosRows = [...state.outOfScope.values()].sort((a, b) => a.url.localeCompare(b.url)).slice(0, RENDER_CAP).map((e) =>
-    `<tr><td>${link(e.url)}</td><td class="muted">${srcCell(e.url)}</td></tr>`).join("");
+  const oosItems = [...state.outOfScope.values()].sort((a, b) => a.url.localeCompare(b.url));
+  const oosRow = (e) => `<tr><td>${link(e.url)}</td><td class="muted">${srcCell(e.url)}</td></tr>`;
+  const oosHead = `<thead><tr><th>URL</th><th>Found on</th></tr></thead>`;
+  const oosGroupN = groupCount(oosItems, folderOf);
   const oosStat = scoped ? stat(state.outOfScope.size, "Out of scope", "") : "";
   const oosTab = scoped ? `<div class="tab" data-tab="outscope">Out of scope (${state.outOfScope.size})</div>` : "";
-  const oosPanel = scoped ? `<div class="panel hidden" id="panel-outscope">${state.outOfScope.size ? `<p class="muted">Same domain but outside <code>${esc(state.pathPrefix)}</code> — recorded, not crawled.</p>${capNote(state.outOfScope.size)}<div class="tablewrap"><table><thead><tr><th>URL</th><th>Found on</th></tr></thead><tbody>${oosRows}</tbody></table></div>` : `<p class="muted">No out-of-scope links found.</p>`}</div>` : "";
+  const oosPanel = scoped ? `<div class="panel hidden" id="panel-outscope">${state.outOfScope.size ? `<p class="muted">Same domain but outside <code>${esc(state.pathPrefix)}</code> — recorded, not crawled.</p>${capNote(state.outOfScope.size)}<div class="exptools"><button type="button" class="btn" id="oosExpand">Expand all</button><button type="button" class="btn" id="oosCollapse">Collapse all</button><span class="muted" style="font-size:12px">${oosGroupN} folder${oosGroupN === 1 ? "" : "s"}</span></div>${groupView(simpleGroups(oosItems, folderOf, oosHead, oosRow))}` : `<p class="muted">No out-of-scope links found.</p>`}</div>` : "";
 
   // Header line = crawl settings + run metadata (runtime, suppressed). A FRESH crawl's cfg is real; a
   // --rebuild-from / --recheck-from rewrite restores the settings from the JSON's "settings" block
@@ -485,8 +501,8 @@ function buildReport(state, cfg, allow, partial) {
    <div class="tab" data-tab="blockd">Blocked · uncertain (${blocked.length.toLocaleString()})</div>
    <div class="tab" data-tab="suppressed">Suppressed (${suppressed.length.toLocaleString()})</div>
   </div>
-  <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="tablewrap"><table class="pagestbl"><thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead><tbody>${rowsInternal}</tbody></table></div>` : `<p class="muted">No pages crawled.</p>`}</div>
-  <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extExpand">Expand all</button><button type="button" class="btn" id="extCollapse">Collapse all</button><span class="muted" style="font-size:12px">${byHost.size} domain${byHost.size === 1 ? "" : "s"}</span></div>${groupView(extGroups)}` : `<p class="muted">No external links found.</p>`}</div>
+  <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="exptools"><button type="button" class="btn" id="intExpand">Expand all</button><button type="button" class="btn" id="intCollapse">Collapse all</button><span class="muted" style="font-size:12px">${intGroupN} folder${intGroupN === 1 ? "" : "s"}</span></div>${groupView(intGroups)}` : `<p class="muted">No pages crawled.</p>`}</div>
+  <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extExpand">Expand all</button><button type="button" class="btn" id="extCollapse">Collapse all</button><span class="muted" style="font-size:12px">${extGroupN} domain${extGroupN === 1 ? "" : "s"}</span></div>${groupView(extGroups)}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
   <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + folderHelp + testBar("errint") + domainTools("errint") + groupView(domainGroups(activeInt, "errint", errintHead, triageCells, folderOf)) : `<div class="tablewrap"><table><thead><tr><th>Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${errRows(activeInt)}</tbody></table></div>`}` : `<p class="muted">No internal errors. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + domainHelp + testBar("errext") + domainTools("errext") + groupView(domainGroups(activeExt, "errext", errextHead, triageCells)) : `<div class="tablewrap"><table><thead><tr><th>External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${errRows(activeExt)}</tbody></table></div>`}` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
@@ -893,13 +909,24 @@ ${trackerEmbed}
   if(bImp&&fImp){ bImp.addEventListener('click', function(){ fImp.click(); }); fImp.addEventListener('change', function(){ var f=this.files&&this.files[0]; importVerdicts(f); try{ this.value=''; }catch(e){} }); }
 })();</script>
 <script>(function(){
-  // External-links tab: two always-present controls — Expand all / Collapse all — that simply set
-  // every per-domain section. No state detection: a single toggle could desync from manual
-  // expand/collapse of individual sections and then show the wrong (unusable) label.
-  var P=document.getElementById('panel-external'); if(!P) return;
-  function setAll(open){ var d=P.getElementsByTagName('details'), i; for(i=0;i<d.length;i++){ d[i].open=open; } }
-  var ex=document.getElementById('extExpand'); if(ex) ex.addEventListener('click', function(){ setAll(true); });
-  var co=document.getElementById('extCollapse'); if(co) co.addEventListener('click', function(){ setAll(false); });
+  // Non-triage tabs (External, Internal destinations, Out of scope) use the SAME .domgrp collapsibles as
+  // the triage tabs but without verdict controls — so this wires just the caret toggle + Expand/Collapse
+  // all. deriveDomain is deliberately NOT called here, so these groups never get the amber "untested" halo
+  // (that's a triage-only signal). Each .domtoggle toggles its group's .collapsed class; the buttons set
+  // every group at once (no state detection — a single toggle could desync and show the wrong label).
+  function hasCls(el,c){ return (' '+(el.className||'')+' ').indexOf(' '+c+' ')>=0; }
+  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).replace(/^\s+/,''); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^\s+|\s+$/g,''); }
+  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
+  var TABS=[['panel-external','ext'],['panel-internal','int'],['panel-outscope','oos']], t;
+  for(t=0;t<TABS.length;t++){ (function(pid, pre){
+    var P=document.getElementById(pid); if(!P) return;
+    var tgs=P.querySelectorAll('.domtoggle'), i;
+    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
+    var grps=P.querySelectorAll('.domgrp');
+    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
+    var ex=document.getElementById(pre+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
+    var co=document.getElementById(pre+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
+  })(TABS[t][0], TABS[t][1]); }
 })();</script>
 ${pagerScript}${NEWWIN}</body></html>`;
 }

@@ -76,6 +76,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-065** (2026-06-27) — Drag-resizable columns extended to the non-triage tabs (`.grptbl` + own IIFE, per-tab Reset); removed all enforced minimum column widths (blanket `min-width:0`, grip floor 40→16); collapsible per-tab help (`helpBox` `<details>`, open by default)
 - **AD-066** (2026-06-27) — Light/dark theme toggle (🌙/☀️, upper-right) on the report + tracker via `html[data-theme="light"]` overrides + an `--accent-fg` var; persisted in localStorage, no-flash
 - **AD-067** (2026-06-27) — Two-level nesting in the fix tracker: By-page / By-broken-link sections roll up under a collapsible folder (internal) / domain (external) parent (regex-free `hostOf`/`folderOf`; section-level pagination with repeated parent headers)
+- **AD-068** (2026-06-27) — Inverted Fixed/Broken stat matrix on the fix tracker (top row = Fixed instances/internal/external + % of broken; bottom row = Broken, verdict-driven); recomputes live on Fixed + Working/Broken changes
 
 ---
 

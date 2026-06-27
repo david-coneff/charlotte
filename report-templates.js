@@ -70,6 +70,14 @@ html[data-theme="light"]{--bg:#f4f6f9;--panel:#ffffff;--panel2:#eaeef3;--fg:#1c2
 *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
 header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
 main{max-width:1280px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px}
+.statcard{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:18px}
+.statrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.statrow+.statrow{margin-top:10px}
+.stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center}
+.statn{font-size:24px;font-weight:700;line-height:1.1}
+.statl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:5px}
+.statpct{font-size:14px;font-weight:600;color:var(--muted)}
+.stat.fixed .statn{color:var(--good)}.stat.broken .statn{color:var(--bad)}
+.statnote{margin:12px 2px 0;color:var(--muted);font-size:12px}
 .bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}.grow{flex:1}
 .tabs{display:flex;gap:6px}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px;color:var(--fg)}.tab.active{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 .gtab{padding:6px 12px;border-radius:7px;background:transparent;border:1px solid var(--border);cursor:pointer;font-size:12px;color:var(--muted)}.gtab.active{background:var(--panel2);color:var(--fg);border-color:var(--accent)}
@@ -131,7 +139,21 @@ tr.done td:not(.c):not(.v):not(.ft):not(.ts){opacity:.5;text-decoration:line-thr
 </style>
 <script>try{if(localStorage.getItem('charlotteTheme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script></head><body><button id="themeToggle" class="themebtn" type="button" title="Toggle light / dark theme">🌙</button>
 <header><h1>🕸️ Charlotte <span class="muted" style="font-weight:400">· Broken-link fix tracker</span></h1><p id="sub"></p></header>
-<main><div class="card">
+<main>
+<div class="statcard">
+ <div class="statrow">
+  <div class="stat fixed"><div class="statn"><span id="st-fInst">0</span> <span class="statpct" id="st-fInstP"></span></div><div class="statl">Fixed hyperlink instances</div></div>
+  <div class="stat fixed"><div class="statn"><span id="st-fInt">0</span> <span class="statpct" id="st-fIntP"></span></div><div class="statl">Fixed internal destinations</div></div>
+  <div class="stat fixed"><div class="statn"><span id="st-fExt">0</span> <span class="statpct" id="st-fExtP"></span></div><div class="statl">Fixed external destinations</div></div>
+ </div>
+ <div class="statrow">
+  <div class="stat broken"><div class="statn" id="st-bInst">0</div><div class="statl">Broken hyperlink instances</div></div>
+  <div class="stat broken"><div class="statn" id="st-bInt">0</div><div class="statl">Broken internal destinations</div></div>
+  <div class="stat broken"><div class="statn" id="st-bExt">0</div><div class="statl">Broken external destinations</div></div>
+ </div>
+ <p class="statnote">Top row = how many references you've <strong>Fixed</strong> (remediated the link on the page), as a share of the <strong>Broken</strong> workload below. Marking a link <strong>Working</strong> drops it from the broken counts.</p>
+</div>
+<div class="card">
  <div class="bar">
   <div class="tabs"><button class="tab active" data-t="int" type="button">Internal</button><button class="tab" data-t="ext" type="button">External</button></div>
   <div class="tabs" style="margin-left:8px"><button class="gtab active" data-g="page" type="button" title="Group by referrer page, listing the broken links on each page — confirm a page has all its broken links fixed">By page</button><button class="gtab" data-g="link" type="button" title="Group by broken link, listing every page that links to it — confirm a broken link is resolved everywhere it appears">By broken link</button></div>
@@ -226,7 +248,22 @@ var DATA = "__DATA__";
     return out;
   }
   function count(which){var list=(which==='int')?(DATA.internal||[]):(DATA.external||[]),g=groups(list),done=0,total=0,i,j;for(i=0;i<g.order.length;i++){var ref=g.order[i],links=g.map[ref];for(j=0;j<links.length;j++){total++;if(initChecked(ref,links[j].broken))done++;}}return {done:done,total:total,pages:g.order.length};}
-  function progress(){var a=count('int'),b=count('ext');document.getElementById('prog').textContent='Fixed: internal '+a.done+'/'+a.total+' · external '+b.done+'/'+b.total;}
+  function progress(){var a=count('int'),b=count('ext');document.getElementById('prog').textContent='Fixed: internal '+a.done+'/'+a.total+' · external '+b.done+'/'+b.total;recompute();}
+  // Top-level stat matrix. BROKEN (bottom row) is verdict-driven: a link counts while its verdict is not
+  // Working; instances = the sum of its referrer pages. FIXED (top row) is remediation-driven: an instance
+  // is fixed when its (page->link) Fixed box is ticked, a destination when ALL its references are fixed —
+  // counted only among broken links, so Fixed is always a share of Broken. Both update live as Fixed boxes
+  // and Broken/Working verdicts change.
+  function recompute(){
+    var s={bInt:0,bExt:0,bInst:0,fInt:0,fExt:0,fInst:0};
+    function tally(list,isInt){var i,j;for(i=0;i<list.length;i++){var e=list[i],url=e.url,refs=e.refs||[];if(initVerdict(url,e.v)==='working')continue;if(isInt)s.bInt++;else s.bExt++;var allFixed=refs.length>0;for(j=0;j<refs.length;j++){s.bInst++;if(initChecked(refs[j],url))s.fInst++;else allFixed=false;}if(allFixed){if(isInt)s.fInt++;else s.fExt++;}}}
+    tally(DATA.internal||[],true);tally(DATA.external||[],false);
+    function setN(id,v){var e=document.getElementById(id);if(e)e.textContent=v.toLocaleString();}
+    function setP(id,num,den){var e=document.getElementById(id);if(e)e.textContent=den>0?'('+Math.round(num/den*100)+'%)':'';}
+    setN('st-bInst',s.bInst);setN('st-bInt',s.bInt);setN('st-bExt',s.bExt);
+    setN('st-fInst',s.fInst);setN('st-fInt',s.fInt);setN('st-fExt',s.fExt);
+    setP('st-fInstP',s.fInst,s.bInst);setP('st-fIntP',s.fInt,s.bInt);setP('st-fExtP',s.fExt,s.bExt);
+  }
   // Tiny class helpers — no classList/closest, so the same code also runs under the DOM-stub tracker tests
   // (and matches the report IIFE's idiom). grpOf walks up to the enclosing .grp via exact-token matching,
   // so .grpbody / .grphead / .grpfix never false-match the 'grp' token.
@@ -250,8 +287,8 @@ var DATA = "__DATA__";
     for(i=0;i<notes.length;i++){notes[i].addEventListener('input',function(){saveNote(this.getAttribute('data-ref'),this.value);});}
     // Broken/Working verdict boxes: mutually exclusive, auto-stamp the time, synced per URL. A Working
     // tick can resolve a section (no fix needed), so refresh every group's completion outline after.
-    for(i=0;i<vbs.length;i++){vbs[i].addEventListener('change',function(){setVerdict(this.getAttribute('data-broken'),this.checked?'broken':'');refreshAllGroups();});}
-    for(i=0;i<vos.length;i++){vos[i].addEventListener('change',function(){setVerdict(this.getAttribute('data-broken'),this.checked?'working':'');refreshAllGroups();});}
+    for(i=0;i<vbs.length;i++){vbs[i].addEventListener('change',function(){setVerdict(this.getAttribute('data-broken'),this.checked?'broken':'');refreshAllGroups();progress();});}
+    for(i=0;i<vos.length;i++){vos[i].addEventListener('change',function(){setVerdict(this.getAttribute('data-broken'),this.checked?'working':'');refreshAllGroups();progress();});}
     // "All: Fixed" bulk box in each section header — ticks/unticks every Fixed box in that group at once.
     for(i=0;i<fas.length;i++){fas[i].addEventListener('change',function(){var g=grpOf(this);if(g)bulkFix(g,this.checked);});}
     // Collapsible group caret + parent (folder/domain) caret + group-level pagination prev/next.

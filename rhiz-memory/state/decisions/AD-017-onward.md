@@ -1243,3 +1243,24 @@ descendant-based, so refreshGroup/bulkFix/setVerdict and the By-page↔By-link s
 parents = domains (`www.facebook.com (2)`, `twitter.com (1)`), all count-desc; a parent caret collapses with
 its sections still nested. Screenshot shows a folder parent wrapping the page sections. Tracker template stays
 0 backtick / 0 `${}` / 0 backslash; full suite 170/0 (revtest's By-page↔By-link sync passes through the nesting).
+
+## AD-068: Inverted Fixed/Broken stat matrix on the fix tracker
+**Date:** 2026-06-27
+**Problem:** the tracker had no top-level scoreboard; the operator wanted the report's stat matrix, but keyed
+to the tracker's TWO ORTHOGONAL axes — BROKEN (does the link load = the verdict) and FIXED (has the page's
+reference been remediated = the Fixed checkbox). They are independent: a link can be verdict-Broken with its
+reference Fixed, or verdict-Working (no fix needed) etc.
+**Decision:** a 2×3 `.statcard` above the tabs. **Bottom row = BROKEN (verdict-driven):** a link counts while
+its verdict ≠ Working; Broken internal/external destinations = distinct such links (per tab); Broken hyperlink
+instances = the sum of their referrer pages. **Top row = FIXED (remediation-driven),** counted ONLY among
+broken links so it's always a share of Broken: Fixed hyperlink instances = (page→link) pairs whose Fixed box
+is ticked; Fixed internal/external destinations = broken links ALL of whose references are fixed. Each Fixed
+card shows count + "(% of broken)". `recompute()` iterates `DATA.{internal,external}` reading the LIVE verdict
+(`initVerdict`) + Fixed (`initChecked`), and runs from `progress()` — so it fires on every Fixed tick,
+All:Fixed, Clear-ticks, AND (newly wired) Broken/Working change. Marking a link Working drops it from BOTH the
+broken counts and any fixed it contributed; marking it Broken again restores both (Fixed flags persist).
+Inverted vs the report (Fixed on top, Broken below) because in the tracker the fix progress is the headline.
+**Verification:** headless transition probe — init `b:4/2/1 f:0/0/0`; fix A's two refs → `f:2/1/0 (50%)` (A
+becomes a fixed destination at 2/2); mark A Working → `b:2/1/1 f:0/0/0` (broken + fixed both drop correctly);
+un-Working → `b:4/2/1 f:2/1/0` restored. Screenshot shows the green-Fixed-over-red-Broken matrix. Tracker
+template stays 0 backtick / 0 `${}` / 0 backslash; full suite 170/0.

@@ -603,6 +603,12 @@ several pages the verdict is **synced per URL** across every row it appears in. 
 persist in the browser** (localStorage), so it can be worked through and handed off over
 time.
 
+At the top, a **stat matrix** scores the work: the **bottom row is Broken** (verdict-driven — broken
+hyperlink instances, broken internal destinations, broken external destinations; a link drops out the
+moment you mark it **Working**), and the **top row is Fixed** (how many of those references/destinations
+you've **remediated**, with the % of the broken total). The two axes are independent: *Broken/Working* is
+whether the link loads; *Fixed* is whether the page's reference to it has been removed or corrected.
+
 Within each tab the groups are **collapsible sections** — grouped **By page** (referrer page →
 its broken links) or **By broken link** (link → every page that links to it), toggled at the
 top — and those sections **roll up under a collapsible folder/domain parent** (first-level path

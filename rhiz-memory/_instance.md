@@ -10,8 +10,8 @@
 
 When starting a session on Charlotte under the Rhizome methodology:
 
-1. `david-coneff/rhizome` — `rhizome/core/rhiz-core.md` (always loaded)
-2. `david-coneff/rhizome` — `rhizome/core/rhiz-core.manifest.yaml` (select modules for task)
+1. `david-coneff/rhizome` — `protocol/core/rhiz-core.md` (always loaded)
+2. `david-coneff/rhizome` — `protocol/core/rhiz-core.manifest.yaml` (select modules for task)
 3. `rhiz-memory/_instance.md` (this file — project identity + startup)
 4. `rhiz-memory/state/SESSION_HANDOFF.md` (current work context and next action)
 

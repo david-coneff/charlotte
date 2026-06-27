@@ -605,7 +605,10 @@ time.
 
 Within each tab the groups are **collapsible sections** — grouped **By page** (referrer page →
 its broken links) or **By broken link** (link → every page that links to it), toggled at the
-top. Because the grouped key is a full (often long) URL, each header **stacks**: the link on its
+top — and those sections **roll up under a collapsible folder/domain parent** (first-level path
+folder for internal, host for external), mirroring the report's tabs, so you can collapse a whole
+section of the site at once. (**Collapse all** folds every parent to a folder/domain bird's-eye;
+**Expand all** opens everything.) Because the grouped key is a full (often long) URL, each header **stacks**: the link on its
 own top row, then a left-aligned controls row — a live **K/N fixed** counter, an **All: ☐ Fixed**
 bulk box that ticks/unticks every Fixed box in the section at once, and (By broken link) the
 section's **Broken/Working** verdict — then, on the By-page view, a **Notes** row. A **translucent

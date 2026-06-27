@@ -1220,3 +1220,26 @@ drops straight into TRACKER_TEMPLATE). The tracker's baked "Save copy" captures 
 **Verification:** headless — button present; a `dark→light→dark` click round-trip flips `data-theme`, persists
 `charlotteTheme`, and swaps the 🌙/☀️ icon; light-mode screenshots of the report and tracker show readable
 contrast + white-on-accent tabs/buttons. Tracker template stays 0 backtick / 0 `${}` / 0 backslash; suite 170/0.
+
+## AD-067: Two-level nesting in the fix tracker — page/link sections roll up under a folder/domain parent
+**Date:** 2026-06-27
+**Problem:** the tracker grouped only at the finest level — one section per referrer page (By page) or per
+broken link (By broken link) — with no coarser bucket, unlike the report (External by host;
+Internal/Broken·internal by first-level folder). With thousands of sections it leaned entirely on the
+50/page pager. The operator wanted the report's roll-up: nest the sections under a collapsible folder/domain.
+**Decision:** wrap the sections under a collapsible `.parent` keyed like the report — the broken link's HOST
+(External + By broken link) or the first-level path FOLDER (everything else, incl. the By-page referrer
+pages, which are internal). `render`/`renderByLink` now emit `{p, html}` per section; `orderByParent` sorts
+so same-parent sections are contiguous (bigger parents first, then alpha). `fillPanel` still paginates by
+SECTION (PER_PAGE=50, so the DOM stays bounded no matter how lopsided the folders are) and wraps each page's
+runs of same-parent sections in a `.parent` with a caret + "(N sections)" total — a parent straddling a page
+boundary simply repeats its header on the next page. Regex-free `hostOf`/`folderOf` (string ops only — the
+template forbids backslashes) compute the keys. Parent carets toggle `.collapsed`; "Collapse all" now
+collapses parents (bird's-eye of folders/domains), "Expand all" opens parents + sections. The (page,link)
+Fixed/verdict/notes wiring is untouched — sections are just nested deeper and every `querySelectorAll` is
+descendant-based, so refreshGroup/bulkFix/setVerdict and the By-page↔By-link sync still resolve.
+**Verification:** headless — Internal/By-page parents = referrer folders (`/services-programs/ (2)`,
+`/blog/ (1)`); Internal/By-link parents = broken-link folders (`/a/ (2)`, `/b/ (1)`); External/By-link
+parents = domains (`www.facebook.com (2)`, `twitter.com (1)`), all count-desc; a parent caret collapses with
+its sections still nested. Screenshot shows a folder parent wrapping the page sections. Tracker template stays
+0 backtick / 0 `${}` / 0 backslash; full suite 170/0 (revtest's By-page↔By-link sync passes through the nesting).

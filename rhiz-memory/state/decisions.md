@@ -75,6 +75,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-064** (2026-06-27) — Fix-tracker section refinements: **All: Fixed** bulk box (kept verdicts), stacked header (long link on its own row), translucent-amber outline that clears when all fixed *or* working (no green), pager moved above the scroll viewport, and definite-`height` viewports so the resize grip grows unbounded (supersedes the AD-063 `max-height`)
 - **AD-065** (2026-06-27) — Drag-resizable columns extended to the non-triage tabs (`.grptbl` + own IIFE, per-tab Reset); removed all enforced minimum column widths (blanket `min-width:0`, grip floor 40→16); collapsible per-tab help (`helpBox` `<details>`, open by default)
 - **AD-066** (2026-06-27) — Light/dark theme toggle (🌙/☀️, upper-right) on the report + tracker via `html[data-theme="light"]` overrides + an `--accent-fg` var; persisted in localStorage, no-flash
+- **AD-067** (2026-06-27) — Two-level nesting in the fix tracker: By-page / By-broken-link sections roll up under a collapsible folder (internal) / domain (external) parent (regex-free `hostOf`/`folderOf`; section-level pagination with repeated parent headers)
 
 ---
 

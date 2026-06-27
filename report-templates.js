@@ -83,6 +83,14 @@ a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}td a{
 .ts,.ft{width:118px;white-space:nowrap;color:var(--muted);font-size:11px}
 .notelbl{display:flex;align-items:center;gap:6px;flex:1;min-width:240px;color:var(--muted);font-size:12px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Two-level nesting: a folder/domain .parent wraps its page/link .grp sections (collapsible). */
+.parent{border:1px solid var(--border);border-radius:9px;margin-bottom:14px;overflow:hidden;background:var(--bg)}
+.parenthead{display:flex;align-items:center;gap:8px;padding:9px 12px;background:var(--panel2);font-weight:600;font-size:13px}
+.parentname{overflow-wrap:anywhere}
+.parenttoggle{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 4px;font:inherit;line-height:1}.parenttoggle:hover{color:var(--accent)}
+.parent.collapsed .parentbody{display:none}
+.parentbody{padding:10px 12px 2px}
+.parentbody .grp:last-child{margin-bottom:2px}
 .grp{border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
 /* The grouped key here is a full (often very long) URL, so the header stacks: the link on its own top
    row, then a left-aligned controls row (count, K/N fixed, All: Fixed, verdict), then (By page) a notes
@@ -99,12 +107,12 @@ a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}td a{
 /* Each tab's group list lives in a fixed-height viewport that scrolls internally (so thousands of groups
    don't stretch the page) and is user-resizable: drag the grip at the bottom-right corner to grow/shrink. */
 .trkview{height:72vh;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px;resize:vertical;min-height:160px}
-.trkview .grp:last-child{margin-bottom:0}
+.trkview .parent:last-child{margin-bottom:0}
 /* Collapsible groups: a caret button toggles a .collapsed class that hides the .grpbody. */
 .grptoggle{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 4px;font:inherit;line-height:1}
 .grptoggle:hover{color:var(--accent)}
 .caret::before{content:"▼";display:inline-block;width:1em;font-size:11px;color:var(--muted)}
-.grp.collapsed .caret::before{content:"▶"}
+.grp.collapsed .caret::before,.parent.collapsed .caret::before{content:"▶"}
 .grp.collapsed .grpbody{display:none}
 .grpfix{color:var(--muted);font-size:12px;white-space:nowrap}
 /* Completion outline (inset, so .grp's overflow:hidden never clips it): a translucent amber dashed ring
@@ -191,7 +199,7 @@ var DATA = "__DATA__";
       var ref=g.order[i],links=g.map[ref],rows='';
       for(j=0;j<links.length;j++){var bk=links[j],pk=pkey(ref,bk.broken),ck=initChecked(ref,bk.broken),ft=initFt(pk),vd=initVerdict(bk.broken,bk.v),tv=initTs(bk.broken,bk.ts);
         rows+='<tr'+(ck?' class="done"':'')+' data-ref="'+esc(ref)+'" data-broken="'+esc(bk.broken)+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td class="ft">'+esc(ft)+'</td><td class="ts tsd" data-broken="'+esc(bk.broken)+'">'+esc(tv)+'</td><td class="v"><input type="checkbox" class="vb" data-broken="'+esc(bk.broken)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></td><td class="v"><input type="checkbox" class="vo" data-broken="'+esc(bk.broken)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></td><td>'+cell(bk.broken)+'</td><td class="muted">'+esc(bk.reason)+'</td></tr>';}
-      out.push('<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(ref)+'</span></div><div class="grpctl"><span class="cnt">'+links.length+' broken link'+(links.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark every broken link on this page Fixed at once (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label></div><div class="grpnote"><label class="notelbl">Notes <input type="text" class="pnote" data-ref="'+esc(ref)+'" placeholder="notes…" value="'+esc(initNote(ref))+'"></label></div></div><div class="grpbody"><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th class="ts">Last tested</th><th class="v">Broken</th><th class="v">Working</th><th>Broken link it points to</th><th>Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>');
+      out.push({p:folderOf(ref),html:'<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(ref)+'</span></div><div class="grpctl"><span class="cnt">'+links.length+' broken link'+(links.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark every broken link on this page Fixed at once (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label></div><div class="grpnote"><label class="notelbl">Notes <input type="text" class="pnote" data-ref="'+esc(ref)+'" placeholder="notes…" value="'+esc(initNote(ref))+'"></label></div></div><div class="grpbody"><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th class="ts">Last tested</th><th class="v">Broken</th><th class="v">Working</th><th>Broken link it points to</th><th>Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>'});
     }
     return out;
   }
@@ -213,7 +221,7 @@ var DATA = "__DATA__";
       var url=g.order[i],info=g.map[url],refs=info.refs,vd=initVerdict(url,info.v),tv=initTs(url,info.ts),rows='';
       for(j=0;j<refs.length;j++){var ref=refs[j],pk=pkey(ref,url),ck=initChecked(ref,url),ft=initFt(pk);
         rows+='<tr'+(ck?' class="done"':'')+' data-ref="'+esc(ref)+'" data-broken="'+esc(url)+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td class="ft">'+esc(ft)+'</td><td>'+cell(ref)+'</td></tr>';}
-      out.push('<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(url)+'</span></div><div class="grpctl"><span class="cnt">'+refs.length+' page'+(refs.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark this broken link Fixed on every page that links to it (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label><span class="vlbl">Last tested <span class="tsd" data-broken="'+esc(url)+'">'+esc(tv)+'</span></span><label class="vlbl">Broken <input type="checkbox" class="vb" data-broken="'+esc(url)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></label><label class="vlbl">Working <input type="checkbox" class="vo" data-broken="'+esc(url)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></label></div></div><div class="grpbody"><div class="grpreason muted">'+esc(info.reason)+'</div><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th>Page that links here</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>');
+      out.push({p:(which==='ext'?hostOf(url):folderOf(url)),html:'<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(url)+'</span></div><div class="grpctl"><span class="cnt">'+refs.length+' page'+(refs.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark this broken link Fixed on every page that links to it (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label><span class="vlbl">Last tested <span class="tsd" data-broken="'+esc(url)+'">'+esc(tv)+'</span></span><label class="vlbl">Broken <input type="checkbox" class="vb" data-broken="'+esc(url)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></label><label class="vlbl">Working <input type="checkbox" class="vo" data-broken="'+esc(url)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></label></div></div><div class="grpbody"><div class="grpreason muted">'+esc(info.reason)+'</div><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th>Page that links here</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>'});
     }
     return out;
   }
@@ -228,6 +236,14 @@ var DATA = "__DATA__";
   function toggleCls(el,c,on){if(on===undefined)on=!hasCls(el,c);if(on)addCls(el,c);else rmCls(el,c);}
   function ancByCls(el,c){var n=el;while(n){if(hasCls(n,c))return n;n=n.parentNode;}return null;}
   function grpOf(el){return ancByCls(el,'grp');}
+  // ---- two-level nesting: page/link sections roll up under a folder (internal) / domain (external)
+  // parent, mirroring the report's tabs. hostOf/folderOf are regex-free (the template forbids backslashes).
+  function hostOf(u){u=String(u);var i=u.indexOf('://');if(i<0)return '(unknown host)';var r=u.slice(i+3),e=r.length,k;k=r.indexOf('/');if(k>=0&&k<e)e=k;k=r.indexOf('?');if(k>=0&&k<e)e=k;k=r.indexOf('#');if(k>=0&&k<e)e=k;var h=r.slice(0,e),at=h.indexOf('@');if(at>=0)h=h.slice(at+1);var c=h.indexOf(':');if(c>=0)h=h.slice(0,c);return h.toLowerCase()||'(unknown host)';}
+  function folderOf(u){var h=hostOf(u);if(h==='(unknown host)')return '(unknown)';var i=String(u).indexOf('://'),r=String(u).slice(i+3),s=r.indexOf('/');if(s<0)return h+'/';var path=r.slice(s+1),k;k=path.indexOf('?');if(k>=0)path=path.slice(0,k);k=path.indexOf('#');if(k>=0)path=path.slice(0,k);var parts=path.split('/'),seg='',pi;for(pi=0;pi<parts.length;pi++){if(parts[pi]){seg=parts[pi];break;}}return seg?h+'/'+seg+'/':h+'/';}
+  // Order sections so same-parent ones are contiguous; bigger parents first, then alpha (stable sub-order).
+  function orderByParent(out){var cnt={},i;for(i=0;i<out.length;i++){out[i]._i=i;cnt[out[i].p]=(cnt[out[i].p]||0)+1;}out.sort(function(a,b){var d=cnt[b.p]-cnt[a.p];if(d)return d;if(a.p!==b.p)return a.p<b.p?-1:1;return a._i-b._i;});return out;}
+  function parentWrap(name,total,inner){return '<div class="parent"><div class="parenthead"><button type="button" class="parenttoggle" title="Show/hide this folder/domain"><span class="caret"></span></button> <span class="parentname">'+esc(name)+'</span> <span class="muted">('+total+' section'+(total===1?'':'s')+')</span></div><div class="parentbody">'+inner+'</div></div>';}
+  function setAllParents(collapsed){var ps=document.querySelectorAll('.parent'),i;for(i=0;i<ps.length;i++)toggleCls(ps[i],'collapsed',collapsed);}
   function wire(){
     var boxes=document.querySelectorAll('.fx'),notes=document.querySelectorAll('.pnote'),vbs=document.querySelectorAll('.vb'),vos=document.querySelectorAll('.vo'),fas=document.querySelectorAll('.grpfixall'),tgs=document.querySelectorAll('.grptoggle'),pps=document.querySelectorAll('.pgprev'),pns=document.querySelectorAll('.pgnext'),i;
     for(i=0;i<boxes.length;i++){boxes[i].addEventListener('change',function(){var tr=this.parentNode.parentNode,k=pkey(tr.getAttribute('data-ref'),tr.getAttribute('data-broken'));save(k,this.checked);var t=this.checked?nowStr():'';saveFt(k,t);var fc=tr.querySelector('.ft');if(fc)fc.textContent=t;tr.className=this.checked?'done':'';var g=grpOf(this);if(g)refreshGroup(g);progress();});}
@@ -238,8 +254,9 @@ var DATA = "__DATA__";
     for(i=0;i<vos.length;i++){vos[i].addEventListener('change',function(){setVerdict(this.getAttribute('data-broken'),this.checked?'working':'');refreshAllGroups();});}
     // "All: Fixed" bulk box in each section header — ticks/unticks every Fixed box in that group at once.
     for(i=0;i<fas.length;i++){fas[i].addEventListener('change',function(){var g=grpOf(this);if(g)bulkFix(g,this.checked);});}
-    // Collapsible group caret + group-level pagination prev/next.
+    // Collapsible group caret + parent (folder/domain) caret + group-level pagination prev/next.
     for(i=0;i<tgs.length;i++){tgs[i].addEventListener('click',function(){var g=grpOf(this);if(g)toggleCls(g,'collapsed');});}
+    var pts=document.querySelectorAll('.parenttoggle');for(i=0;i<pts.length;i++){pts[i].addEventListener('click',function(){var pr=ancByCls(this,'parent');if(pr)toggleCls(pr,'collapsed');});}
     for(i=0;i<pps.length;i++){pps[i].addEventListener('click',function(){var pp=ancByCls(this,'pager');if(!pp)return;var w=pp.getAttribute('data-which');pageState[w]--;fill();});}
     for(i=0;i<pns.length;i++){pns[i].addEventListener('click',function(){var pp=ancByCls(this,'pager');if(!pp)return;var w=pp.getAttribute('data-which');pageState[w]++;fill();});}
   }
@@ -261,18 +278,19 @@ var DATA = "__DATA__";
   // Group-level pagination: with thousands of referrer pages / broken links, render at most PER_PAGE
   // groups per tab behind Prev/Next so the document stays light. The current page is tracked per tab.
   var PER_PAGE=50, pageState={int:0,ext:0};
-  function rmode(which){return viewMode==='link'?renderByLink(which):render(which);}
-  function pager(which,p,pages,total){return '<div class="pager" data-which="'+which+'"><button type="button" class="btn pgbtn pgprev"'+(p<=0?' disabled':'')+'>‹ Prev</button><span class="pgnum">Page '+(p+1)+' of '+pages+' · '+total+' groups</span><button type="button" class="btn pgbtn pgnext"'+(p>=pages-1?' disabled':'')+'>Next ›</button></div>';}
+  function rmode(which){var r=viewMode==='link'?renderByLink(which):render(which);return (typeof r==='string')?r:orderByParent(r);}
+  function pager(which,p,pages,total){return '<div class="pager" data-which="'+which+'"><button type="button" class="btn pgbtn pgprev"'+(p<=0?' disabled':'')+'>‹ Prev</button><span class="pgnum">Page '+(p+1)+' of '+pages+' · '+total+' sections</span><button type="button" class="btn pgbtn pgnext"'+(p>=pages-1?' disabled':'')+'>Next ›</button></div>';}
   // The pager goes in the OUTSIDE .pagerbar (above the scroll viewport) so Prev/Next stay put while you
-  // scroll a page's groups; the groups themselves fill the inner scrolling panel.
-  function fillPanel(which){var arr=rmode(which),host=document.getElementById('panel-'+which),pbar=document.getElementById('pager-'+which);if(typeof arr==='string'){host.innerHTML=arr;if(pbar)pbar.innerHTML='';return;}var total=arr.length,pages=Math.max(1,Math.ceil(total/PER_PAGE));if(pageState[which]>=pages)pageState[which]=pages-1;if(pageState[which]<0)pageState[which]=0;var p=pageState[which],slice=arr.slice(p*PER_PAGE,p*PER_PAGE+PER_PAGE);if(pbar)pbar.innerHTML=(total>PER_PAGE)?pager(which,p,pages,total):'';host.innerHTML=slice.join('');}
+  // scroll. Sections are paginated (PER_PAGE/page); each page wraps its sections under their folder/domain
+  // parent — a parent that straddles a page boundary just repeats its header on the next page.
+  function fillPanel(which){var arr=rmode(which),host=document.getElementById('panel-'+which),pbar=document.getElementById('pager-'+which);if(typeof arr==='string'){host.innerHTML=arr;if(pbar)pbar.innerHTML='';return;}var totals={},i;for(i=0;i<arr.length;i++)totals[arr[i].p]=(totals[arr[i].p]||0)+1;var total=arr.length,pages=Math.max(1,Math.ceil(total/PER_PAGE));if(pageState[which]>=pages)pageState[which]=pages-1;if(pageState[which]<0)pageState[which]=0;var p=pageState[which],slice=arr.slice(p*PER_PAGE,p*PER_PAGE+PER_PAGE),html='',cur=null,buf='';for(i=0;i<slice.length;i++){if(slice[i].p!==cur){if(cur!==null)html+=parentWrap(cur,totals[cur],buf);buf='';cur=slice[i].p;}buf+=slice[i].html;}if(cur!==null)html+=parentWrap(cur,totals[cur],buf);if(pbar)pbar.innerHTML=(total>PER_PAGE)?pager(which,p,pages,total):'';host.innerHTML=html;}
   function fill(){fillPanel('int');fillPanel('ext');wire();refreshAllGroups();progress();}
   var tabs=document.querySelectorAll('.tab'),i;
   for(i=0;i<tabs.length;i++){tabs[i].addEventListener('click',function(){var t=this.getAttribute('data-t'),j;for(j=0;j<tabs.length;j++)tabs[j].className='tab'+(tabs[j]===this?' active':'');var ti=document.getElementById('tv-int'),te=document.getElementById('tv-ext');if(ti)ti.className=(t==='int')?'tabview':'tabview hidden';if(te)te.className=(t==='ext')?'tabview':'tabview hidden';});}
   var gtabs=document.querySelectorAll('.gtab'),gi;
   for(gi=0;gi<gtabs.length;gi++){gtabs[gi].addEventListener('click',function(){var g=this.getAttribute('data-g'),j;if(g===viewMode)return;viewMode=g;pageState={int:0,ext:0};for(j=0;j<gtabs.length;j++)gtabs[j].className='gtab'+(gtabs[j]===this?' active':'');fill();});}
-  var bExp=document.getElementById('expAll');if(bExp)bExp.addEventListener('click',function(){setAllGroups(false);});
-  var bCol=document.getElementById('colAll');if(bCol)bCol.addEventListener('click',function(){setAllGroups(true);});
+  var bExp=document.getElementById('expAll');if(bExp)bExp.addEventListener('click',function(){setAllParents(false);setAllGroups(false);});
+  var bCol=document.getElementById('colAll');if(bCol)bCol.addEventListener('click',function(){setAllParents(true);});
   document.getElementById('reset').addEventListener('click',function(){if(!window.confirm('Clear all Fixed ticks (and their times) in this tracker? Verdicts and notes are kept.'))return;var lists=(DATA.internal||[]).concat(DATA.external||[]),g=groups(lists),i,j;for(i=0;i<g.order.length;i++){var ref=g.order[i],links=g.map[ref];for(j=0;j<links.length;j++){var pk=pkey(ref,links[j].broken);save(pk,false);saveFt(pk,'');}}fill();});
   // ---- share this tracker's state: export/import JSON + bake a self-contained copy (like the report) ----
   var BS=String.fromCharCode(92);

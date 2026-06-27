@@ -1493,3 +1493,24 @@ and the By-page/By-link toggle intact. Tracker stubs in `tracker3-test`/`revtest
 `panel-all` (+ dropped the dead `.tab` buttons); `pageE2E` blank-check now targets `panel-all`. Tracker template
 stays 0/0/0; full suite 240/0. (Lesson reinforced: several test files build their OWN tracker DOM stub — a panel
 rename means updating each `mkEls`/`mkDoc`, e.g. revtest crashed on a null `panel-all` until its stub was fixed.)
+
+## AD-077: Drag-resizable table columns in the fix tracker (consistent with the crawl report)
+**Date:** 2026-06-27
+**Problem:** the crawl report's grouped tables have drag-resizable columns (AD-058/065) but the fix tracker's
+tables didn't — inconsistent UI/UX across the two surfaces.
+**Decision:** ported the report's `.grptbl` mechanism to the tracker. The two tracker table shapes share one
+`#panel-all`, so they're tagged `grptbl gp` (By page, 8 cols) and `grptbl gl` (By broken link, 3 cols), each
+with its own default widths via `#panel-all .grptbl.gp/.gl th:nth-child(n)` (so **↔ Reset columns** reverts to
+them). CSS mirrors the report: `table-layout:fixed;width:max-content;min-width:0`, `th{position:relative}`, and
+a `.colgrip` (absolute, right:0, col-resize cursor) per header; `.grp .tablewrap` overflow switched
+`visible`→`overflow-x:auto;overflow-y:hidden` so a widened column scrolls horizontally instead of being
+clipped by the group's `overflow:hidden`. JS is the same grip/broadcast/persist pattern (`colTables` →
+`#panel-all table.grptbl`, `applyCol` broadcasts the width to that column index across every group table,
+`gripDown` drags with a 16px floor, `saveCol`/`loadCols` persist), but storage is keyed **per view**
+(`cwfixcol:<host>:page` vs `:link`) because the two views have different columns, and `wireCols()` re-runs
+inside `fill()` (the tracker re-renders the panel on grouping/pagination changes, unlike the report's static
+tables). A **↔ Reset columns** button sits beside Expand/Collapse all.
+**Verification:** new headless `trk-resize` — dispatching mousedown→mousemove(+160px)→mouseup on the URL
+column's grip widens it 340→500px, sets an inline `width:500px`, and persists `[…,500]` at the right index in
+`cwfixcol:x:page` (localStorage works on file:// here). `trk-merge` extended: the By-page table is a single
+`.grptbl` with a `.colgrip` on all 8 headers. Tracker template stays 0/0/0; full suite 244/0.

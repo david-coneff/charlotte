@@ -643,7 +643,10 @@ Working**; it simply **disappears once every link is resolved** (fixed *or* work
 a **fixed-height viewport that scrolls internally** — with a sensible default height you can **drag
 the bottom-right corner to make as tall as you like** — and when a tab has more than 50 groups it
 **paginates**; the **‹ Prev · Page X of Y · Next ›** bar sits *above* the scroll area so it stays
-in reach no matter how far down you've scrolled.
+in reach no matter how far down you've scrolled. Just like the report's tables, **every column is
+drag-resizable** — grab a column's right edge and drag; the new width applies to that column across
+every section so they stay aligned, persists per view in your browser, and **↔ Reset columns**
+restores the defaults (By-page and By-broken-link keep separate widths since their columns differ).
 
 Like the report, the tracker **auto-saves** to localStorage as you work — reopen the same
 tracker file in the same browser and your progress is intact, no Save step needed. And like

@@ -360,6 +360,24 @@ These are the traps. Re-reading this section before touching the relevant area s
     script; for the tracker, dispatch a real click on the target `gtab`. (Refines #11: static for
     panel ISOLATION, end-of-body JS for ACTIVE-TAB selection.)
 
+21. **`\s`/`\d`/`\w` SILENTLY die in `report.js`'s outer template literal (the quiet cousin of #7/#15).**
+    A stray backtick breaks parsing loudly; a regex backslash-escape does NOT — `/^\s+/` written inside
+    the returned HTML template literal is cooked to `/^s+/` (the `\s` collapses to `s`), an emitted regex
+    that's wrong but throws nothing. It bit the class-trim helpers — `(' '+cn+' ').split(' '+c+' ').join(' ')
+    .replace(/^\s+|\s+$/g,'')` actually matched the letter "s", so classNames accreted stray edge spaces
+    (harmless only because every membership test is space-padded `(' '+cn+' ').indexOf(' c ')`). Found in
+    review across 5 sites, incl. pre-existing ones. **Fix:** inside the HTML template literal prefer
+    `.trim()` / literal char classes / doubled `\\s`; and grep the EMITTED report (not the source) for
+    `/^s` to catch it — the source looks correct.
+
+22. **A "reset to defaults" that clears inline styles needs the defaults in CSS, not inline.** The
+    non-triage resizable columns baked their defaults as `<th style="width:…">`; the drag writes
+    `th.style.width`, and `resetCols` cleared it with `style.width=''` — which also wiped the inline
+    DEFAULT, so reset collapsed the columns to content width (until reload re-parsed the inline). The
+    triage tables were immune because their defaults are CSS classes, so clearing the inline override
+    falls back to CSS. **Fix:** express resettable defaults in CSS (a class, or `#panel .grptbl
+    th:nth-child(n)`); reserve inline for the live override; reset = clear the override = revert to CSS.
+
 ---
 
 ## 6. Testing approach

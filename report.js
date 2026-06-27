@@ -195,12 +195,13 @@ function buildReport(state, cfg, allow, partial) {
   const groupCount = (items, keyOf) => { const s = new Set(); for (const it of items.slice(0, RENDER_CAP)) s.add(keyOf(it.url)); return s.size; };
   // External — grouped by domain (host).
   const extRow = (e) => { const st = e.status === "ok" ? `<span class="pill ok">reachable</span>` : e.status === "err" ? `<span class="pill err">unreachable</span>` : `<span class="pill skip">not checked</span>`; return `<tr><td>${link(e.url)}</td><td>${st}</td><td class="muted">${srcCell(e.url)}</td></tr>`; };
-  const extHead = `<thead><tr><th style="width:460px">External URL</th><th style="width:120px">Status</th><th style="width:420px">Found on</th></tr></thead>`;
+  const extHead = `<thead><tr><th>External URL</th><th>Status</th><th>Found on</th></tr></thead>`;
   const extGroups = simpleGroups(extVals, hostOf, extHead, extRow, "grptbl");
   const extGroupN = groupCount(extVals, hostOf);
-  // Internal destinations — grouped by first-level folder (pagestbl keeps the narrow Depth/Status/Int/Ext).
+  // Internal destinations — grouped by first-level folder. Default column widths live in CSS
+  // (#panel-internal .grptbl th:nth-child) so "Reset column widths" reverts to them.
   const pageRow = (p) => `<tr><td>${p.depth}</td><td>${link(p.url)}</td><td>${esc(p.title || "—")}</td><td><span class="pill ok">${p.status}</span></td><td>${p.internal}</td><td>${p.external}</td></tr>`;
-  const internalHead = `<thead><tr><th style="width:64px">Depth</th><th style="width:380px">URL</th><th style="width:320px">Title</th><th style="width:96px">Status</th><th style="width:64px">Int</th><th style="width:64px">Ext</th></tr></thead>`;
+  const internalHead = `<thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead>`;
   const intGroups = simpleGroups(pages, folderOf, internalHead, pageRow, "grptbl");
   const intGroupN = groupCount(pages, folderOf);
   const errextHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
@@ -271,7 +272,7 @@ function buildReport(state, cfg, allow, partial) {
   const scoped = !!state.pathPrefix;
   const oosItems = [...state.outOfScope.values()].sort((a, b) => a.url.localeCompare(b.url));
   const oosRow = (e) => `<tr><td>${link(e.url)}</td><td class="muted">${srcCell(e.url)}</td></tr>`;
-  const oosHead = `<thead><tr><th style="width:520px">URL</th><th style="width:420px">Found on</th></tr></thead>`;
+  const oosHead = `<thead><tr><th>URL</th><th>Found on</th></tr></thead>`;
   const oosGroupN = groupCount(oosItems, folderOf);
   const oosStat = scoped ? stat(state.outOfScope.size, "Out of scope", "") : "";
   const oosTab = scoped ? `<div class="tab" data-tab="outscope">Out of scope (${state.outOfScope.size})</div>` : "";
@@ -383,17 +384,13 @@ function buildReport(state, cfg, allow, partial) {
  td:last-child{min-width:300px}
  /* Internal-pages table: a 1–2 digit Depth and the small Status/Int/Ext cells shouldn't
     hog width — narrow them and give the space to URL + Title so those wrap far less. */
- .pagestbl th:first-child,.pagestbl td:first-child{min-width:0;width:64px}
- .pagestbl th:nth-child(2),.pagestbl td:nth-child(2){min-width:380px}
- .pagestbl th:nth-child(3),.pagestbl td:nth-child(3){min-width:300px}
- .pagestbl th:nth-child(4),.pagestbl td:nth-child(4){width:90px}
- .pagestbl th:nth-child(5),.pagestbl td:nth-child(5){width:58px}
- .pagestbl th:last-child,.pagestbl td:last-child{min-width:0;width:58px}
  td a,a{color:var(--link);text-decoration:none}td a:hover,a:hover{text-decoration:underline}
  /* Fixed-height scroll viewport. resize:vertical adds a bottom-right grip so the operator can drag the
     pane taller/shorter to taste (min-height keeps it from collapsing). Applies to flat tables here and to
     the grouped .groupview below. The triage groups' own .dombody is overflow:visible (no grip there). */
- .tablewrap{height:460px;min-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;resize:vertical}
+ /* Flat tables (Suppressed, log, read-only/partial fallback) size to content up to a cap, so a short list
+    isn't a tall empty box; still drag-resizable. The big grouped lists use .groupview (definite height). */
+ .tablewrap{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:8px;resize:vertical}
  /* Every tab's list lives in a FIXED-HEIGHT viewport that scrolls internally (consistent with the flat
     .tablewrap tables) — so a long grouped list scrolls in place instead of stretching the whole page. */
  .groupview{height:460px;min-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;resize:vertical}
@@ -425,6 +422,11 @@ function buildReport(state, cfg, allow, partial) {
     widths" button restores the defaults. */
  table.haspick,table.blkpick,table.grptbl{table-layout:fixed;width:max-content;min-width:0;max-width:none}
  table.haspick th,table.haspick td,table.blkpick th,table.blkpick td,table.grptbl th,table.grptbl td{min-width:0}
+ /* Non-triage default column widths live in CSS (not inline) so "Reset column widths" — which clears the
+    inline width the drag writes — reverts to these, exactly as the triage tables revert to .urlcol/etc. */
+ #panel-internal .grptbl th:nth-child(1){width:64px}#panel-internal .grptbl th:nth-child(2){width:380px}#panel-internal .grptbl th:nth-child(3){width:320px}#panel-internal .grptbl th:nth-child(4){width:96px}#panel-internal .grptbl th:nth-child(5){width:64px}#panel-internal .grptbl th:nth-child(6){width:64px}
+ #panel-external .grptbl th:nth-child(1){width:460px}#panel-external .grptbl th:nth-child(2){width:120px}#panel-external .grptbl th:nth-child(3){width:420px}
+ #panel-outscope .grptbl th:nth-child(1){width:520px}#panel-outscope .grptbl th:nth-child(2){width:420px}
  .haspick th,.blkpick th,.grptbl th{position:relative}
  .colgrip{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
  .colgrip:hover,.colgrip.drag{box-shadow:inset -2px 0 0 var(--accent)}
@@ -780,11 +782,11 @@ ${trackerEmbed}
   function fmtPct(p){ if(!(p>0)) return '0.0'; var d=1; while(d<10&&Number(p.toFixed(d))===0) d++; return p.toFixed(d); }
   // Set a header stat number, refresh its "(percent of total)" sibling (when a denom is given), and
   // keep its card's red "bad" highlight in sync with the count.
-  function setStat(el, v, denom){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var nDiv=el.parentNode; if(typeof denom==='number'&&nDiv){ var pe=nDiv.querySelector('.pct'); if(pe) pe.textContent = denom>0 ? '('+fmtPct((v/denom)*100)+'%)' : ''; } var card=nDiv&&nDiv.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').replace(/^\s+|\s+$/g,''); } }
+  function setStat(el, v, denom){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var nDiv=el.parentNode; if(typeof denom==='number'&&nDiv){ var pe=nDiv.querySelector('.pct'); if(pe) pe.textContent = denom>0 ? '('+fmtPct((v/denom)*100)+'%)' : ''; } var card=nDiv&&nDiv.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').trim(); } }
   // Test-completeness outline on a "broken" stat card: GREEN dashed when every triageable link in the
   // category has a verdict (the count is final), AMBER dashed while any remain untested (the count may
   // still change), none when there's nothing to test. (Independent of setStat's 'bad' class.)
-  function setTestState(el, tested, total){ if(!el) return; var card=el.parentNode&&el.parentNode.parentNode; if(!card||typeof card.className!=='string') return; var c=(' '+card.className+' ').split(' tested-all ').join(' ').split(' tested-partial ').join(' ').replace(/^\s+|\s+$/g,''); if(total>0) c+=(tested>=total?' tested-all':' tested-partial'); card.className=c; }
+  function setTestState(el, tested, total){ if(!el) return; var card=el.parentNode&&el.parentNode.parentNode; if(!card||typeof card.className!=='string') return; var c=(' '+card.className+' ').split(' tested-all ').join(' ').split(' tested-partial ').join(' ').trim(); if(total>0) c+=(tested>=total?' tested-all':' tested-partial'); card.className=c; }
   // Live header stats, recomputed on load and on every verdict change. Errors tabs: each flagged
   // link counts (one unique destination + its referrer instances) UNLESS confirmed Working, so
   // clearing a false positive drops it from the instances total AND its Broken·internal/external
@@ -837,7 +839,7 @@ ${trackerEmbed}
   function rowsInDomain(host, scope){ var p=panel(scope); if(!p) return []; var all=p.querySelectorAll('tr[data-url]'), out=[], i; for(i=0;i<all.length;i++){ if(all[i].getAttribute('data-domain')===host) out.push(all[i]); } return out; }
   function domCtl(host, scope, cls){ var p=panel(scope); if(!p) return null; var xs=p.querySelectorAll(cls), i; for(i=0;i<xs.length;i++){ if(xs[i].getAttribute('data-domain')===host) return xs[i]; } return null; }
   // Set a disabled indicator box + toggle an 'on' class on its label (so it can be highlighted).
-  function setInd(box, on){ if(!box) return; box.checked=on; var lbl=box.parentNode; if(lbl&&typeof lbl.className==='string'){ var has=(' '+lbl.className+' ').indexOf(' on ')>=0; if(on&&!has) lbl.className=lbl.className+' on'; else if(!on&&has) lbl.className=(' '+lbl.className+' ').split(' on ').join(' ').replace(/^\s+|\s+$/g,''); } }
+  function setInd(box, on){ if(!box) return; box.checked=on; var lbl=box.parentNode; if(lbl&&typeof lbl.className==='string'){ var has=(' '+lbl.className+' ').indexOf(' on ')>=0; if(on&&!has) lbl.className=lbl.className+' on'; else if(!on&&has) lbl.className=(' '+lbl.className+' ').split(' on ').join(' ').trim(); } }
   // Derive a domain header from its rows: the bulk Broken/Working boxes (checked when ALL broken /
   // ALL working), the Mixture indicator (both verdicts present), the all-tested indicator, and the
   // "tested K/N" counter. Runs on load and after any per-link or bulk verdict change.
@@ -856,7 +858,7 @@ ${trackerEmbed}
   function syncDomain(tr){ if(!tr) return; var h=tr.getAttribute('data-domain'), sc=tr.getAttribute('data-scope'); if(h&&sc) deriveDomain(h, sc); }
   function applyDomain(host, scope, want){ var rs=rowsInDomain(host, scope), i; for(i=0;i<rs.length;i++){ applyVerdict(rs[i], rs[i].getAttribute('data-url'), want); } deriveDomain(host, scope); update(scope); }
   function hasCls(el,c){ return !!(el&&typeof el.className==='string'&&(' '+el.className+' ').indexOf(' '+c+' ')>=0); }
-  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).replace(/^\s+/,''); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^\s+|\s+$/g,''); }
+  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
   function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
   // Wire the domain controls on BOTH grouped tabs (Errors·external + Blocked·uncertain).
   function wireDomains(){ var sc=['errint','errext','blockd'], k; for(k=0;k<sc.length;k++) wireDomainScope(sc[k]); }
@@ -929,7 +931,7 @@ ${trackerEmbed}
   // (that's a triage-only signal). Each .domtoggle toggles its group's .collapsed class; the buttons set
   // every group at once (no state detection — a single toggle could desync and show the wrong label).
   function hasCls(el,c){ return (' '+(el.className||'')+' ').indexOf(' '+c+' ')>=0; }
-  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).replace(/^\s+/,''); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^\s+|\s+$/g,''); }
+  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
   function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
   // ---- drag-resizable columns for the non-triage grouped tables (.grptbl) -----------------------------
   // The triage tabs' resize lives in a triage-only IIFE that bails when there are no verdict rows, so the

@@ -176,7 +176,6 @@ var DATA = "__DATA__";
   function saveT(url,t){rawSet(NS+'vt:'+url,t);}
   function initTs(url,baked){var s=storedT(url);if(s!=null)return s;return baked||'';}
   function nowStr(){var d=new Date();function p(x){return (x<10?'0':'')+x;}return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
-  function rowsForUrl(url){var all=document.querySelectorAll('tr[data-broken]'),out=[],i;for(i=0;i<all.length;i++){if(all[i].getAttribute('data-broken')===url)out.push(all[i]);}return out;}
   // Set the verdict for a URL everywhere it appears (a URL can be linked from several pages):
   // ticking one box clears the other, stamps the time (or clears it when no verdict remains).
   // Sync a URL's verdict everywhere it shows — boxes carry data-broken, so this works whether they

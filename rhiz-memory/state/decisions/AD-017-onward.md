@@ -1202,3 +1202,21 @@ group tables in the tab (`urlColAcrossTables=480px,480px,480px`), persists to `c
 clears both the inline widths and the key; a column drags down to 16px (no minimum); first-column
 `offsetWidth` reads correctly (64/380). The help `<details>` is present, open by default, and collapses.
 Screenshot confirms the "How this tab works" disclosure on Broken·external. Full suite 170/0.
+
+## AD-066: Light/dark theme toggle on the report + fix tracker
+**Date:** 2026-06-27
+**Problem:** the crawl report and the standalone fix tracker were dark-only; the operator wants a light option.
+**Decision:** the palette is already CSS custom properties (`:root` = dark default), so a light theme is just
+an override block on `html[data-theme="light"]`. Crucially it hangs off a data-ATTRIBUTE, NOT a class, so it
+never collides with the no-flash tab restorer that owns `html.className` (`tab-<name>`). A new `--accent-fg`
+variable carries the on-accent text colour (`#06121f` dark / `#ffffff` light) and replaces the 4 hard-coded
+`#06121f` (active tab + accent buttons) that would otherwise be unreadable on the light accent. A fixed
+top-right `.themebtn` (🌙/☀️) toggles `data-theme` + persists `charlotteTheme` in localStorage; a tiny head
+script applies the saved choice before first paint (no flash). Shipped into BOTH report variants (single-site
++ multi-site index) via shared `THEME_LIGHT_CSS`/`THEME_HEAD`/`THEME_BTN`/`THEME_JS` consts, and inline into
+the tracker — constraint-clean (the toggle JS is single-quote + `+`-concat, no backtick/`${}`/backslash, so it
+drops straight into TRACKER_TEMPLATE). The tracker's baked "Save copy" captures the live `data-theme` in its
+`outerHTML`, so a shared copy opens in the same theme.
+**Verification:** headless — button present; a `dark→light→dark` click round-trip flips `data-theme`, persists
+`charlotteTheme`, and swaps the 🌙/☀️ icon; light-mode screenshots of the report and tracker show readable
+contrast + white-on-accent tabs/buttons. Tracker template stays 0 backtick / 0 `${}` / 0 backslash; suite 170/0.

@@ -521,6 +521,8 @@ tabbed sections:
 
 Each tab's list sits in a **fixed-height viewport that scrolls internally** (so a long list never
 stretches the whole page) — and you can **drag its bottom-right corner to resize** the height to taste.
+A **🌙/☀️ light/dark toggle** sits in the upper-right corner (of both the report and the fix tracker);
+your choice is remembered in the browser and applied before the page paints (no flash).
 Every grouped tab's table columns are **drag-resizable too**: grab the grip on a column header's right
 edge and drag (there's **no minimum width** — make a column as narrow as you like); the change broadcasts
 to every group on the tab so they stay aligned, persists in your browser, and an **↔ Reset column widths**

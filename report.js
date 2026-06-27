@@ -12,6 +12,16 @@ const PAGE_SIZE = 1000;            // rows per page when client-side pagination 
 const BRAND = "Charlotte";         // report branding — the project / repo name
 const BRAND_ICON = "🕸️";           // spiderweb glyph: favicon + report header
 
+// Light/dark theme. The palette lives in CSS custom properties (:root = dark default); a light override
+// hangs off html[data-theme="light"]. We use a data-ATTRIBUTE (not a class) so it never collides with the
+// no-flash tab restorer, which owns html.className (tab-<name>). A tiny head script applies the saved
+// choice before first paint; a fixed top-right button toggles + persists it (charlotteTheme in localStorage).
+const THEME_LIGHT_CSS = ` html[data-theme="light"]{--bg:#f4f6f9;--panel:#ffffff;--panel2:#eaeef3;--fg:#1c2230;--muted:#5b6675;--accent:#0969da;--link:#0a66c2;--good:#1a7f37;--warn:#9a6700;--bad:#cf222e;--border:#d0d7de;--accent-fg:#ffffff}
+ .themebtn{position:fixed;top:12px;right:16px;z-index:30;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;font-size:15px;line-height:1}.themebtn:hover{border-color:var(--accent);color:var(--accent)}`;
+const THEME_HEAD = `<script>try{if(localStorage.getItem('charlotteTheme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>`;
+const THEME_BTN = `<button id="themeToggle" class="themebtn" type="button" title="Toggle light / dark theme">🌙</button>`;
+const THEME_JS = `<script>(function(){var b=document.getElementById('themeToggle');if(!b)return;function cur(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}function paint(){b.textContent=cur()==='light'?'☀️':'🌙';b.title='Switch to '+(cur()==='light'?'dark':'light')+' theme';}paint();b.addEventListener('click',function(){if(cur()==='light'){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','light');}try{localStorage.setItem('charlotteTheme',cur());}catch(e){}paint();});})();</script>`;
+
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 // The crawl settings shown in the report's config line. A fresh crawl reads them straight from
@@ -355,7 +365,8 @@ function buildReport(state, cfg, allow, partial) {
 <title>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} · Crawl report — ${esc(state.startHost)}</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%95%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <style>
- :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340}
+ :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340;--accent-fg:#06121f}
+${THEME_LIGHT_CSS}
  *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
  header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
  main{max-width:1500px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px}
@@ -397,7 +408,7 @@ function buildReport(state, cfg, allow, partial) {
  .groupview .domgrp:last-child{margin-bottom:0}
  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}.pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.err{background:rgba(248,113,113,.15);color:var(--bad)}.pill.skip{background:rgba(251,191,36,.15);color:var(--warn)}
  .muted{color:var(--muted)}h2{font-size:15px;margin:0 0 12px}details summary{cursor:pointer;font-weight:600;padding:6px 0}
- .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:#06121f;border-color:var(--accent)}
+ .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
  .hidden{display:none}code{background:var(--panel2);padding:1px 5px;border-radius:4px}
  .exptools{display:flex;align-items:center;gap:10px;margin:0 0 12px}
  /* Collapsible per-tab explanatory text — a muted, small disclosure so the (lengthy) help can be folded away. */
@@ -468,9 +479,9 @@ function buildReport(state, cfg, allow, partial) {
  .sharebar{border-left:3px solid var(--accent);padding-top:12px;padding-bottom:12px}.sharebar .exportbar{margin:0}
  .selcount{color:var(--muted);font-size:12px}
  .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
- .btn.exportbtn:not(:disabled){background:var(--accent);color:#06121f;border-color:var(--accent);font-weight:600}
+ .btn.exportbtn:not(:disabled){background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
  /* The fix-tracker export is the primary triage output — make the one share-bar button stand out. */
- .sharebar .trackbtn{background:var(--accent);color:#06121f;border-color:var(--accent);font-weight:600}.sharebar .trackbtn:hover{color:#06121f;filter:brightness(1.08)}
+ .sharebar .trackbtn{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}.sharebar .trackbtn:hover{color:var(--accent-fg);filter:brightness(1.08)}
  .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}.toast.show{opacity:1}
  .vsep{display:inline-block;width:1px;height:20px;background:var(--border);margin:0 2px;vertical-align:middle}
  /* No-flash tab restore: a head script sets html.tab-NAME before first paint so
@@ -478,7 +489,7 @@ function buildReport(state, cfg, allow, partial) {
  html[class*="tab-"] .panel{display:none}
  html.tab-internal #panel-internal,html.tab-external #panel-external,html.tab-outscope #panel-outscope,html.tab-errint #panel-errint,html.tab-errext #panel-errext,html.tab-blockd #panel-blockd,html.tab-suppressed #panel-suppressed{display:block}
  html[class*="tab-"] .tab{background:var(--panel2);color:var(--fg);border-color:var(--border)}
- html.tab-internal .tab[data-tab="internal"],html.tab-external .tab[data-tab="external"],html.tab-outscope .tab[data-tab="outscope"],html.tab-errint .tab[data-tab="errint"],html.tab-errext .tab[data-tab="errext"],html.tab-blockd .tab[data-tab="blockd"],html.tab-suppressed .tab[data-tab="suppressed"]{background:var(--accent);color:#06121f;border-color:var(--accent)}
+ html.tab-internal .tab[data-tab="internal"],html.tab-external .tab[data-tab="external"],html.tab-outscope .tab[data-tab="outscope"],html.tab-errint .tab[data-tab="errint"],html.tab-errext .tab[data-tab="errext"],html.tab-blockd .tab[data-tab="blockd"],html.tab-suppressed .tab[data-tab="suppressed"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
  .subtable{width:100%;border-collapse:collapse}.subtable td{padding:4px 8px;border-bottom:1px solid var(--border)}
  details summary{color:var(--accent)}
  /* Client-side pagination bar (only present with --paginate, above any table over a page in size, incl. nested referrer lists). */
@@ -486,7 +497,7 @@ function buildReport(state, cfg, allow, partial) {
  .pager .pgjump{width:64px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font:inherit;font-size:12px}
 </style>
 <script>(function(){try{var n=(location.hash||'').substring(1);if(!n){try{n=localStorage.getItem('charlotteTab')||'';}catch(e){}}if(n)document.documentElement.className='tab-'+n;}catch(e){}})();</script>
-</head><body>
+${THEME_HEAD}</head><body>${THEME_BTN}
 <header><h1>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} <span class="muted" style="font-weight:400">· Crawl report</span> — ${esc(state.startHost)}</h1>
 <p>${esc(cfg.startUrl)} · ${esc(state.startedAt)}<br>${esc(cfgLine)}</p>${banner}</header>
 <main>
@@ -966,7 +977,7 @@ ${trackerEmbed}
   })(TABS[t][0], TABS[t][1]); }
   var rbs=document.querySelectorAll('.grpcolreset'); for(var r=0;r<rbs.length;r++){ rbs[r].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
 })();</script>
-${pagerScript}${NEWWIN}</body></html>`;
+${pagerScript}${NEWWIN}${THEME_JS}</body></html>`;
 }
 
 // Write the report HTML and (optionally) JSON from current state. Used both for
@@ -1033,7 +1044,8 @@ function buildIndexReport(sites, cfg, allow, partial, startedAt) {
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${partial ? "[crawling] " : ""}Crawl report — ${sites.length} sites</title>
 <style>
- :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340}
+ :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340;--accent-fg:#06121f}
+${THEME_LIGHT_CSS}
  *{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
  header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:20px}header p{margin:0;color:var(--muted);font-size:13px}
  main{max-width:1000px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:16px}
@@ -1041,11 +1053,11 @@ function buildIndexReport(sites, cfg, allow, partial, startedAt) {
  .nums{display:flex;gap:18px;flex-wrap:wrap;margin:8px 0}.nums b{color:var(--accent)}
  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;vertical-align:middle}
  .pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.warn{background:rgba(251,191,36,.15);color:var(--warn)}.pill.skip{background:rgba(154,164,178,.15);color:var(--muted)}
-</style></head><body>
+</style>${THEME_HEAD}</head><body>${THEME_BTN}
 <header><h1>Crawl report — ${sites.length} sites</h1><p>${esc2(startedAt)} · ${done}/${sites.length} done${partial ? " · crawling… (auto-updates)" : ""} · <b>${totalInstances.toLocaleString()}</b> total hyperlink instances · <b>${totalBroken.toLocaleString()}</b> broken</p></header>
 <main>${cards}</main>
 ${refresh}${NEWWIN}
-</body></html>`;
+${THEME_JS}</body></html>`;
 }
 
 function writeCombinedJson(sites, cfg, allow) {

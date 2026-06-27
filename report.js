@@ -20,6 +20,8 @@ const THEME_LIGHT_CSS = ` html[data-theme="light"]{--bg:#f4f6f9;--panel:#ffffff;
  .themebtn{position:fixed;top:12px;right:16px;z-index:30;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;font-size:15px;line-height:1}.themebtn:hover{border-color:var(--accent);color:var(--accent)}`;
 const THEME_HEAD = `<script>try{if(localStorage.getItem('charlotteTheme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>`;
 const THEME_BTN = `<button id="themeToggle" class="themebtn" type="button" title="Toggle light / dark theme">🌙</button>`;
+// Outline-key legend, shown (when there's triage) as a compact fixed strip in the upper-right by the theme toggle.
+const LEGEND_HINT = `<div class="leghint" title="What the dashed outline around each broken / blocked card means"><span class="leglbl">Outline:</span><span class="legbox lg-g"></span>all triaged<span class="legbox lg-a"></span>some untriaged</div>`;
 const THEME_JS = `<script>(function(){var b=document.getElementById('themeToggle');if(!b)return;function cur(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}function paint(){b.textContent=cur()==='light'?'☀️':'🌙';b.title='Switch to '+(cur()==='light'?'dark':'light')+' theme';}paint();b.addEventListener('click',function(){if(cur()==='light'){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','light');}try{localStorage.setItem('charlotteTheme',cur());}catch(e){}paint();});})();</script>`;
 
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -161,6 +163,9 @@ function buildReport(state, cfg, allow, partial) {
     if (a.length) return a;
     return [fallback && /^https?:\/\//i.test(fallback) ? fallback : (fallback || "(start)")];
   };
+  // Distinct referrer pages that link at least one assumed-broken error destination — the initial value
+  // for the "Referrer pages with broken links" card (recomputeBroken keeps it live during triage).
+  const brokenRefPagesInit = (() => { const s = new Set(); const add = (arr) => arr.forEach((e) => refsAll(e.url, e.source).forEach((r) => s.add(r))); add(activeInt); add(activeExt); return s.size; })();
   // "Found on" cell for the Errors/Blocked triage tabs — the referrer page(s) that link to the broken
   // URL. (The per-referrer "Fixed" checkbox that used to sit here was removed: fix-tracking now lives
   // entirely in the standalone fix tracker.) refsAll still feeds the tracker's data (brokenFor).
@@ -214,14 +219,14 @@ function buildReport(state, cfg, allow, partial) {
   const internalHead = `<thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead>`;
   const intGroups = simpleGroups(pages, folderOf, internalHead, pageRow, "grptbl");
   const intGroupN = groupCount(pages, folderOf);
-  const errextHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
-  const errintHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
+  const errextHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last triaged</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
+  const errintHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last triaged</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
   // Inner cells of a BLOCKED triage row (mirrors triageCells, but a neutral "uncertain" pill + a Kind
   // column; default is uncertain, so Broken CONFIRMS-dead and Working records that it loads).
   const blockedCells = (e) => { const kind = (e.kind || "internal") === "external" ? "external" : "internal"; return `<td class="tscell" title="Date & time you last marked this link Broken or Working (auto-filled)"></td><td class="tcol"><input type="checkbox" class="brokenbox" data-url="${esc(e.url)}" title="Manual check confirms it's broken — count it and add it to the fix tracker"></td><td class="tcol"><input type="checkbox" class="okbox" data-url="${esc(e.url)}" title="Manual check shows it works — leave it out of the broken count"></td><td>${link(e.url)}</td><td><span class="pill skip">${esc(e.reason)}</span></td><td>${kind}</td><td class="muted">${refCellFix(e.url, e.source)}</td>`; };
-  const blockdHead = `<thead><tr><th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken — counts it + adds to the fix tracker">Broken</th><th class="tcol" title="Manual check shows it works">Working</th><th class="urlcol">URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead>`;
+  const blockdHead = `<thead><tr><th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last triaged</th><th class="tcol" title="Manual check confirms it's broken — counts it + adds to the fix tracker">Broken</th><th class="tcol" title="Manual check shows it works">Working</th><th class="urlcol">URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead>`;
   // Generalized per-domain collapsible grouping — used by BOTH the Errors·external and Blocked tabs.
-  // Each header carries a collapse toggle, a live "tested K/N" counter, the bulk-apply All:
+  // Each header carries a collapse toggle, a live "triaged K/N" counter, the bulk-apply All:
   // Broken/Working pair, a Mixture indicator (the domain has both verdicts), and an all-tested
   // indicator — so progress is scannable with the groups collapsed. Rows + controls carry data-domain
   // and data-scope so the IIFE finds a domain's members and derives its header state.
@@ -237,15 +242,15 @@ function buildReport(state, cfg, allow, partial) {
       // Custom collapsible (NOT <details>/<summary>): interactive controls inside a <summary> have
       // their clicks eaten by the disclosure toggle, so the verdict boxes wouldn't fire. A .collapsed
       // class on .domgrp drives show/hide deterministically.
-      return `<div class="domgrp" ${dd}><div class="domhead"><button type="button" class="domtoggle"><span class="caret"></span> <span class="domname">${esc(host)}</span> <span class="muted">(${list.length})</span> <span class="muted domprog" ${dd}></span></button><span class="domverdict"><span class="domall muted">All:</span><label class="domlbl" title="Mark every link in this group Broken at once"><input type="checkbox" class="dombroken" ${dd}> Broken</label><label class="domlbl" title="Mark every link in this group Working at once"><input type="checkbox" class="domworking" ${dd}> Working</label><label class="domlbl ind" title="Indicator only — this group has a mix of Broken and Working verdicts"><input type="checkbox" class="dommixture" ${dd} disabled> Mixture of broken/working</label><label class="domlbl ind" title="Indicator only — every link in this group has been tested (marked Broken or Working)"><input type="checkbox" class="domalltested" ${dd} disabled> all tested</label></span></div><div class="tablewrap dombody"><table class="${tcls}">${headHtml}<tbody>${rows}</tbody></table></div></div>`;
+      return `<div class="domgrp" ${dd}><div class="domhead"><button type="button" class="domtoggle"><span class="caret"></span> <span class="domname">${esc(host)}</span> <span class="muted">(${list.length})</span> <span class="muted domprog" ${dd}></span></button><span class="domverdict"><span class="domall muted">All:</span><label class="domlbl" title="Mark every link in this group Broken at once"><input type="checkbox" class="dombroken" ${dd}> Broken</label><label class="domlbl" title="Mark every link in this group Working at once"><input type="checkbox" class="domworking" ${dd}> Working</label><label class="domlbl ind" title="Indicator only — this group has a mix of Broken and Working verdicts"><input type="checkbox" class="dommixture" ${dd} disabled> Mixture of broken/working</label><label class="domlbl ind" title="Indicator only — every link in this group has been triaged (marked Broken or Working)"><input type="checkbox" class="domalltested" ${dd} disabled> all triaged</label></span></div><div class="tablewrap dombody"><table class="${tcls}">${headHtml}<tbody>${rows}</tbody></table></div></div>`;
     }).join("");
   };
   const domainTools = (scope) => `<div class="exptools"><button type="button" class="btn" id="${scope}Expand">Expand all</button><button type="button" class="btn" id="${scope}Collapse">Collapse all</button></div>`;
   // Wrap a grouped list in the fixed-height scroll viewport so every tab scrolls internally (consistent
   // with the flat .tablewrap tables) instead of stretching the page.
   const groupView = (inner) => `<div class="groupview">${inner}</div>`;
-  const domainHelp = `<p class="muted" style="margin:2px 0 10px">Grouped by domain. Each header has an <strong>All: Broken / Working</strong> pair that applies to <em>every</em> link in that domain at once — handy when a whole site (e.g. a social network) is systematically misread by the automated check but works in a browser. The header also shows a live <strong>tested K/N</strong> count, a <strong>Mixture</strong> flag (both verdicts present) and an <strong>all tested</strong> flag, so you can scan progress with the groups collapsed.</p>`;
-  const folderHelp = `<p class="muted" style="margin:2px 0 10px">Grouped by <strong>first-level folder</strong> (e.g. <code>site.gov/about/</code> vs <code>site.gov/blog/</code>; root pages group under the bare host). Each header has an <strong>All: Broken / Working</strong> pair that applies to <em>every</em> link in that section at once, plus a live <strong>tested K/N</strong> count, a <strong>Mixture</strong> flag and an <strong>all tested</strong> flag — so you can triage a whole section and scan progress with the groups collapsed.</p>`;
+  const domainHelp = `<p class="muted" style="margin:2px 0 10px">Grouped by domain. Each header has an <strong>All: Broken / Working</strong> pair that applies to <em>every</em> link in that domain at once — handy when a whole site (e.g. a social network) is systematically misread by the automated check but works in a browser. The header also shows a live <strong>triaged K/N</strong> count, a <strong>Mixture</strong> flag (both verdicts present) and an <strong>all triaged</strong> flag, so you can scan progress with the groups collapsed.</p>`;
+  const folderHelp = `<p class="muted" style="margin:2px 0 10px">Grouped by <strong>first-level folder</strong> (e.g. <code>site.gov/about/</code> vs <code>site.gov/blog/</code>; root pages group under the bare host). Each header has an <strong>All: Broken / Working</strong> pair that applies to <em>every</em> link in that section at once, plus a live <strong>triaged K/N</strong> count, a <strong>Mixture</strong> flag and an <strong>all triaged</strong> flag — so you can triage a whole section and scan progress with the groups collapsed.</p>`;
   // Toolbar above an Errors table: a live count + copy/export actions (disabled
   // until something is ticked). The select-all lives in the table header cell.
   // The fix-tracker export button now lives once in the always-visible share bar (below), not on
@@ -253,9 +258,9 @@ function buildReport(state, cfg, allow, partial) {
   const exportBar = (scope) => showAllow ? `<div class="exportbar"><span class="selcount" data-scope="${scope}">0 selected</span><span class="grow"></span><button type="button" class="btn copybtn" data-scope="${scope}" disabled>⧉ Copy lines</button><button type="button" class="btn exportbtn" data-scope="${scope}" disabled>⬇ Export to allowlist…</button></div>` : ``;
   // Live manual-testing progress for an Errors tab (updated by the script below as the
   // Broken / Working boxes are ticked): how far testing has gotten + confirmed broken/working.
-  const testBar = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span><button type="button" class="btn colreset" data-scope="${scope}" title="Restore the default column widths on this tab">↔ Reset column widths</button></div>`;
-  const blockedHelp = `<p class="muted" style="margin:2px 0 10px">Two mutually-exclusive boxes per link: <strong>Broken</strong> confirms this uncertain link really is dead — confirmed ones join the <strong>Broken hyperlink instances</strong> count (routed internal/external by their kind); <strong>Working</strong> confirms it actually loads. Leave both unticked to keep it uncertain (not counted). <em>Until you mark one <strong>Working</strong>, an uncertain link stays in the fix-tracker export</em>, so the tracker is a complete to-review list. Either tick counts as tested and auto-fills the <strong>Last tested</strong> date &amp; time. Ticks are saved in this browser.</p>`;
-  const blockedCounter = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span><button type="button" class="btn colreset" data-scope="${scope}" title="Restore the default column widths on this tab">↔ Reset column widths</button></div>`;
+  const testBar = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually triaged: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span><button type="button" class="btn colreset" data-scope="${scope}" title="Restore the default column widths on this tab">↔ Reset column widths</button></div>`;
+  const blockedHelp = `<p class="muted" style="margin:2px 0 10px">Two mutually-exclusive boxes per link: <strong>Broken</strong> confirms this uncertain link really is dead — confirmed ones join the <strong>Broken hyperlink instances</strong> count (routed internal/external by their kind); <strong>Working</strong> confirms it actually loads. Leave both unticked to keep it uncertain (not counted). <em>Until you mark one <strong>Working</strong>, an uncertain link stays in the fix-tracker export</em>, so the tracker is a complete to-review list. Either tick counts as triaged and auto-fills the <strong>Last triaged</strong> date &amp; time. Ticks are saved in this browser.</p>`;
+  const blockedCounter = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually triaged: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span><button type="button" class="btn colreset" data-scope="${scope}" title="Restore the default column widths on this tab">↔ Reset column widths</button></div>`;
   // Embedded fix-tracker payload + self-rendering template (final report only).
   const brokenFor = (arr) => arr.slice(0, RENDER_CAP).map((e) => ({ url: e.url, reason: e.reason, refs: refsAll(e.url, e.source) }));
   // Embed blocked links split by kind too, so confirmed-broken ones can be routed into the
@@ -273,7 +278,7 @@ function buildReport(state, cfg, allow, partial) {
   const hasTriage = showPick && (activeInt.length || activeExt.length || blocked.length);
   const shareBar = `<div class="card sharebar"><div class="exportbar" style="margin-bottom:12px;align-items:baseline"><button type="button" class="btn trackbtn" title="Build one editable, self-contained checklist of every link still to fix — all broken + blocked links across internal AND external, except those you've marked Working — grouped by referrer page">🔧 Export fix tracker</button><span class="muted" style="font-size:12px">One checklist of everything still to fix — every broken &amp; blocked link (internal + external) <strong>except those you've marked Working</strong>, grouped by page. No need to open each tab.</span></div><p class="muted" style="margin:0 0 8px;font-size:13px"><strong>Share your testing verdicts.</strong> Your Broken/Working ticks &amp; timestamps are saved in <em>this</em> browser only — they don't travel if you just email this file. To hand them off:</p><div class="exportbar"><button type="button" class="btn" id="cwSaveCopy" title="Download a new self-contained report with your current verdicts baked in — email that file and the recipient just opens it">💾 Save shareable copy</button><span class="vsep"></span><button type="button" class="btn" id="cwExportV" title="Download your verdicts as a small JSON file to send alongside the report">⬇ Export verdicts</button><button type="button" class="btn" id="cwImportV" title="Load verdicts from a JSON file someone shared with you (merges by link, then reloads)">⬆ Import verdicts</button><input type="file" id="cwImportFile" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0"></div></div>`;
   // One-line helper under each Errors table explaining the two kinds of checkbox.
-  const pickHelp = `<p class="muted" style="margin:2px 0 10px">${showAllow ? `First box selects a link for the <strong>allowlist</strong>. Then two` : `Two`} mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The <strong>Last tested</strong> column auto-fills the date &amp; time of your latest verdict. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page, each broken link with its own Fixed checkbox). Verdicts are saved in this browser.</p>`;
+  const pickHelp = `<p class="muted" style="margin:2px 0 10px">${showAllow ? `First box selects a link for the <strong>allowlist</strong>. Then two` : `Two`} mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The <strong>Last triaged</strong> column auto-fills the date &amp; time of your latest verdict. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page, each broken link with its own Fixed checkbox). Verdicts are saved in this browser.</p>`;
   // Collapsible wrapper for a tab's lengthy explanatory text — open by default, but the operator can
   // collapse it to reclaim screen space (the open/closed state persists with the other <details>).
   const helpBox = (inner) => `<details class="helpbox" open><summary>How this tab works</summary><div class="helpbody">${inner}</div></details>`;
@@ -378,15 +383,15 @@ ${THEME_LIGHT_CSS}
  .stat .n .pct{font-size:14px;font-weight:600;color:var(--muted)}
  .stat.good .n{color:var(--good)}.stat.bad .n{color:var(--bad)}.stat.warn .n{color:var(--warn)}
  /* Test-completeness outline on the three "broken" stats: green = every link in that category has a
-    verdict (count is final); amber = some still untested (count may change). Inset outline -> no shift. */
+    verdict (count is final); amber = some still untriaged (count may change). Inset outline -> no shift. */
  .stat.tested-all{outline:2px dashed var(--good);outline-offset:-1px}
  .stat.tested-partial{outline:2px dashed var(--warn);outline-offset:-1px}
- /* Legend card (grey dashed) keying the green/amber outlines, in the empty row-2/col-5 slot. */
- .statleg{outline:2px dashed var(--muted);outline-offset:-1px;text-align:left;display:flex;flex-direction:column;justify-content:center;gap:5px}
- .legttl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
- .legrow{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--fg);line-height:1.15}
- .legbox{flex:none;width:18px;height:13px;border:2px dashed var(--border);border-radius:3px}
- .legbox.lg-g{border-color:var(--good)}.legbox.lg-a{border-color:var(--warn)}
+ /* Outline-key legend, relocated to a compact fixed strip in the upper-right beside the theme toggle. */
+ .leghint{position:fixed;top:13px;right:62px;z-index:30;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+ .leghint .leglbl{text-transform:uppercase;letter-spacing:.05em;font-size:10px}
+ .leghint .legbox{flex:none;width:16px;height:11px;border:2px dashed var(--border);border-radius:3px;margin-left:5px}
+ .leghint .legbox.lg-g{border-color:var(--good)}.leghint .legbox.lg-a{border-color:var(--warn)}
+ @media (max-width:720px){.leghint{display:none}}
  table{width:100%;border-collapse:collapse;font-size:13px;min-width:820px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
  th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
  /* URL and Found-on columns get real width; long URLs wrap at sensible points, not every character */
@@ -497,21 +502,21 @@ ${THEME_LIGHT_CSS}
  .pager .pgjump{width:64px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font:inherit;font-size:12px}
 </style>
 <script>(function(){try{var n=(location.hash||'').substring(1);if(!n){try{n=localStorage.getItem('charlotteTab')||'';}catch(e){}}if(n)document.documentElement.className='tab-'+n;}catch(e){}})();</script>
-${THEME_HEAD}</head><body>${THEME_BTN}
+${THEME_HEAD}</head><body>${THEME_BTN}${hasTriage ? LEGEND_HINT : ""}
 <header><h1>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} <span class="muted" style="font-weight:400">· Crawl report</span> — ${esc(state.startHost)}</h1>
 <p>${esc(cfg.startUrl)} · ${esc(state.startedAt)}<br>${esc(cfgLine)}</p>${banner}</header>
 <main>
  <div class="card"><div class="stats">
-  ${stat(brokenN("brokenInstN", brokenInstances, linkInstances), "Broken hyperlink instances", brokenInstances ? "bad" : "", "Hyperlink instances that point at a broken destination — each broken destination counted once per page that links to it (the real cleanup workload). The % is its share of all Hyperlink instances (the total below). Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”. Outline: GREEN dashed once every internal + external + blocked link has been tested (so this total is final); AMBER while some are still untested (it may yet change).")}
-  ${stat(brokenN("brokenIntN", activeInt.length, state.pages.length), "Broken · internal", activeInt.length ? "bad" : "", "Unique broken internal destinations — pages on your site that don't load. The % is relative to Internal destinations (the total below). Updates live as you triage. Outline: GREEN dashed once every internal link (errors + blocked) has been tested; AMBER while some are still untested.")}
-  ${stat(brokenN("brokenExtN", activeExt.length, state.external.size), "Broken · external", activeExt.length ? "bad" : "", "Unique broken external destinations — off-site URLs that don't resolve. The % is its share of External destinations (the total below). Updates live as you triage. Outline: GREEN dashed once every external link (errors + blocked) has been tested; AMBER while some are still untested.")}
-  ${stat(brokenN("brokenTotN", activeInt.length + activeExt.length, state.pages.length + state.external.size), "Total unique destinations broken", (activeInt.length + activeExt.length) ? "bad" : "", "Total unique destinations confirmed broken — Broken · internal + Broken · external, each URL counted once. The % is its share of Total unique destinations (directly below). Updates live as you triage. Outline: GREEN dashed once every internal + external + blocked link has been tested; AMBER while some are still untested.")}
-  ${stat(`<span id="blockedN">${blocked.length.toLocaleString()}</span>`, "Blocked · uncertain", blocked.length ? "warn" : "", "Links the automated check couldn't confirm (auth, anti-bot, rate-limiting, timeouts) — very likely fine in a real browser. Not counted as broken until you confirm one. Sits apart from the broken/total matrix because it's neither. Outline: GREEN dashed once every blocked link has been tested (marked Broken or Working); AMBER while some are still untested.")}
+  ${stat(brokenN("brokenInstN", brokenInstances, linkInstances), "Broken hyperlink instances", brokenInstances ? "bad" : "", "Hyperlink instances that point at a broken destination — each broken destination counted once per page that links to it (the real cleanup workload). The % is its share of all Hyperlink instances (the total below). Updates live as you mark Errors links “Working” or confirm Blocked links “Broken”. Outline: GREEN dashed once every internal + external + blocked link has been triaged (so this total is final); AMBER while some are still untriaged (it may yet change).")}
+  ${stat(brokenN("brokenIntN", activeInt.length, state.pages.length), "Broken internal destinations", activeInt.length ? "bad" : "", "Unique broken internal destinations — pages on your site that don't load. The % is relative to Internal destinations (the total below). Updates live as you triage. Outline: GREEN dashed once every internal link (errors + blocked) has been triaged; AMBER while some are still untriaged.")}
+  ${stat(brokenN("brokenExtN", activeExt.length, state.external.size), "Broken external destinations", activeExt.length ? "bad" : "", "Unique broken external destinations — off-site URLs that don't resolve. The % is its share of External destinations (the total below). Updates live as you triage. Outline: GREEN dashed once every external link (errors + blocked) has been triaged; AMBER while some are still untriaged.")}
+  ${stat(brokenN("brokenTotN", activeInt.length + activeExt.length, state.pages.length + state.external.size), "Total unique destinations broken", (activeInt.length + activeExt.length) ? "bad" : "", "Total unique destinations confirmed broken — Broken · internal + Broken · external, each URL counted once. The % is its share of Total unique destinations (directly below). Updates live as you triage. Outline: GREEN dashed once every internal + external + blocked link has been triaged; AMBER while some are still untriaged.")}
+  ${stat(`<span id="blockedN">${blocked.length.toLocaleString()}</span>`, "Blocked · uncertain", blocked.length ? "warn" : "", "Links the automated check couldn't confirm (auth, anti-bot, rate-limiting, timeouts) — very likely fine in a real browser. Not counted as broken until you confirm one. Sits apart from the broken/total matrix because it's neither. Outline: GREEN dashed once every blocked link has been triaged (marked Broken or Working); AMBER while some are still untriaged.")}
   ${stat(linkInstances.toLocaleString(), "Hyperlink instances", "", "Every hyperlink occurrence across all crawled pages (internal + external), NOT deduplicated — a destination linked from N pages counts N times. So this runs much larger than the unique destination counts.")}
   ${stat(state.pages.length.toLocaleString(), "Internal destinations", "", "Unique same-domain pages crawled — distinct destinations on your own site. (One per URL, however many pages link to it.)")}
   ${stat(state.external.size.toLocaleString(), "External destinations", "", "Unique off-site URLs your pages link to. Usually far fewer than the hyperlink instances — one destination is typically linked from many pages.")}
   ${stat((state.pages.length + state.external.size).toLocaleString(), "Total unique destinations", "", "Every distinct destination Charlotte saw — Internal destinations + External destinations, each URL counted once. The total whose broken subset sits directly above it.")}
-  ${hasTriage ? `<div class="stat statleg" title="What the dashed outline around each broken / blocked card means"><div class="legttl">Outline key</div><div class="legrow"><span class="legbox lg-g"></span><span>all tested — count is final</span></div><div class="legrow"><span class="legbox lg-a"></span><span>some untested — may change</span></div></div>` : ``}
+  ${hasTriage ? stat(`<span id="brokenPgN">${brokenRefPagesInit.toLocaleString()}</span>`, "Referrer pages with broken links", brokenRefPagesInit ? "bad" : "", "Distinct pages that link at least one still-broken destination — the spread of the cleanup across your site (how many pages, and owners, need a fix), not just how many links. Drops as you mark links Working or clear a page's last broken link. Outline: GREEN dashed once every internal + external + blocked link has been triaged (so this is final); AMBER while some are still untriaged.") : ``}
   ${oosStat}
   ${partial ? stat(state.queue.length, "Queued", "") : ""}
  </div>
@@ -710,7 +715,7 @@ ${trackerEmbed}
     var tpl=window.__CW_TPL__; if(!tpl){ toast('Tracker template unavailable'); return; }
     var data=JSON.parse(JSON.stringify(window.__CW_BROKEN__||{host:'',internal:[],external:[]}));
     // A link belongs in the fix tracker UNLESS it's been manually marked "Working" — one uniform
-    // rule across Errors (assumed broken) AND Blocked (uncertain). So everything still untested is
+    // rule across Errors (assumed broken) AND Blocked (uncertain). So everything still untriaged is
     // included by default and the tracker is a complete to-review list; marking Working is what
     // drops a link. Scan the Working boxes on all three triage panels.
     var excl={}, ob=document.querySelectorAll('#panel-errint .okbox, #panel-errext .okbox, #panel-blockd .okbox'), z, nx=0;
@@ -742,7 +747,7 @@ ${trackerEmbed}
   // The Errors tabs default to BROKEN: every flagged link counts toward the header until
   // you tick Working, which subtracts it and drops it from the fix tracker. The Blocked
   // tab defaults to UNCERTAIN (not counted): ticking Broken adds it and routes it into the
-  // tracker by kind. A "Last tested" cell auto-fills the date+time of the latest verdict.
+  // tracker by kind. A "Last triaged" cell auto-fills the date+time of the latest verdict.
   // Ticks + timestamps persist in this browser (cwbroken: / cwok: / cwts: keys). Because that
   // state lives in localStorage (not the file), a share toolbar can export/import the verdicts as
   // JSON or bake them into a self-contained "shareable copy" (window.__CW_SEED__) for emailing.
@@ -753,6 +758,11 @@ ${trackerEmbed}
   var HOST=${JSON.stringify(state.startHost)}, SCOPES=['errint','errext','blockd'], ERRS=['errint','errext'];
   // Fixed row-2 totals — the denominators for each broken stat's live "(percent)".
   var DENOM={inst:${linkInstances}, int:${state.pages.length}, ext:${state.external.size}, tot:${state.pages.length + state.external.size}};
+  // url -> its referrer pages (from the embedded broken-link data), memoized on first use — feeds the
+  // "Referrer pages with broken links" card: as triage changes which links still count as broken, the
+  // distinct spread of referrer pages is recomputed from the rows that still count.
+  var REFMAP=null;
+  function refMap(){ if(REFMAP) return REFMAP; REFMAP={}; var B=(typeof window!=='undefined')?window.__CW_BROKEN__:null; function add(a){ if(a) for(var i=0;i<a.length;i++) REFMAP[a[i].url]=a[i].refs||[]; } if(B){ add(B.internal); add(B.external); add(B.blockedInt); add(B.blockedExt); } return REFMAP; }
   function L(){ try{ return localStorage; }catch(e){ return null; } }
   function key(pfx,url){ return pfx+HOST+':'+url; }
   // __CW_SEED__ carries verdicts baked into a "shareable copy" (see saveShareableCopy). When this
@@ -769,7 +779,7 @@ ${trackerEmbed}
   // String-valued persistence (for the "last tested" timestamp; getF/setF only do flags).
   function getS(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null?sv:''; } try{ return s.getItem(k)||''; }catch(e){ return ''; } }
   function setS(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,v); else s.removeItem(k); }catch(e){} }
-  // Auto-filled "Last tested" stamp = local date+time the row's latest verdict was set.
+  // Auto-filled "Last triaged" stamp = local date+time the row's latest verdict was set.
   // Updated whenever Broken or Working is ticked; cleared when the row returns to no verdict.
   function nowStr(){ var d=new Date(); function p(x){ return (x<10?'0':'')+x; } return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
   function tsCell(tr){ return tr?tr.querySelector('.tscell'):null; }
@@ -818,7 +828,7 @@ ${trackerEmbed}
     var p=panel(scope); if(!p) return;
     var trs=p.querySelectorAll('tr[data-url]'), n=0, tested=0, broke=0, ok=0, i;
     for(i=0;i<trs.length;i++){ n++; var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'); var ib=!!(b&&b.checked), io=!!(o&&o.checked); if(ib||io) tested++; if(ib) broke++; if(io) ok++; }
-    var el=p.querySelector('.tcount'); if(el) el.textContent='Manually tested: '+tested+' / '+n+' · confirmed broken: '+broke+' · confirmed working: '+ok;
+    var el=p.querySelector('.tcount'); if(el) el.textContent='Manually triaged: '+tested+' / '+n+' · confirmed broken: '+broke+' · confirmed working: '+ok;
     recomputeBroken();
   }
   // Percent with adaptive precision (mirrors report.js fmtPct): one decimal normally, more decimals if
@@ -837,8 +847,12 @@ ${trackerEmbed}
   // destination count. Blocked tab: only links confirmed Broken count (default uncertain), routed
   // internal/external by their kind. Keeps all three top-level broken stats accurate after triage.
   function recomputeBroken(){
-    var inst=0, uInt=0, uExt=0, sc, p, trs, i;
-    // Per-category test completeness for the green/amber outline: a row is "tested" if either box is
+    var inst=0, uInt=0, uExt=0, sc, p, trs, i, pset={};
+    // pset collects the referrer pages of every link that STILL counts as broken — its size is the
+    // "Referrer pages with broken links" card (distinct pages, so a page linking several broken URLs
+    // counts once). Refs come from refMap() (the embedded broken-link data), keyed by the row's url.
+    function addRefs(u){ var M=refMap(), r=u&&M[u]; if(r) for(var z=0;z<r.length;z++) pset[r[z]]=1; }
+    // Per-category triage completeness for the green/amber outline: a row is "triaged" if either box is
     // ticked. Internal = errint rows + blocked-internal; External = errext rows + blocked-external;
     // bT/bN = the Blocked·uncertain card's own completeness (all blocked rows, regardless of kind).
     var iT=0, iN=0, eT=0, eN=0, bT=0, bN=0;
@@ -847,6 +861,7 @@ ${trackerEmbed}
         if(isInt){ iN++; if(td) iT++; } else { eN++; if(td) eT++; }
         if(o&&o.checked) continue;
         inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
+        addRefs(trs[i].getAttribute('data-url'));
         if(isInt) uInt++; else uExt++; } }
     p=panel('blockd'); if(p){ trs=p.querySelectorAll('tr[data-url]');
       for(i=0;i<trs.length;i++){ var bb=trs[i].querySelector('.brokenbox'), bo=trs[i].querySelector('.okbox'), ext=(trs[i].getAttribute('data-kind')==='external'), t2=(bb&&bb.checked)||(bo&&bo.checked);
@@ -854,17 +869,21 @@ ${trackerEmbed}
         if(ext){ eN++; if(t2) eT++; } else { iN++; if(t2) iT++; }
         if(!(bb&&bb.checked)) continue;
         inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
+        addRefs(trs[i].getAttribute('data-url'));
         if(ext) uExt++; else uInt++; } }
+    var pgN=0, pk; for(pk in pset){ if(pset.hasOwnProperty(pk)) pgN++; }
     setStat(document.getElementById('brokenInstN'), inst, DENOM.inst);
     setStat(document.getElementById('brokenIntN'), uInt, DENOM.int);
     setStat(document.getElementById('brokenExtN'), uExt, DENOM.ext);
     setStat(document.getElementById('brokenTotN'), uInt+uExt, DENOM.tot);   // total unique destinations broken
+    setStat(document.getElementById('brokenPgN'), pgN);                     // referrer pages with broken links (no %)
     setTestState(document.getElementById('brokenIntN'), iT, iN);
     setTestState(document.getElementById('brokenExtN'), eT, eN);
-    // Broken hyperlink instances AND total unique destinations broken both span internal + external
-    // (+ blocked), so their outlines need EVERY triageable link tested.
+    // Broken hyperlink instances, total unique destinations broken, AND referrer pages all span internal +
+    // external (+ blocked), so their outlines need EVERY triageable link triaged.
     setTestState(document.getElementById('brokenInstN'), iT+eT, iN+eN);
     setTestState(document.getElementById('brokenTotN'), iT+eT, iN+eN);
+    setTestState(document.getElementById('brokenPgN'), iT+eT, iN+eN);
     setTestState(document.getElementById('blockedN'), bT, bN);   // Blocked·uncertain: green once all reviewed
   }
   // Apply a verdict to ONE row: set its boxes, persist the keys, swap classes, stamp/clear the
@@ -886,7 +905,7 @@ ${trackerEmbed}
   function setInd(box, on){ if(!box) return; box.checked=on; var lbl=box.parentNode; if(lbl&&typeof lbl.className==='string'){ var has=(' '+lbl.className+' ').indexOf(' on ')>=0; if(on&&!has) lbl.className=lbl.className+' on'; else if(!on&&has) lbl.className=(' '+lbl.className+' ').split(' on ').join(' ').trim(); } }
   // Derive a domain header from its rows: the bulk Broken/Working boxes (checked when ALL broken /
   // ALL working), the Mixture indicator (both verdicts present), the all-tested indicator, and the
-  // "tested K/N" counter. Runs on load and after any per-link or bulk verdict change.
+  // "triaged K/N" counter. Runs on load and after any per-link or bulk verdict change.
   function deriveDomain(host, scope){
     var rs=rowsInDomain(host, scope), n=rs.length, br=0, wk=0, i;
     for(i=0;i<n;i++){ var b=rs[i].querySelector('.brokenbox'), o=rs[i].querySelector('.okbox'); if(b&&b.checked) br++; if(o&&o.checked) wk++; }

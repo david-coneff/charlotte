@@ -1437,3 +1437,34 @@ slice-extraction (`indexOf("})();")`) cut the IIFE short → "Unexpected end of 
 (module-load still passed, since the template is just a string). Fixed by using a named function. Lesson:
 **no inner IIFEs in the template** — the slice-based test harness treats the first `})();` as the IIFE end.
 Tracker template stays 0/0/0; full suite 222/0.
+
+## AD-075: Report — "Referrer pages with broken links" card, relocated outline legend, global link reuse, "triaged" wording, fuller broken-destination labels
+**Date:** 2026-06-27
+**Problem:** four report-side refinements. (1) The stat matrix counted broken instances/destinations but
+not the distinct *pages* that carry broken links — the "how many pages / owners must I chase" view; an
+operator also asked for it explicitly. (2) The grey "Outline key" legend ate a stat-matrix slot. (3) An
+operator reported the satellite reused-window behaviour "not applied to the External tab"; audit showed all
+anchors already route through one global `target=_blank` interceptor (25/25 anchors), but the invariant was
+implicit. (4) "Broken · internal/external" cards risked being read as instance counts, and "tested" was
+judged a less-descriptive term than "triaged" for the verdict action.
+**Decision:** (1) replaced the legend card with a **Referrer pages with broken links** stat (`brokenPgN`):
+server-renders an initial distinct-referrer-page count (`brokenRefPagesInit`, a Set over `activeInt`+`activeExt`
+refs), then `recomputeBroken` keeps it live by accumulating into a `pset` the referrer pages (from a memoized
+`refMap()` over `window.__CW_BROKEN__`) of every row that still counts as broken; the card carries the same
+green/amber **triage-completeness** outline (`setTestState(brokenPgN, iT+eT, iN+eN)`) and `bad` class as the
+other broken stats, no `%`. (2) the outline legend moved to a compact **fixed `.leghint` strip in the
+upper-right by the theme toggle** (`LEGEND_HINT`, shown only when `hasTriage`). (3) NEWWIN's click handler now
+intercepts **any `http(s)` anchor** (not just `target=_blank`) so every tab's links reuse the one satellite
+window as an invariant — and lets **modified clicks** (ctrl/cmd/shift/middle) fall through to a real new tab;
+`blob:`/`#`/relative `file://` anchors are left alone. (4) cards relabelled **Broken internal/external
+destinations**; a project-wide **tested→triaged** wording sweep (legend, stat tooltips, the "Manually
+triaged X / N" counter, the "Last triaged" column header, the domain "all triaged"/"triaged K/N" indicators)
+— CSS class names (`tested-all`/`tested-partial`/`untested`/`domalltested`) deliberately left unchanged
+(internal, wired in JS+CSS).
+**Verification:** new headless probes — `pgcard-probe` (load: live recompute via REFMAP keeps `brokenPgN=4`
+matching the server init, `__CW_BROKEN__` present, amber `tested-partial` + `bad` before triage) and
+`pgcard-dyn` (after marking every link Working: `brokenPgN→0`, outline `tested-all` green, no `bad`). Static
+report checks confirm the new card/labels/relocated legend, no "Manually tested"/"Last tested" remain, NEWWIN
+broadened. `newwin-test` (its anchors are http+_blank) still 16/0; `vtest`/`blocked`-style counter assertions
+updated to "Manually triaged". Tracker template stays 0/0/0; suite 232/0. (blocked-test/manual-test are stale,
+pre-existing doctype-slice crashes, not in the suite.)

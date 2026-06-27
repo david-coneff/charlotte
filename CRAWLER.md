@@ -534,14 +534,23 @@ spells out:
 
 - **Destinations** — *unique* URLs, "where links point": **Internal pages** (distinct
   same-domain pages crawled), **External destinations** (distinct off-site URLs), and the
-  broken ones (**Broken · internal**, **Broken · external**). These counts are relatively
-  small.
+  broken ones (**Broken internal destinations**, **Broken external destinations** — named in
+  full so they read clearly as the broken subset of the destination totals directly below them,
+  not the much larger instance count). These counts are relatively small.
 - **Hyperlink instances** — *occurrences*, "how many links are on the pages": every `<a>`
   across every crawled page (internal + external), **not deduplicated**, so a destination
   linked from N pages counts N times. **Broken hyperlink instances** is the same for links
   pointing at a broken destination (the real cleanup workload / number of fix-tracker rows).
   These counts run much larger — one destination linked from 500 pages is **1 destination
   but 500 instances**.
+
+A **Referrer pages with broken links** card counts the *distinct pages* that link at least one
+still-broken destination — the spread of the cleanup across your site (how many pages, and owners,
+need a fix), not just how many links — and drops as you mark links Working or clear a page's last
+broken link. Each broken/blocked card carries a **dashed outline** that's **amber while some links
+are still untriaged** and turns **green once every internal + external + blocked link has a verdict**
+(so the count is final); a compact **Outline:** key for those colours sits in the **upper-right by the
+theme toggle**.
 
 **Broken hyperlink instances** **updates live** as you mark links *Working* (Broken tabs)
 or confirm *Broken* (Blocked tab), so after manual triage the header reflects what's actually
@@ -559,12 +568,12 @@ lines** — see
 export UI is **off by default**; the verdict and fix-tracker tools below have replaced it.)* They start with *neither* ticked — every link
 the crawler flagged is **assumed broken and already counted**, so you only ever *subtract*
 from the header by ticking **Working**; ticking **Broken** just records that you've
-confirmed one by hand (it was counting anyway). Ticking either box marks the link tested —
-there's no separate "Tested" box — and ticking one unticks the other; clear both to return
-a row to the default. A **live counter** per tab tracks progress — *"Manually tested X / N
+confirmed one by hand (it was counting anyway). Ticking either box marks the link triaged —
+there's no separate "Triaged" box — and ticking one unticks the other; clear both to return
+a row to the default. A **live counter** per tab tracks progress — *"Manually triaged X / N
 · confirmed broken Y · confirmed working Z"* — and **Working** links are dropped from the
 fix tracker, so one false positive (a sitewide link the crawler flagged but that works by
-hand) can't flood it with thousands of rows. A **Last tested** column to the left of the
+hand) can't flood it with thousands of rows. A **Last triaged** column to the left of the
 boxes **auto-fills the local date & time** whenever you tick **Broken** or **Working**, so
 each row carries a timestamp of its latest manual result (it re-stamps when you change the
 verdict and clears if you untick back to no verdict). Ticks and timestamps persist in the
@@ -579,9 +588,11 @@ state from the links it covers (all Working → Working, all Broken → Broken, 
 so it survives a reload from the per-link verdicts; **Expand all / Collapse all** toggle the
 sections.
 
-Clicking any link opens it in a **new window docked to the side** of the report (whichever side has
-more room, reusing one window), so checking a link never covers your report or needs
-repositioning.
+Clicking **any link, on any tab** (Errors, Blocked, External, Internal, Out-of-scope) opens it in a
+**single reused window docked to the side** of the report (whichever side has more room) — a global
+handler routes every web link through the one window, so checking links never spawns a pile of tabs,
+covers your report, or needs repositioning. (Ctrl/Cmd/Shift/middle-click still opens a normal new tab
+if you want one.)
 
 Each broken link also lists the pages it was **found on**.
 
@@ -594,7 +605,7 @@ its broken links beneath. The export includes **every link still to fix in one p
 marked Working**. Untested links are in by default (so the tracker is a complete to-review
 list you work down as you confirm each); marking a link **Working** in the report is what
 drops it. Each link row has an editable **Fixed** box — which stamps its own **Fixed on**
-date/time when you tick it — plus, mirroring the main report, a **Last tested** timestamp and
+date/time when you tick it — plus, mirroring the main report, a **Last triaged** timestamp and
 a mutually-exclusive **Broken / Working** verdict pair. The verdict and last-tested time are
 **baked in from the report** at export time and stay editable: ticking Broken or Working
 auto-fills the timestamp, the boxes are exclusive, and because a link can be reached from

@@ -4,7 +4,7 @@
   "source-file": "CRAWLER.md",
   "split-heading-level": 2,
   "created": "2026-06-27T16:07:48Z",
-  "updated": "2026-06-27T18:30:00Z",
+  "updated": "2026-06-27T23:06:41Z",
   "parent-index": null,
   "sections": [
     {
@@ -62,5 +62,5 @@
       "description": "Politeness guidance: honest User-Agent/headers, rate limits, and respecting robots.txt \u2014 how to crawl responsibly."
     }
   ],
-  "index-hash": "sha256:670aa170fe1b47a39a4b837c90eb63680835a1a5ddbd163f60f432da3a28b204"
+  "index-hash": "sha256:2d06db26973367680afb976e373cc13b681a43de5bc0ba86f033a41e363d9bac"
 }

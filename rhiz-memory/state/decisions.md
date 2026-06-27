@@ -96,6 +96,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-079** (2026-06-27) — Promoted the 12 candidate principles into `david-coneff/rhizome` (rhiz-Audit patterns #41–#46 + a #13 merge; cross-project-design-standards DS-003–006); `RHIZOME-CORE-CANDIDATES.md` retired to a promotion record; SYNTHESIS/`_instance` coherence touch-ups
 - **AD-080** (2026-06-27) — Partitioned the oversized memory + reference monoliths (rhiz-Partition): the ADR log into four range files, `CRAWLER.md` into a `CRAWLER/` rhiz-Merkle DAG (index + sections + integrity hashes), README/`_instance` repointed; product code left for the charter's call
 - **AD-081** (2026-06-27) — Charter revision: permit an optional build-time roll-up (Vite/rollup, per rhizome DS-002) so source can be small modules while the deliverable stays a single zero-install file; runtime invariants preserved (build tools are devDependencies)
+- **AD-082** (2026-06-27) — Acted on AD-081: moved the crawler toolchain into `src/`, split `report-templates.js` into `src/report-templates/` (newwin + tracker-template + index), and added an **esbuild roll-up** (`npm run build` → single shipped `crawl.js`). Verified byte-identical (built rebuild exact; built crawl equal modulo `runtimeMs`). `report.js`'s 975-line builder kept whole pending restored test coverage
 
 ---
 

@@ -188,24 +188,35 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
 
 ## 3. Architecture & implementation model
 
-**Module DAG** (plain CommonJS `require()`, no bundler — a bundler would buy nothing
-for a Node CLI and would cost the no-install property). Acyclic:
+**Module DAG** (plain CommonJS `require()` modules under [`src/`](../../src/), rolled up
+by an **esbuild build** into the single shipped `crawl.js` — AD-081/082). The source lives
+in `src/`; the root `crawl.js` is a **generated artifact** (`npm run build`). The roll-up
+keeps the **no-install-at-runtime** property (the built file uses Node built-ins only; the
+build tool is a `devDependency`) while letting the source be small modules. Acyclic:
 
 ```
-parse ← fetch ← netutil
-              ← cli            (BROWSER_UA)
-report ← report-templates      (NEWWIN, TRACKER_TEMPLATE)
-recheck ← netutil, fetch, report
-crawl ← cli, netutil, recheck, report, parse, fetch, log, seen
+src/parse ← fetch ← netutil
+                  ← cli            (BROWSER_UA)
+src/report ← report-templates/     (index → newwin, tracker-template)
+src/recheck ← netutil, fetch, report
+src/crawl ← cli, netutil, recheck, report, parse, fetch, log, seen   ──build──▶ ./crawl.js
 ```
+
+> **Note (AD-081/082):** the earlier "no bundler — a bundler would buy nothing and would
+> cost the no-install property" rationale was superseded once the charter was revised to
+> permit a build-time roll-up (modality B / rhizome DS-002). The bundler does *not* cost the
+> no-install property — it preserves it at runtime while shrinking the source. The migration
+> was verified **byte-identical** (built rebuild exact; built crawl equal modulo `runtimeMs`).
 
 `crawl.js` was deliberately partitioned down from ~1,860 lines to ~625 (AD-009/14/16; now
 ~665 after later features): report layer → `report.js`; parse/fetch/log/seen leaves;
 cli/netutil/recheck modes & utilities. What *stayed* in `crawl.js` is the ~450-line
-stateful engine (workers,
-throttle, journal close over shared state) — splitting it would hurt readability, not
-help. Every split was verified **byte-identical** (a deterministic crawl produces the
-same HTML + JSON before/after, modulo timestamps).
+stateful engine (workers, throttle, journal close over shared state) — splitting it would
+hurt readability, not help. `report.js` (~1,136 lines) is one coherent builder kept whole
+for the same reason and pending restored test coverage; `report-templates.js` was split
+into `src/report-templates/` (newwin + tracker-template + index). Every split was verified
+**byte-identical** (a deterministic crawl produces the same HTML + JSON before/after, modulo
+timestamps).
 
 **The report is a self-contained app, not a document.** Its CSS/JS are inline; its
 state lives in `localStorage`; sharing works by baking a JSON seed island into a copy.
@@ -215,8 +226,8 @@ Triage verdicts, fix-tracker flags, and `<details>` open-state all persist clien
 counter) are *derived from the per-link boxes* on load and after every change — no extra
 storage, so they survive reload for free.
 
-**Template-embedding constraint.** `NEWWIN` and `TRACKER_TEMPLATE` (in
-`report-templates.js`) are concatenated into the report's template literals, so they must
+**Template-embedding constraint.** `NEWWIN` and `TRACKER_TEMPLATE` (now in
+`src/report-templates/`) are concatenated into the report's template literals, so they must
 contain **no backtick, no `${}`, no backslash**. Double-quotes in emitted markup come from
 `String.fromCharCode(34)`; newlines/backslashes from `String.fromCharCode`. A guard
 (`node -e` checking those three substrings) is the standing test.

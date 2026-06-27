@@ -58,14 +58,19 @@ which it points to (it is NOT a second copy of them).
   (the shipped file still runs on Node built-ins; build tools are `devDependencies` only). See
   `_instance.md` charter MAY clause.
 
-- **next_action**: the **recommended next step** is to act on AD-081 — split the large single-file
-  product code (`report.js` ~1,136 L, `report-templates.js` ~537 L) into small `src/` modules behind a
-  **Vite single-file roll-up** (rhiz-Partition modality B / DS-002), preserving byte/behaviour
-  equivalence and the 244/0 suite, and **keeping the `TRACKER_TEMPLATE`/`NEWWIN` no-backtick/`${}`/
-  backslash/inner-IIFE constraints** intact through the build. Do it as its own verified pass.
-  Other open housekeeping: (a) the browser toolchain (`web-crawler.html`) still lacks the
-  triage/tracker UX; (c) open threads in SYNTHESIS §7. (Item (b), partitioning the ADR log, is **done**
-  — AD-080.)
+- **build (AD-082)**: the source now lives in [`src/`](../../src/) and an **esbuild roll-up**
+  (`npm run build`) bundles it into the single shipped root `crawl.js` (a generated artifact; runs
+  zero-install). `report-templates.js` was split into `src/report-templates/`. **Edit `src/`, then
+  `npm run build`** — never edit the root `crawl.js` (it's generated). Verify any change byte-identical
+  (golden `--rebuild-from` is fully deterministic; see AD-082).
+
+- **next_action**: the remaining piece of the AD-081/082 arc is to **split `report.js` (~1,136 L)** —
+  its 975-line `buildReport` is one cohesive function kept whole for now because the **244/0 test suite
+  is NOT in the repo** (ephemeral scratchpad), so logic-level decomposition can't be safely verified on
+  the tiny byte-identical fixture. **Restore/commit a test suite first**, then split `buildReport`
+  incrementally with the build harness now in place — keeping the `TRACKER_TEMPLATE`/`NEWWIN`
+  constraints intact. Other open housekeeping: (a) `web-crawler.html` still lacks the triage/tracker
+  UX; (c) SYNTHESIS §7 threads. (Partitioning the ADR log = done, AD-080; the build = done, AD-082.)
 
 - **resume_instructions**:
   1. `_instance.md` (identity + charter + the template constraint).

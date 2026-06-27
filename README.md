@@ -5,7 +5,10 @@ first-tier external links it points to. It verifies links (including links found
 inside PDFs and Office documents) and writes a self-contained HTML report you
 open in a browser.
 
-The core crawler has **no install step** — it uses Node built-in modules only.
+The core crawler has **no install step to run** — the shipped `crawl.js` is a single
+self-contained file that uses Node built-in modules only. (It is *built* from small
+modules in [`src/`](src/) via an esbuild roll-up; the build tool is a dev-time
+`devDependency`, never needed to run a shipped `crawl.js`. See "Building from source".)
 
 ## Which tool do I use?
 
@@ -37,9 +40,23 @@ under `CRAWLER/`; [`CRAWLER.md`](CRAWLER.md) is a pointer to the index.)
 
 ## Requirements
 
-- **`crawl.js` (+ its sibling modules), `local-cors-proxy.js`** — Node ≥ 14, zero npm
-  dependencies. `crawl.js` `require`s `cli.js`, `netutil.js`, `recheck.js`, `report.js`,
-  `parse.js`, `fetch.js`, `log.js`, and `seen.js` from the same folder, so keep them together.
+- **`crawl.js`, `local-cors-proxy.js`** — Node ≥ 14, zero npm dependencies to **run**.
+  `crawl.js` ships as a **single self-contained file** (an esbuild roll-up of the modules in
+  [`src/`](src/)); just run it. `local-cors-proxy.js` is a standalone zero-dep file.
+
+## Building from source
+
+Edit the small modules in `src/` (the source of truth), then regenerate the shipped
+single-file `crawl.js`:
+
+```bash
+npm install   # dev-only: installs esbuild (a devDependency)
+npm run build # rolls src/ up into ./crawl.js
+```
+
+The built `crawl.js` runs with **zero install** (Node built-ins only) — the build tool is
+never needed to *run* it, only to rebuild it after a source change. `crawl-render.js` and
+`local-cors-proxy.js` are standalone single files with no build step.
 - **`crawl-render.js`** — Node, plus an optional [Playwright](https://playwright.dev)
   install (`npm install`); without it, run with `--http-fallback` for plain HTTP checks.
 - **`crawl-gui.hta`** — Windows (mshta.exe) with Node on `PATH`.

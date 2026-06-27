@@ -102,11 +102,14 @@ Charlotte is **two independent toolchains** that share one set of docs:
 
 ### File inventory
 
-> **Note (2026-06-26):** `crawl.js` has since been partitioned into sibling leaf
-> modules — `cli.js`, `netutil.js`, `recheck.js`, `report.js`, `report-templates.js`,
-> `parse.js`, `fetch.js`, `log.js`, `seen.js` (all plain `require()`, no bundler;
-> AD-009/14/16/36). They ship and travel together. The current module DAG and a full
-> capability/lessons retrospective live in [`state/SYNTHESIS.md`](state/SYNTHESIS.md).
+> **Note (2026-06-26, updated 2026-06-27 AD-081/082):** `crawl.js`'s source now lives as
+> small modules under [`src/`](../src/) — `crawl.js`, `cli.js`, `netutil.js`, `recheck.js`,
+> `report.js`, `parse.js`, `fetch.js`, `log.js`, `seen.js`, and `report-templates/`
+> (newwin + tracker-template + index). An **esbuild roll-up** (`npm run build`) bundles them
+> into the single shipped root `crawl.js` (a generated artifact; runs zero-install on Node
+> built-ins — the build tool is a `devDependency`). `crawl-render.js` and
+> `local-cors-proxy.js` are standalone single files (no build). The current module DAG and a
+> full capability/lessons retrospective live in [`state/SYNTHESIS.md`](state/SYNTHESIS.md).
 
 | File | Role | Runtime |
 |------|------|---------|

@@ -66,6 +66,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-055** (2026-06-26) — Stats as a broken-over-total matrix (2 rows × 5 cols), + "Total unique destinations broken"; Runtime/Suppressed to the header line
 - **AD-056** (2026-06-26) — Each broken stat shows count + live "(percent)" of the total directly below it (one-decimal, then adaptive precision)
 - **AD-057** (2026-06-26) — Blocked·uncertain gets the green/amber tested-outline; a grey legend card keys the colors
+- **AD-058** (2026-06-27) — Triage tables size to content (no mid-table gap) + drag-resizable columns (persisted, broadcast across domain groups); + Found-on overflow fix
 
 ---
 

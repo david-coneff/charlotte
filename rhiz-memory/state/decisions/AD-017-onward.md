@@ -993,3 +993,27 @@ mirrors.
 present. Headless real-click probe: Blocked outline starts `tested-partial` (amber), stays amber after one
 of its two links is tested, flips to `tested-all` (green) once both are; legend present throughout.
 domtest/vtest/sharetest/revtest/exporttest/newwin/tracker3 all pass.
+
+## AD-058: Triage tables size to content + drag-resizable columns
+**Date:** 2026-06-27
+**Problem:** the triage tables were `width:100%` + `table-layout:fixed` with URL & Reason the only unsized
+columns, so on a wide window they split all the slack — Reason ballooned to ~900px for a tiny "HTTP 404"
+pill, leaving a giant mid-table gap. No fixed default suits every screen, so the operator asked for
+**user-resizable columns**. (Fixed first: a related overflow — the `.domgrp .tablewrap` override leaked
+`overflow:visible` onto the nested "Found on" `<details>` wrapper, so a 35-referrer list spilled over the
+rows below; scoped that override to `.dombody` — committed separately.)
+**Decision:** (1) **size to content** — Reason gets a fixed 180px, URL stays the lone elastic column, and
+the triage tables use `width:max-content` (table = sum of column widths, left-aligned) instead of
+stretching to 100%, so no mid-table gap (slack becomes a clean right margin the user can reclaim).
+Restored the AD-040 `:first-child{min-width:0}` guard (a global `th:first-child{min-width:360px}` for
+URL-first tables was bloating the timestamp column once max-content was on). (2) **drag-resizable
+columns** — every header cell gets a `.colgrip` (absolute, right edge, `col-resize`); dragging sets that
+column's px width and **broadcasts it to the same column index in every table of the tab** (Errors·external
+/ Blocked render one table per domain group, so they stay aligned). Widths persist per tab in localStorage
+(`cwcol:host:scope`) and restore on load; a **"↔ Reset column widths"** button (in each tab's counter bar)
+clears them. ES5-clean, in the triage IIFE.
+**Verification:** headless render — default Broken·internal is compact (LAST TESTED 140 / URL 380 / REASON
+180 / FOUND ON 236, left-aligned, no gap) and applying a width reflows the table; DOM probe of a real drag
+(Blocked tab, 2 domain groups) — 7 grips/table, the URL column resizes, the 2nd group's URL column
+broadcasts to the same width, persists to `cwcol:x:blockd`, and Reset clears both inline widths + storage.
+Full suite passes.

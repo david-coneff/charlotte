@@ -212,9 +212,9 @@ function buildReport(state, cfg, allow, partial) {
   const exportBar = (scope) => showAllow ? `<div class="exportbar"><span class="selcount" data-scope="${scope}">0 selected</span><span class="grow"></span><button type="button" class="btn copybtn" data-scope="${scope}" disabled>⧉ Copy lines</button><button type="button" class="btn exportbtn" data-scope="${scope}" disabled>⬇ Export to allowlist…</button></div>` : ``;
   // Live manual-testing progress for an Errors tab (updated by the script below as the
   // Broken / Working boxes are ticked): how far testing has gotten + confirmed broken/working.
-  const testBar = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span></div>`;
+  const testBar = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span><button type="button" class="btn colreset" data-scope="${scope}" title="Restore the default column widths on this tab">↔ Reset column widths</button></div>`;
   const blockedHelp = `<p class="muted" style="margin:2px 0 10px">Two mutually-exclusive boxes per link: <strong>Broken</strong> confirms this uncertain link really is dead — confirmed ones join the <strong>Broken hyperlink instances</strong> count (routed internal/external by their kind); <strong>Working</strong> confirms it actually loads. Leave both unticked to keep it uncertain (not counted). <em>Until you mark one <strong>Working</strong>, an uncertain link stays in the fix-tracker export</em>, so the tracker is a complete to-review list. Either tick counts as tested and auto-fills the <strong>Last tested</strong> date &amp; time. Ticks are saved in this browser.</p>`;
-  const blockedCounter = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span></div>`;
+  const blockedCounter = (scope) => `<div class="testbar"><span class="tcount" data-scope="${scope}">Manually tested: 0 / 0 · confirmed broken: 0 · confirmed working: 0</span><button type="button" class="btn colreset" data-scope="${scope}" title="Restore the default column widths on this tab">↔ Reset column widths</button></div>`;
   // Embedded fix-tracker payload + self-rendering template (final report only).
   const brokenFor = (arr) => arr.slice(0, RENDER_CAP).map((e) => ({ url: e.url, reason: e.reason, refs: refsAll(e.url, e.source) }));
   // Embed blocked links split by kind too, so confirmed-broken ones can be routed into the
@@ -359,16 +359,19 @@ function buildReport(state, cfg, allow, partial) {
  .tscell{width:140px;white-space:nowrap}
  td.tscell{font-size:13px;color:var(--muted)}
  th.tscell{white-space:nowrap}
- .urlcol{min-width:340px}
- .reasoncol{min-width:220px}
- /* Triage tables (Errors · internal/external + Blocked) use a FIXED layout so column
-    widths are predictable. Auto layout piled slack onto the first column — the generic
-    first-child min-width (meant for URL-first tables) landed on the timestamp column and
-    starved Reason. Widths come from the header-cell classes; URL + Reason (auto) split the
-    leftover, so a long reason no longer wraps one word per line. */
- table.haspick,table.blkpick{table-layout:fixed}
+ .urlcol{width:380px}
+ .reasoncol{width:180px}
+ /* Triage tables use a FIXED layout (predictable widths) and size to the SUM of their column widths
+    (width:max-content) rather than stretching to 100% — so no column is starved and a very wide window
+    no longer leaves a giant mid-table gap. Every column is also RESIZABLE: drag the grip on a header's
+    right edge. Widths persist per browser and broadcast across a tab's domain groups so they stay
+    aligned; a "Reset column widths" button restores the defaults. */
+ table.haspick,table.blkpick{table-layout:fixed;width:max-content;min-width:0;max-width:none}
  table.haspick th:first-child,table.haspick td:first-child,table.blkpick th:first-child,table.blkpick td:first-child{min-width:0}
  table.haspick td:last-child,table.blkpick td:last-child{min-width:0}
+ .haspick th,.blkpick th{position:relative}
+ .colgrip{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
+ .colgrip:hover,.colgrip.drag{box-shadow:inset -2px 0 0 var(--accent)}
  table.haspick .foundcol,table.blkpick .foundcol{width:236px}
  .blkpick .kindcol{width:92px}
  /* Errors·external is grouped into collapsible per-domain sections. A custom collapsible (not
@@ -396,7 +399,8 @@ function buildReport(state, cfg, allow, partial) {
     NOT also hit the nested "Found on" <details> wrapper, whose inline max-height + scroll must stay. */
  .domgrp .dombody{max-height:none;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0}
  .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
- .testbar{margin:0 0 12px}.tcount{color:var(--muted);font-size:12px}
+ .testbar{margin:0 0 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.tcount{color:var(--muted);font-size:12px}
+ .colreset{margin-left:auto;font-size:12px;padding:4px 10px}
  tr.notbroken td:not(.tcol):not(.tscell):not(.pickcol){opacity:.45;text-decoration:line-through}
  tr.confirmed td:not(.tcol):not(.tscell):not(.pickcol){color:var(--bad)}
  .exportbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}.exportbar .grow{flex:1}
@@ -828,6 +832,31 @@ ${trackerEmbed}
   seedFromCopy();
   for(var s=0;s<SCOPES.length;s++){ wire(SCOPES[s]); }
   wireDomains();   // domain-level Broken/Working controls on the Errors·external tab
+  // ---- drag-resizable triage columns ----------------------------------------------------------
+  // A triage tab can render several tables (one per domain group on Errors·external / Blocked), so a
+  // resize broadcasts the new width to that column index in EVERY table of the tab, keeping the groups
+  // aligned. Widths persist per tab in localStorage; "Reset column widths" clears them.
+  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
+  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
+  function triTables(scope){ var p=panel(scope); if(!p) return []; return p.querySelectorAll('table.haspick, table.blkpick'); }
+  function applyCol(scope, idx, px){ var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
+  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
+  function gripDown(scope, th, idx, grip, e){
+    e.preventDefault(); e.stopPropagation();
+    var startX=e.clientX, startW=th.offsetWidth, cur=startW; addCls(grip,'drag');
+    function mv(ev){ cur=Math.max(40, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
+    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); rmCls(grip,'drag'); saveCol(scope, idx, cur); }
+    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true);
+  }
+  function wireColResize(scope){
+    var ts=triTables(scope); if(!ts.length) return;
+    var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
+    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j;
+      for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } }
+  }
+  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
+  for(var cz=0;cz<SCOPES.length;cz++) wireColResize(SCOPES[cz]);
+  var crs=document.querySelectorAll('.colreset'); for(var cr=0;cr<crs.length;cr++){ crs[cr].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
   // Wire the share toolbar (final report only; absent otherwise).
   var bCopy=document.getElementById('cwSaveCopy'); if(bCopy) bCopy.addEventListener('click', saveShareableCopy);
   var bExp=document.getElementById('cwExportV'); if(bExp) bExp.addEventListener('click', exportVerdicts);

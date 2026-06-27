@@ -23,7 +23,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-015** (2026-06-25) — Complete the resume feature — poison-URL quarantine + GUI Resume button
 - **AD-016** (2026-06-25) — Partition crawl.js further — cli / netutil / recheck modules
 
-### [AD-017 – onward · Report rendering, triage & sharing](decisions/AD-017-onward.md)
+### [AD-017 – AD-034 · Report rendering, triage & sharing](decisions/AD-017-034.md)
 
 - **AD-017** (2026-06-25) — Remove the report's per-table render cap
 - **AD-018** (2026-06-25) — Opt-in client-side report pagination (`--paginate`, 1,000/page)
@@ -43,6 +43,8 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-032** (2026-06-25) — Fix tracker carries last-tested timestamp + main-report-style verdict UI
 - **AD-033** (2026-06-25) — Fix tracker — "Fixed on" timestamp + shareable state (export/import + bake-a-copy)
 - **AD-034** (2026-06-25) — Keep auto-save-to-localStorage; no File System Access "Save to file" (docs-only)
+### [AD-035 – AD-052 · Report internals: templates, satellite window, grouping & persistence](decisions/AD-035-052.md)
+
 - **AD-035** (2026-06-26) — GUI resume — seed live counters from a "# resume-stats" marker
 - **AD-036** (2026-06-26) — Extract NEWWIN + TRACKER_TEMPLATE into report-templates.js
 - **AD-037** (2026-06-26) — Partial reports were zeroing the “Broken hyperlink instances” header
@@ -61,6 +63,8 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-050** (2026-06-26) — Dashed-amber header outline on per-domain groups with untested links (clears when all tested)
 - **AD-051** (2026-06-26) — Satellite popup shows a blob: interstitial naming the next link before it loads
 - **AD-052** (2026-06-26) — Remove the per-referrer "Fixed" checkbox from the base report (fix-tracking lives in the tracker)
+### [AD-053 – AD-065 · Ergonomics at scale: stat matrix, grouping & resizable viewports](decisions/AD-053-065.md)
+
 - **AD-053** (2026-06-26) — Unify fix-tracker export (include all untested incl. blocked, drop only Working) + one always-visible button
 - **AD-054** (2026-06-26) — Stats row: green/amber test-completeness outline on the broken stats, broken-first order, "Total unique destinations" (supersedes the Requests stat, AD-044)
 - **AD-055** (2026-06-26) — Stats as a broken-over-total matrix (2 rows × 5 cols), + "Total unique destinations broken"; Runtime/Suppressed to the header line
@@ -74,6 +78,8 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-063** (2026-06-27) — User-resizable viewport height (drag the bottom-right grip; `resize:vertical`) across the report's viewports and the tracker — scoped to top-level viewports (nested Found-on lists / triage bodies stay size-to-content)
 - **AD-064** (2026-06-27) — Fix-tracker section refinements: **All: Fixed** bulk box (kept verdicts), stacked header (long link on its own row), translucent-amber outline that clears when all fixed *or* working (no green), pager moved above the scroll viewport, and definite-`height` viewports so the resize grip grows unbounded (supersedes the AD-063 `max-height`)
 - **AD-065** (2026-06-27) — Drag-resizable columns extended to the non-triage tabs (`.grptbl` + own IIFE, per-tab Reset); removed all enforced minimum column widths (blanket `min-width:0`, grip floor 40→16); collapsible per-tab help (`helpBox` `<details>`, open by default)
+### [AD-066 – AD-081 · Theme, nesting, export ergonomics, delegation & partitioning](decisions/AD-066-081.md)
+
 - **AD-066** (2026-06-27) — Light/dark theme toggle (🌙/☀️, upper-right) on the report + tracker via `html[data-theme="light"]` overrides + an `--accent-fg` var; persisted in localStorage, no-flash
 - **AD-067** (2026-06-27) — Two-level nesting in the fix tracker: By-page / By-broken-link sections roll up under a collapsible folder (internal) / domain (external) parent (regex-free `hostOf`/`folderOf`; section-level pagination with repeated parent headers)
 - **AD-068** (2026-06-27) — Inverted Fixed/Broken stat matrix on the fix tracker (top row = Fixed instances/internal/external + % of broken; bottom row = Broken, verdict-driven); recomputes live on Fixed + Working/Broken changes
@@ -87,9 +93,15 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-076** (2026-06-27) — Fix tracker: **dropped the Internal/External tab** — both lists work together in one view (`allList()` tags each entry `type`), **By page** showing every broken link on a page with a **Type** column and **By broken link** a type badge; collapsed to one `panel-all`; stat matrix keeps its int/ext breakdown
 - **AD-077** (2026-06-27) — Drag-resizable **table columns** in the fix tracker (ports the report's `.grptbl` grip/broadcast/persist), tagging the two shapes `gp`/`gl` for per-shape default widths, storage keyed per view (`cwfixcol:host:page`/`:link`), re-wired in `fill()`, with **↔ Reset columns** — UI/UX now consistent with the crawl report
 - **AD-078** (2026-06-27) — Memory consolidation: SYNTHESIS §5 lessons **#23–#30** + a themed index, capability inventory/§6 refreshed to AD-077 (244/0), `SESSION_HANDOFF`/`RESUME_BLOCK` rewritten current (stale migration append-logs dropped), and a `RHIZOME-CORE-CANDIDATES.md` package of 12 transferable principles staged for promotion into `david-coneff/rhizome`
+- **AD-079** (2026-06-27) — Promoted the 12 candidate principles into `david-coneff/rhizome` (rhiz-Audit patterns #41–#46 + a #13 merge; cross-project-design-standards DS-003–006); `RHIZOME-CORE-CANDIDATES.md` retired to a promotion record; SYNTHESIS/`_instance` coherence touch-ups
+- **AD-080** (2026-06-27) — Partitioned the oversized memory + reference monoliths (rhiz-Partition): the ADR log into four range files, `CRAWLER.md` into a `CRAWLER/` rhiz-Merkle DAG (index + sections + integrity hashes), README/`_instance` repointed; product code left for the charter's call
+- **AD-081** (2026-06-27) — Charter revision: permit an optional build-time roll-up (Vite/rollup, per rhizome DS-002) so source can be small modules while the deliverable stays a single zero-install file; runtime invariants preserved (build tools are devDependencies)
+- **AD-082** (2026-06-27) — Acted on AD-081: moved the crawler toolchain into `src/`, split `report-templates.js` into `src/report-templates/` (newwin + tracker-template + index), and added an **esbuild roll-up** (`npm run build` → single shipped `crawl.js`). Verified byte-identical (built rebuild exact; built crawl equal modulo `runtimeMs`). `report.js`'s 975-line builder kept whole pending restored test coverage
 
 ---
 
 ## Provenance
 
 Partitioned 2026-06-26 (AD log had grown to 35 entries / 809 lines). Earlier this was a single `decisions.md`; the ADR bodies now live in `decisions/` by range, with this index on top.
+
+Re-partitioned 2026-06-27 (AD-080): `AD-017-onward.md` had grown to 1,576 lines / 139 KB — over the rhiz-Merkle 500-line / 50 KB threshold — so it was split by the project's range convention into four arc files (`AD-017-034`, `AD-035-052`, `AD-053-065`, `AD-066-081` — the last extended as AD-080/081 landed), each cross-linked to its neighbours and back to this index. The split was verified content-exact (the four range bodies reconstruct the original AD-017…AD-079 content byte-for-byte; all 63 entries present once).

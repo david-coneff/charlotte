@@ -8,12 +8,16 @@
     "crawl-render": "./crawl-render.js"
   },
   "scripts": {
+    "build": "node build.mjs",
     "crawl": "node crawl.js",
     "render": "node crawl-render.js",
     "proxy": "node local-cors-proxy.js"
   },
   "optionalDependencies": {
     "playwright": "^1.40.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.0"
   },
   "engines": {
     "node": ">=14"

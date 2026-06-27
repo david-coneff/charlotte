@@ -17,13 +17,19 @@ which it points to (it is NOT a second copy of them).
   self-contained HTML report you open from `file://`. Charter + design principles: `_instance.md`.
 
 - **where the detail lives** (do not duplicate it here):
-  - **Decisions** — `state/decisions.md` is an ADR **index**; bodies in `decisions/AD-001-016.md`
-    (migration + engine) and `decisions/AD-017-onward.md` (report / triage / sharing / tracker;
-    AD-017–077). Every behavior change is one AD with its verification.
+  - **Decisions** — `state/decisions.md` is an ADR **index**; bodies live in five range files under
+    `decisions/`: `AD-001-016` (migration + engine), `AD-017-034` / `AD-035-052` (report rendering,
+    triage, sharing, report internals), `AD-053-065` (ergonomics), `AD-066-081` (theme → batch
+    delegation → consolidation/migration → partitioning/charter). Every behavior change is one AD
+    with its verification. (Re-partitioned 2026-06-27, AD-080 — the old `AD-017-onward.md` was 1,576
+    lines.)
   - **Retrospective** — `state/SYNTHESIS.md`: capability inventory (§2), what worked (§4), the
     **hard-won lessons** (§5, themed index up top — read before touching the relevant area),
     testing approach (§6), open threads (§7).
-  - **Reference docs** — `CRAWLER.md` (full suite reference), `README.md` (quick start).
+  - **Reference docs** — the full suite reference is partitioned under `CRAWLER/` (a rhiz-Merkle DAG;
+    **start at [`CRAWLER/CRAWLER_index.md`](../../CRAWLER/CRAWLER_index.md)** — root `CRAWLER.md` is a
+    pointer stub; AD-080). `README.md` (quick start). Verify the DAG with
+    `doc-graph.py verify CRAWLER/CRAWLER_index.json`; reassemble with `doc-graph.py merge`.
 
 - **the two surfaces, in one line each**:
   - **Crawl report** (`report.js` + `report-templates.js`): broken-over-total stat matrix with a
@@ -46,10 +52,25 @@ which it points to (it is NOT a second copy of them).
 
 - **active_risks / blockers**: none to the tool.
 
-- **next_action**: none pending — await the next operator refinement. Candidate housekeeping when
-  convenient: (a) the browser toolchain (`web-crawler.html`) still lacks the triage/tracker UX;
-  (b) `decisions/AD-017-onward.md` has grown to ~60 ADRs and could be partitioned again per the
-  index's own convention; (c) open threads in SYNTHESIS §7.
+- **charter change (2026-06-27, AD-081)**: the "no build / zero-install" directive was relaxed — a
+  **build-time roll-up is now permitted** (Vite/rollup, per rhizome DS-002) so source can be small
+  modules while the deliverable stays a single zero-install file. Runtime invariants are unchanged
+  (the shipped file still runs on Node built-ins; build tools are `devDependencies` only). See
+  `_instance.md` charter MAY clause.
+
+- **build (AD-082)**: the source now lives in [`src/`](../../src/) and an **esbuild roll-up**
+  (`npm run build`) bundles it into the single shipped root `crawl.js` (a generated artifact; runs
+  zero-install). `report-templates.js` was split into `src/report-templates/`. **Edit `src/`, then
+  `npm run build`** — never edit the root `crawl.js` (it's generated). Verify any change byte-identical
+  (golden `--rebuild-from` is fully deterministic; see AD-082).
+
+- **next_action**: the remaining piece of the AD-081/082 arc is to **split `report.js` (~1,136 L)** —
+  its 975-line `buildReport` is one cohesive function kept whole for now because the **244/0 test suite
+  is NOT in the repo** (ephemeral scratchpad), so logic-level decomposition can't be safely verified on
+  the tiny byte-identical fixture. **Restore/commit a test suite first**, then split `buildReport`
+  incrementally with the build harness now in place — keeping the `TRACKER_TEMPLATE`/`NEWWIN`
+  constraints intact. Other open housekeeping: (a) `web-crawler.html` still lacks the triage/tracker
+  UX; (c) SYNTHESIS §7 threads. (Partitioning the ADR log = done, AD-080; the build = done, AD-082.)
 
 - **resume_instructions**:
   1. `_instance.md` (identity + charter + the template constraint).

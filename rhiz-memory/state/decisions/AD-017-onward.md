@@ -1140,3 +1140,38 @@ forced to 140px or sprouts its own grip.
 `.domgrp .dombody` resize=none / min-height=0px; a nested Found-on `.tablewrap` resize=none / min-height=0px;
 the tracker `#view-int` resize=vertical. Screenshots show the diagonal resize grip at the bottom-right of
 both the report's grouped viewport and the tracker viewport.
+
+## AD-064: Fix-tracker section refinements — All:Fixed bulk box, stacked header, resolve-or-working outline, out-of-scroll pager, true drag-resize
+**Date:** 2026-06-27
+**Problem:** review of the AD-062 tracker surfaced five issues. (1) A section needed a one-click "mark
+everything here fixed". (2) The grouped key is a long URL, so cramming the link + counters + verdict +
+notes on one right-aligned row wrapped badly. (3) The green "all fixed" outline was noise; and a section
+with a link marked **Working** (a false positive, no fix needed) still showed amber forever. (4) The
+pager rendered inside the scroll viewport, so scrolling a page's groups hid Prev/Next. (5) The resize grip
+(AD-063) could only shrink — `max-height` capped growth, so you couldn't drag a viewport taller.
+**Decision:** (1) each section header gets an **All: ☐ Fixed** bulk checkbox (`.grpfixall`) — `bulkFix(g,on)`
+ticks/persists/stamps every Fixed box in the group; `refreshGroup` drives the box's checked/indeterminate
+state from the group's fixed count. The Broken/Working **verdict boxes stay** (the operator confirmed the
+per-link bulk verdict is useful) — we ADD All:Fixed beside them, not replace. (2) the header is now a
+COLUMN: `.grptop` (caret + link) / `.grpctl` (count, K/N fixed, All:Fixed, and By-broken-link's Last
+tested/Broken/Working) / `.grpnote` (By-page Notes) — all left-aligned. This is tracker-only; the report's
+domain headers keep their single right-aligned row. (3) the completion outline is now a **translucent
+amber** (`rgba(251,191,36,.55)`) shown only while a section has a link **neither Fixed nor Working**, and
+it just clears when all are resolved — the green `.alldone` is gone. `rowWorking(g,tr)` reads the group's
+`.vo` boxes (row-level in By page, header-level in By broken link) so a Working tick resolves a row;
+verdict-box handlers now call `refreshAllGroups()` so the outline updates live. (4) the pager moved OUT of
+`#panel-*` into a sibling `.pagerbar` ABOVE the `.trkview` (new `.tabview` wrapper per tab holds bar +
+viewport; tab switch toggles the wrapper) — `fillPanel` writes the pager to `#pager-<which>` and the groups
+to `#panel-<which>`. (5) all top-level viewports (`.groupview`/`.tablewrap` in the report, `.trkview` in
+the tracker) switched from `max-height` to a definite **`height`** (460px / 72vh) with `resize:vertical` +
+`min-height` and NO max-height — so the grip drags both ways and can grow unbounded; nested `.tablewrap
+.tablewrap` and `.domgrp .dombody` are pinned to `height:auto;resize:none` so found-on sublists / triage
+bodies still size to content.
+**Verification:** real-browser probes — All:Fixed ticks all rows (counter 2/2, amber clears, box checked);
+unticking one row returns amber + sets the box indeterminate; marking a group **Working** clears amber at
+0/N fixed; an untouched group stays amber; header renders `.grptop`+`.grpctl`+`.grpnote`; the pager lives
+in `#pager-int` (`pagerInBar=1`, `pagerInPanel=0`); `.trkview`/`.groupview` compute `height:585px/460px`
+with `max-height:none` while `.domgrp .dombody` is `72px` content height with `resize:none`. Screenshot
+confirms the stacked header, the All:Fixed box, translucent amber on a Broken section, NO outline on a
+Working section, and the Prev/Page/Next bar above the scroll area. Full suite 170/0 (revtest's verdict
+sync still passes through the header restructure).

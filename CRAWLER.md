@@ -598,12 +598,17 @@ time.
 
 Within each tab the groups are **collapsible sections** — grouped **By page** (referrer page →
 its broken links) or **By broken link** (link → every page that links to it), toggled at the
-top — and each section header shows a live **K/N fixed** counter and a **dashed completion
-outline**: *amber* while the section still has links to fix, turning *green* once every one is
-ticked **Fixed**. **Expand all / Collapse all** buttons open or close every section at once. The
-list sits in a **fixed-height viewport that scrolls internally** — **drag its bottom-right corner
-to resize** the height — and when a tab has more than 50 groups it **paginates** (‹ Prev · Page X
-of Y · Next ›) so even a tracker with thousands of pages stays light.
+top. Because the grouped key is a full (often long) URL, each header **stacks**: the link on its
+own top row, then a left-aligned controls row — a live **K/N fixed** counter, an **All: ☐ Fixed**
+bulk box that ticks/unticks every Fixed box in the section at once, and (By broken link) the
+section's **Broken/Working** verdict — then, on the By-page view, a **Notes** row. A **translucent
+amber dashed outline** marks a section that still has links which are **neither Fixed nor confirmed
+Working**; it simply **disappears once every link is resolved** (fixed *or* working — no separate
+"done" colour). **Expand all / Collapse all** open or close every section at once. The list sits in
+a **fixed-height viewport that scrolls internally** — with a sensible default height you can **drag
+the bottom-right corner to make as tall as you like** — and when a tab has more than 50 groups it
+**paginates**; the **‹ Prev · Page X of Y · Next ›** bar sits *above* the scroll area so it stays
+in reach no matter how far down you've scrolled.
 
 Like the report, the tracker **auto-saves** to localStorage as you work — reopen the same
 tracker file in the same browser and your progress is intact, no Save step needed. And like

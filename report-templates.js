@@ -82,14 +82,21 @@ a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}td a{
 .notelbl{display:flex;align-items:center;gap:6px;flex:1;min-width:240px;color:var(--muted);font-size:12px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:9px 16px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .grp{border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden}
-.grphead{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--panel2);flex-wrap:wrap}
+/* The grouped key here is a full (often very long) URL, so the header stacks: the link on its own top
+   row, then a left-aligned controls row (count, K/N fixed, All: Fixed, verdict), then (By page) a notes
+   row — rather than the report's single right-aligned row. */
+.grphead{display:flex;flex-direction:column;align-items:stretch;gap:7px;padding:10px 12px;background:var(--panel2)}
+.grptop{display:flex;align-items:center;gap:10px}
+.grpctl{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.grpnote{display:flex}
 .grphead .ref{font-weight:600;overflow-wrap:anywhere}.grphead .cnt{color:var(--muted);font-size:12px}
+.grpall{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer}.grpall input{width:15px;height:15px;cursor:pointer;margin:0}
 .grpreason{padding:2px 12px 8px;font-size:12px;overflow-wrap:anywhere}
 .grphead .pnote{flex:1;min-width:220px;background:var(--panel);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font:inherit;font-size:12px}.grphead .pnote:focus{outline:none;border-color:var(--accent)}
 .grp .tablewrap{max-height:none;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0}
 /* Each tab's group list lives in a fixed-height viewport that scrolls internally (so thousands of groups
    don't stretch the page) and is user-resizable: drag the grip at the bottom-right corner to grow/shrink. */
-.trkview{max-height:72vh;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px;resize:vertical;min-height:160px}
+.trkview{height:72vh;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px;resize:vertical;min-height:160px}
 .trkview .grp:last-child{margin-bottom:0}
 /* Collapsible groups: a caret button toggles a .collapsed class that hides the .grpbody. */
 .grptoggle{background:none;border:none;color:var(--muted);cursor:pointer;padding:2px 4px;font:inherit;line-height:1}
@@ -98,12 +105,15 @@ a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}td a{
 .grp.collapsed .caret::before{content:"▶"}
 .grp.collapsed .grpbody{display:none}
 .grpfix{color:var(--muted);font-size:12px;white-space:nowrap}
-/* Completion outline (inset, so .grp's overflow:hidden never clips it): amber dashed while the group still
-   has unfixed links, green dashed once every link in the group is ticked Fixed. */
-.grp.needfix .grphead{outline:2px dashed var(--warn);outline-offset:-2px}
-.grp.alldone .grphead{outline:2px dashed var(--good);outline-offset:-2px}
-/* Group-level pagination bar (only shown when a tab has more than PER_PAGE groups). */
-.pager{display:flex;align-items:center;justify-content:center;gap:12px;padding:8px;flex-wrap:wrap}
+/* Completion outline (inset, so .grp's overflow:hidden never clips it): a translucent amber dashed ring
+   while the section still has links that are neither Fixed nor marked Working; it simply disappears once
+   every link is resolved (no separate "all done" color). */
+.grp.needfix .grphead{outline:2px dashed rgba(251,191,36,.55);outline-offset:-2px}
+.grpctl .vlbl{margin-left:0}
+/* Group-level pagination — lives ABOVE the scroll viewport (in .pagerbar, outside .trkview) so Prev/Next
+   stay visible no matter how far you scroll the current page's groups. Only shown when a tab exceeds PER_PAGE. */
+.pagerbar{margin-bottom:10px}.pagerbar:empty{display:none}
+.pager{display:flex;align-items:center;justify-content:center;gap:12px;padding:6px 8px;flex-wrap:wrap}
 .pgnum{color:var(--muted);font-size:12px}
 .pgbtn:disabled{opacity:.5;cursor:default}
 tr.done td:not(.c):not(.v):not(.ft):not(.ts){opacity:.5;text-decoration:line-through}
@@ -118,8 +128,8 @@ tr.done td:not(.c):not(.v):not(.ft):not(.ts){opacity:.5;text-decoration:line-thr
   <button id="expAll" class="btn" type="button" title="Expand every group on this tab">Expand all</button><button id="colAll" class="btn" type="button" title="Collapse every group on this tab">Collapse all</button>
   <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">⬇ Export</button><button id="cwImp" class="btn" type="button" title="Load a tracker-state JSON someone shared (merges by entry, then reloads)">⬆ Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in — email that single file">💾 Save copy</button><input type="file" id="cwImpF" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
  </div>
- <div class="trkview" id="view-int"><div id="panel-int"></div></div>
- <div class="trkview hidden" id="view-ext"><div id="panel-ext"></div></div>
+ <div class="tabview" id="tv-int"><div class="pagerbar" id="pager-int"></div><div class="trkview" id="view-int"><div id="panel-int"></div></div></div>
+ <div class="tabview hidden" id="tv-ext"><div class="pagerbar" id="pager-ext"></div><div class="trkview" id="view-ext"><div id="panel-ext"></div></div></div>
 </div></main>
 <script>
 var DATA = "__DATA__";
@@ -180,7 +190,7 @@ var DATA = "__DATA__";
       var ref=g.order[i],links=g.map[ref],rows='';
       for(j=0;j<links.length;j++){var bk=links[j],pk=pkey(ref,bk.broken),ck=initChecked(ref,bk.broken),ft=initFt(pk),vd=initVerdict(bk.broken,bk.v),tv=initTs(bk.broken,bk.ts);
         rows+='<tr'+(ck?' class="done"':'')+' data-ref="'+esc(ref)+'" data-broken="'+esc(bk.broken)+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td class="ft">'+esc(ft)+'</td><td class="ts tsd" data-broken="'+esc(bk.broken)+'">'+esc(tv)+'</td><td class="v"><input type="checkbox" class="vb" data-broken="'+esc(bk.broken)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></td><td class="v"><input type="checkbox" class="vo" data-broken="'+esc(bk.broken)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></td><td>'+cell(bk.broken)+'</td><td class="muted">'+esc(bk.reason)+'</td></tr>';}
-      out.push('<div class="grp"><div class="grphead"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(ref)+'</span><span class="cnt">'+links.length+' broken link'+(links.length===1?'':'s')+'</span><span class="grpfix"></span><span class="grow"></span><label class="notelbl">Notes <input type="text" class="pnote" data-ref="'+esc(ref)+'" placeholder="notes…" value="'+esc(initNote(ref))+'"></label></div><div class="grpbody"><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th class="ts">Last tested</th><th class="v">Broken</th><th class="v">Working</th><th>Broken link it points to</th><th>Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>');
+      out.push('<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(ref)+'</span></div><div class="grpctl"><span class="cnt">'+links.length+' broken link'+(links.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark every broken link on this page Fixed at once (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label></div><div class="grpnote"><label class="notelbl">Notes <input type="text" class="pnote" data-ref="'+esc(ref)+'" placeholder="notes…" value="'+esc(initNote(ref))+'"></label></div></div><div class="grpbody"><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th class="ts">Last tested</th><th class="v">Broken</th><th class="v">Working</th><th>Broken link it points to</th><th>Reason</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>');
     }
     return out;
   }
@@ -202,7 +212,7 @@ var DATA = "__DATA__";
       var url=g.order[i],info=g.map[url],refs=info.refs,vd=initVerdict(url,info.v),tv=initTs(url,info.ts),rows='';
       for(j=0;j<refs.length;j++){var ref=refs[j],pk=pkey(ref,url),ck=initChecked(ref,url),ft=initFt(pk);
         rows+='<tr'+(ck?' class="done"':'')+' data-ref="'+esc(ref)+'" data-broken="'+esc(url)+'"><td class="c"><input type="checkbox" class="fx"'+(ck?' checked':'')+'></td><td class="ft">'+esc(ft)+'</td><td>'+cell(ref)+'</td></tr>';}
-      out.push('<div class="grp"><div class="grphead"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(url)+'</span><span class="cnt">'+refs.length+' page'+(refs.length===1?'':'s')+'</span><span class="grpfix"></span><span class="grow"></span><span class="vlbl">Last tested <span class="tsd" data-broken="'+esc(url)+'">'+esc(tv)+'</span></span><label class="vlbl">Broken <input type="checkbox" class="vb" data-broken="'+esc(url)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></label><label class="vlbl">Working <input type="checkbox" class="vo" data-broken="'+esc(url)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></label></div><div class="grpbody"><div class="grpreason muted">'+esc(info.reason)+'</div><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th>Page that links here</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>');
+      out.push('<div class="grp"><div class="grphead"><div class="grptop"><button type="button" class="grptoggle" title="Show/hide this group"><span class="caret"></span></button><span class="ref">'+cell(url)+'</span></div><div class="grpctl"><span class="cnt">'+refs.length+' page'+(refs.length===1?'':'s')+'</span><span class="grpfix"></span><label class="grpall" title="Tick to mark this broken link Fixed on every page that links to it (untick to clear them all)">All: <input type="checkbox" class="grpfixall"> Fixed</label><span class="vlbl">Last tested <span class="tsd" data-broken="'+esc(url)+'">'+esc(tv)+'</span></span><label class="vlbl">Broken <input type="checkbox" class="vb" data-broken="'+esc(url)+'"'+(vd==='broken'?' checked':'')+' title="Manual check confirms it is broken"></label><label class="vlbl">Working <input type="checkbox" class="vo" data-broken="'+esc(url)+'"'+(vd==='working'?' checked':'')+' title="Manual check shows it works"></label></div></div><div class="grpbody"><div class="grpreason muted">'+esc(info.reason)+'</div><div class="tablewrap"><table><thead><tr><th class="c">Fixed</th><th class="ft">Fixed on</th><th>Page that links here</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>');
     }
     return out;
   }
@@ -218,20 +228,30 @@ var DATA = "__DATA__";
   function ancByCls(el,c){var n=el;while(n){if(hasCls(n,c))return n;n=n.parentNode;}return null;}
   function grpOf(el){return ancByCls(el,'grp');}
   function wire(){
-    var boxes=document.querySelectorAll('.fx'),notes=document.querySelectorAll('.pnote'),vbs=document.querySelectorAll('.vb'),vos=document.querySelectorAll('.vo'),tgs=document.querySelectorAll('.grptoggle'),pps=document.querySelectorAll('.pgprev'),pns=document.querySelectorAll('.pgnext'),i;
+    var boxes=document.querySelectorAll('.fx'),notes=document.querySelectorAll('.pnote'),vbs=document.querySelectorAll('.vb'),vos=document.querySelectorAll('.vo'),fas=document.querySelectorAll('.grpfixall'),tgs=document.querySelectorAll('.grptoggle'),pps=document.querySelectorAll('.pgprev'),pns=document.querySelectorAll('.pgnext'),i;
     for(i=0;i<boxes.length;i++){boxes[i].addEventListener('change',function(){var tr=this.parentNode.parentNode,k=pkey(tr.getAttribute('data-ref'),tr.getAttribute('data-broken'));save(k,this.checked);var t=this.checked?nowStr():'';saveFt(k,t);var fc=tr.querySelector('.ft');if(fc)fc.textContent=t;tr.className=this.checked?'done':'';var g=grpOf(this);if(g)refreshGroup(g);progress();});}
     for(i=0;i<notes.length;i++){notes[i].addEventListener('input',function(){saveNote(this.getAttribute('data-ref'),this.value);});}
-    // Broken/Working verdict boxes: mutually exclusive, auto-stamp the time, synced per URL.
-    for(i=0;i<vbs.length;i++){vbs[i].addEventListener('change',function(){setVerdict(this.getAttribute('data-broken'),this.checked?'broken':'');});}
-    for(i=0;i<vos.length;i++){vos[i].addEventListener('change',function(){setVerdict(this.getAttribute('data-broken'),this.checked?'working':'');});}
+    // Broken/Working verdict boxes: mutually exclusive, auto-stamp the time, synced per URL. A Working
+    // tick can resolve a section (no fix needed), so refresh every group's completion outline after.
+    for(i=0;i<vbs.length;i++){vbs[i].addEventListener('change',function(){setVerdict(this.getAttribute('data-broken'),this.checked?'broken':'');refreshAllGroups();});}
+    for(i=0;i<vos.length;i++){vos[i].addEventListener('change',function(){setVerdict(this.getAttribute('data-broken'),this.checked?'working':'');refreshAllGroups();});}
+    // "All: Fixed" bulk box in each section header — ticks/unticks every Fixed box in that group at once.
+    for(i=0;i<fas.length;i++){fas[i].addEventListener('change',function(){var g=grpOf(this);if(g)bulkFix(g,this.checked);});}
     // Collapsible group caret + group-level pagination prev/next.
     for(i=0;i<tgs.length;i++){tgs[i].addEventListener('click',function(){var g=grpOf(this);if(g)toggleCls(g,'collapsed');});}
     for(i=0;i<pps.length;i++){pps[i].addEventListener('click',function(){var pp=ancByCls(this,'pager');if(!pp)return;var w=pp.getAttribute('data-which');pageState[w]--;fill();});}
     for(i=0;i<pns.length;i++){pns[i].addEventListener('click',function(){var pp=ancByCls(this,'pager');if(!pp)return;var w=pp.getAttribute('data-which');pageState[w]++;fill();});}
   }
-  // Per-group "K/N fixed" counter + completion outline: amber dashed while the group still has unfixed
-  // links, green dashed once every link in it is ticked Fixed. Recomputed live from the group's own boxes.
-  function refreshGroup(g){var bx=g.querySelectorAll('.fx'),n=bx.length,d=0,i;for(i=0;i<n;i++)if(bx[i].checked)d++;var f=g.querySelector('.grpfix');if(f)f.textContent=d+'/'+n+' fixed';var done=(n>0&&d>=n);toggleCls(g,'alldone',done);toggleCls(g,'needfix',!done);}
+  // Is the broken link in this row marked Working? (By page the Working box sits in the row; By broken
+  // link it sits in the section header — either way it carries data-broken, so look group-wide.)
+  function rowWorking(g,tr){var url=tr.getAttribute('data-broken'),vos=g.querySelectorAll('.vo'),i;for(i=0;i<vos.length;i++){if(vos[i].getAttribute('data-broken')===url&&vos[i].checked)return true;}return false;}
+  // Per-group "K/N fixed" counter (Fixed boxes), the "All: Fixed" box state, and the completion outline.
+  // The amber ring shows while ANY link in the section is still unresolved — neither Fixed nor confirmed
+  // Working — and simply clears once every link is resolved (no separate "all done" colour).
+  function refreshGroup(g){var rows=g.querySelectorAll('tr[data-ref]'),n=rows.length,fixed=0,resolved=0,i;for(i=0;i<n;i++){var tr=rows[i],fx=tr.querySelector('.fx'),isF=!!(fx&&fx.checked);if(isF)fixed++;if(isF||rowWorking(g,tr))resolved++;}var f=g.querySelector('.grpfix');if(f)f.textContent=fixed+'/'+n+' fixed';toggleCls(g,'needfix',resolved<n);var a=g.querySelector('.grpfixall');if(a){a.checked=(n>0&&fixed>=n);a.indeterminate=(fixed>0&&fixed<n);}}
+  // Bulk-apply Fixed to every (page -> link) row in a section: tick/untick its Fixed box, persist the
+  // flag + stamp/clear the "Fixed on" time, then refresh the counter/outline + global progress.
+  function bulkFix(g,on){var rows=g.querySelectorAll('tr[data-ref]'),i;for(i=0;i<rows.length;i++){var tr=rows[i],fx=tr.querySelector('.fx');if(!fx)continue;fx.checked=on;var k=pkey(tr.getAttribute('data-ref'),tr.getAttribute('data-broken')),t=on?nowStr():'';save(k,on);saveFt(k,t);var fc=tr.querySelector('.ft');if(fc)fc.textContent=t;tr.className=on?'done':'';}refreshGroup(g);progress();}
   function refreshAllGroups(){var gs=document.querySelectorAll('.grp'),i;for(i=0;i<gs.length;i++)refreshGroup(gs[i]);}
   function setAllGroups(collapsed){var gs=document.querySelectorAll('.grp'),i;for(i=0;i<gs.length;i++)toggleCls(gs[i],'collapsed',collapsed);}
   // viewMode = 'page' (referrer page -> its broken links) or 'link' (broken link -> the pages that
@@ -242,10 +262,12 @@ var DATA = "__DATA__";
   var PER_PAGE=50, pageState={int:0,ext:0};
   function rmode(which){return viewMode==='link'?renderByLink(which):render(which);}
   function pager(which,p,pages,total){return '<div class="pager" data-which="'+which+'"><button type="button" class="btn pgbtn pgprev"'+(p<=0?' disabled':'')+'>‹ Prev</button><span class="pgnum">Page '+(p+1)+' of '+pages+' · '+total+' groups</span><button type="button" class="btn pgbtn pgnext"'+(p>=pages-1?' disabled':'')+'>Next ›</button></div>';}
-  function fillPanel(which){var arr=rmode(which),host=document.getElementById('panel-'+which);if(typeof arr==='string'){host.innerHTML=arr;return;}var total=arr.length,pages=Math.max(1,Math.ceil(total/PER_PAGE));if(pageState[which]>=pages)pageState[which]=pages-1;if(pageState[which]<0)pageState[which]=0;var p=pageState[which],slice=arr.slice(p*PER_PAGE,p*PER_PAGE+PER_PAGE),pg=(total>PER_PAGE)?pager(which,p,pages,total):'';host.innerHTML=pg+slice.join('')+pg;}
+  // The pager goes in the OUTSIDE .pagerbar (above the scroll viewport) so Prev/Next stay put while you
+  // scroll a page's groups; the groups themselves fill the inner scrolling panel.
+  function fillPanel(which){var arr=rmode(which),host=document.getElementById('panel-'+which),pbar=document.getElementById('pager-'+which);if(typeof arr==='string'){host.innerHTML=arr;if(pbar)pbar.innerHTML='';return;}var total=arr.length,pages=Math.max(1,Math.ceil(total/PER_PAGE));if(pageState[which]>=pages)pageState[which]=pages-1;if(pageState[which]<0)pageState[which]=0;var p=pageState[which],slice=arr.slice(p*PER_PAGE,p*PER_PAGE+PER_PAGE);if(pbar)pbar.innerHTML=(total>PER_PAGE)?pager(which,p,pages,total):'';host.innerHTML=slice.join('');}
   function fill(){fillPanel('int');fillPanel('ext');wire();refreshAllGroups();progress();}
   var tabs=document.querySelectorAll('.tab'),i;
-  for(i=0;i<tabs.length;i++){tabs[i].addEventListener('click',function(){var t=this.getAttribute('data-t'),j;for(j=0;j<tabs.length;j++)tabs[j].className='tab'+(tabs[j]===this?' active':'');var vi=document.getElementById('view-int'),ve=document.getElementById('view-ext');if(vi)vi.className=(t==='int')?'trkview':'trkview hidden';if(ve)ve.className=(t==='ext')?'trkview':'trkview hidden';});}
+  for(i=0;i<tabs.length;i++){tabs[i].addEventListener('click',function(){var t=this.getAttribute('data-t'),j;for(j=0;j<tabs.length;j++)tabs[j].className='tab'+(tabs[j]===this?' active':'');var ti=document.getElementById('tv-int'),te=document.getElementById('tv-ext');if(ti)ti.className=(t==='int')?'tabview':'tabview hidden';if(te)te.className=(t==='ext')?'tabview':'tabview hidden';});}
   var gtabs=document.querySelectorAll('.gtab'),gi;
   for(gi=0;gi<gtabs.length;gi++){gtabs[gi].addEventListener('click',function(){var g=this.getAttribute('data-g'),j;if(g===viewMode)return;viewMode=g;pageState={int:0,ext:0};for(j=0;j<gtabs.length;j++)gtabs[j].className='gtab'+(gtabs[j]===this?' active':'');fill();});}
   var bExp=document.getElementById('expAll');if(bExp)bExp.addEventListener('click',function(){setAllGroups(false);});

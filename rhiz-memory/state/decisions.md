@@ -87,6 +87,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-076** (2026-06-27) — Fix tracker: **dropped the Internal/External tab** — both lists work together in one view (`allList()` tags each entry `type`), **By page** showing every broken link on a page with a **Type** column and **By broken link** a type badge; collapsed to one `panel-all`; stat matrix keeps its int/ext breakdown
 - **AD-077** (2026-06-27) — Drag-resizable **table columns** in the fix tracker (ports the report's `.grptbl` grip/broadcast/persist), tagging the two shapes `gp`/`gl` for per-shape default widths, storage keyed per view (`cwfixcol:host:page`/`:link`), re-wired in `fill()`, with **↔ Reset columns** — UI/UX now consistent with the crawl report
 - **AD-078** (2026-06-27) — Memory consolidation: SYNTHESIS §5 lessons **#23–#30** + a themed index, capability inventory/§6 refreshed to AD-077 (244/0), `SESSION_HANDOFF`/`RESUME_BLOCK` rewritten current (stale migration append-logs dropped), and a `RHIZOME-CORE-CANDIDATES.md` package of 12 transferable principles staged for promotion into `david-coneff/rhizome`
+- **AD-079** (2026-06-27) — Promoted the 12 candidate principles into `david-coneff/rhizome` (rhiz-Audit patterns #41–#46 + a #13 merge; cross-project-design-standards DS-003–006); `RHIZOME-CORE-CANDIDATES.md` retired to a promotion record; SYNTHESIS/`_instance` coherence touch-ups
 
 ---
 

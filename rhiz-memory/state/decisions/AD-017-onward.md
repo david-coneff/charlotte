@@ -1539,3 +1539,38 @@ a concrete Charlotte instance, with project-specific mechanics deliberately left
 session with `david-coneff/rhizome` in scope reviews/merges them into the core, then prunes the file.
 **Verification:** docs-only (no code touched); §5 numbering continuous 1–30; the candidates file is
 self-contained and cross-referenced from `_instance.md`'s memory map. No suite run needed.
+
+## AD-079: Promoted Charlotte's universal principles into the Rhizome protocol repo
+**Date:** 2026-06-27
+**Problem:** AD-078 staged 12 transferable principles in `RHIZOME-CORE-CANDIDATES.md` but explicitly
+left their promotion into `david-coneff/rhizome` out of scope ("out of this session's scope"). With
+**both** repos in scope this session, the principles needed to be reviewed, generalized, and folded
+into rhizome's *existing* memory structure (merge, don't duplicate), and Charlotte's own memory given a
+coherence pass.
+**Decision:** migrated all 12 candidates into rhizome's existing structures — **no new files**:
+- **7 review-lens principles → `rhizome/modules/rhiz-audit/audit-reasoning-patterns.md`**: new patterns
+  **#41 Source-Not-Artifact Validation** (cand. 1), **#42 Divergent Parallel Computation** (cand. 3,
+  xref #22), **#43 Scattered Cross-Cutting Concern** (cand. 5, xref #17), **#44 Silent Reuse No-Op**
+  (cand. 9), **#45 Override/Default Layer Collision** (cand. 8), **#46 Sibling Surface Drift** (cand. 7);
+  candidate 2 ("stubs vs. real env") merged into existing **#13 Test/Production Divergence** rather than
+  duplicated. The catalog count was synced 40→46 in `rhiz-audit.md` §7 (same-revision discipline).
+- **5 working-method principles → `rhizome/docs/cross-project-design-standards.md`**: **DS-003**
+  (reproduce-before-fix + encode-the-invariant; absorbs candidate 12, confirm-a-new-failure-is-new),
+  **DS-004** (additive/revert-and-reapply, cand. 6), **DS-005** (the tight feedback loop is the design
+  tool, cand. 10), **DS-006** (record the trap with its code, cand. 11). Charlotte added as the third
+  contributing project (after broodforge, tessel).
+- Recorded the cross-repo contribution in rhizome's `SESSION_HANDOFF.md` with a destination map.
+- **Charlotte side:** rewrote `RHIZOME-CORE-CANDIDATES.md` into a retained promotion record (its own
+  retirement instruction), refreshed the SYNTHESIS synthesis-date line (`through AD-065`→`AD-078`) and
+  corrected the stale §7 note about `_instance.md`'s inventory.
+- **Split rationale:** a *review lens* (a flaw an auditor looks **for** in a finished artifact) belongs
+  in the rhiz-Audit catalog; a *working-method discipline* (how to build/debug/record) belongs in
+  cross-project standards. Charlotte-specific template/`blob:`/HTA mechanics were deliberately left in
+  SYNTHESIS §5, not promoted.
+- **Governance:** not a major revision (no change to rhiz-Core, the Authority Hierarchy, or module
+  structure) — ordinary DRAFT-state growth of a catalog built to accumulate project-derived patterns
+  (rhiz-Core §3), so no `protocol-revision-record/` entry; git history + each file's Provenance suffice.
+**Verification:** docs/governance-only (no product code touched — Charlotte's 244/0 suite unaffected).
+rhizome `rhiz-audit.md` §7 count (46) and section lists match the catalog; every candidate maps to
+exactly one rhizome home; the destination map is mirrored in three places (Charlotte's promotion record,
+rhizome's `SESSION_HANDOFF.md`, and this ADR) so the migration is traceable from either repo.

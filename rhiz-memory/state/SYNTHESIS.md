@@ -8,7 +8,8 @@ didn't, so the hard-won knowledge survives even when the per-decision detail is
 too much to re-read. `RESUME_BLOCK.md` is the "where am I right now" pointer;
 `_instance.md` is the governance charter; this is the retrospective map.
 
-_Last synthesized: 2026-06-27, through AD-065._
+_Last synthesized: 2026-06-27, through AD-078 (capability inventory and §5 lessons cover
+the full report/tracker arc AD-053–077; AD-078 consolidated the memory)._
 
 ---
 
@@ -511,8 +512,10 @@ crashes — NOT in the maintained set; §5 #12/#19.)
 
 - The browser toolchain (`web-crawler.html`) has not received the triage/fix-tracker UX the
   Node report has; it remains the lightweight in-tab variant.
-- `_instance.md`'s file-inventory table predates the module split (it lists only `crawl.js`);
-  the DAG in §3 here is the current shape.
+- `_instance.md`'s file-inventory table carries a 2026-06-26 note enumerating the sibling
+  modules and redirects here for the module DAG (the canonical current shape is §3 above);
+  the table itself still has one row per *toolchain entry point* rather than per leaf module,
+  which is the intended altitude for a governance/identity file.
 - Interstitial delay (~0.6s) and the satellite's reverse-tabnabbing exposure are accepted
   trade-offs for a local tool; revisit if Charlotte is ever served to untrusted users.
 - The fix tracker's import/persistence needs a served page on `file://` Chrome (lesson #4);

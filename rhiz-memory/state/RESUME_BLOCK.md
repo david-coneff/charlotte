@@ -11,56 +11,47 @@ One-screen save-state for Charlotte's development continuity.
   + headless verifier; in-browser variant + CORS proxy). Zero-dependency core
   (Node built-ins only); Playwright is optional and used only by `crawl-render.js`.
 
-- **active_objective**: Stand the crawler up as its own repository, migrated out
-  of broodforge `tools/` and running identically at repo root. Done.
+- **active_objective**: The crawler is stood up as its own repo (migration done). Work is now an
+  operator-driven **ergonomics pass** on the self-contained report + fix tracker — make a
+  multi-thousand-destination crawl scannable and tunable without breaking the zero-dependency /
+  open-from-`file://` properties. Landed through AD-065.
 
-- **active_milestone**: Initial migration (2026-06-24). 6 tool files carried over
-  byte-for-byte and flattened to root; `CRAWLER.md` paths updated; `.gitignore`,
-  `README.md`, `package.json`, and the `rhiz-memory/` instance added; CLIs
-  verified (`--help` on `crawl.js` and `crawl-render.js`, syntax check on the proxy).
+- **active_milestone**: **Report & tracker ergonomics at scale** (2026-06-27, AD-053–065) on branch
+  `claude/festive-cerf-7loovw`. All maintained DOM-stub + headless suites 170/0.
 
 - **active_risks**: None to the tool itself.
 
 - **blockers**: None.
 
-- **next_action**: Operator to delete the `claude/html-web-crawler-sd0i4p` branch
-  in broodforge via the GitHub UI — this session is blocked from it (branch-write
-  policy 403 + no delete-branch tool exposed). See SESSION_HANDOFF.md.
+- **next_action**: None pending. Branch `claude/festive-cerf-7loovw` is pushed through AD-065;
+  await the next operator refinement. (The migration-era broodforge branch cleanup is moot.)
 
-- **last_completed_step**: **Triage polish — untested-domain highlight, popup interstitial, drop report-side Fixed box**
-  (2026-06-26). (d) **AD-050 — dashed-amber header** on any per-domain group that still has untested links
-  (inset outline; toggled by `deriveDomain`, the inverse of the all-tested flag), so unfinished domains
-  stand out across collapsed groups. (e) **AD-051 — satellite popup interstitial:** each (re)use first
-  shows a brief blob: page naming the link being loaded (spinner + URL + "Open it directly"), then
-  meta-refreshes to it — so testing several links that share one 404 page is distinguishable. data: is
-  blocked for top-level nav, so it's a blob the opener creates (same-origin → may navigate even a
-  cross-origin popup; verified from file://); `go()` falls back to a direct load. (f) **AD-052 — removed
-  the per-referrer Fixed checkbox** from the base report ("Found on" now shows plain referrer links):
-  fix-tracking lives entirely in the standalone fix tracker now; `refsAll` stays (feeds tracker data),
-  `exportTracker` seeds `ticked={}`. New cfgtest/border/interstitial coverage; all suites green.
-  (Earlier this session: (a) **AD-048 — domain grouping generalized to the Blocked·uncertain tab** (was
-  Errors·external only) via a shared `domainGroups(arr, scope, headHtml, cellsFn)`; each per-domain
-  header now has an **All: Broken / Working** bulk pair, a disabled **Mixture of broken/working**
-  indicator, a disabled **all tested** indicator, and a live **"tested K/N · B broken · W working"**
-  counter visible while collapsed. Rows + every control carry `data-domain` AND `data-scope`; the IIFE
-  wiring (`rowsInDomain`/`domCtl`/`deriveDomain`/`applyDomain`) is generalized and `wireDomains()` loops
-  both tabs. (b) **"Internal pages" → "Internal destinations"** stat card + tab + multi-site row + --help,
-  for nomenclature consistency (destination = unique URL; instance = one link occurrence). data-tab /
-  panel ids stay `internal`. (c) **AD-049 — crawl settings persisted in the JSON** so a `--rebuild-from`
-  / `--recheck-from` REWRITE shows the real config line instead of the rewrite process's CLI defaults
-  (the GUI "Rebuild report" passes no tuning flags; "Re-check" only some — so a 2/3000/1/no-limit crawl
-  was shown as 4/100/no-rps/200/3). `effSettings(state,cfg)` prefers `state.settings` (restored by
-  `loadStateFromJson` from a new `settings` block in `buildReportJson`, Infinity↔null) over cfg; live cfg
-  still drives the re-probe; old JSONs fall back gracefully. Verified: cfgtest (19 asserts) + real CLI
-  `--rebuild-from` shows `2 concurrent · 3000ms · 1 rps cap · max unlimited pages / depth unlimited`;
-  domtest/vtest/sharetest/revtest/newwin all pass.)
-  (Prior step — **AD-044** Requests stat = internal pages crawled + external destinations verified;
-  **AD-045** GUI sizes its window to content on open; **AD-046** configurable pagination breakpoint
-  (`--page-size` + GUI dropdown); **AD-047** fix tracker reverse mapping (By page / By broken link) with
-  synced Fixed flags.)
-  (Earlier — **AD-039–AD-043**: satellite link-window reuse, fixed-layout triage tables, live broken-
-  destination stats, re-check GUI integration with Pause/Stop + separate `*.recheck.json`, and the
-  initial Errors·external domain grouping.)
+- **last_completed_step**: **Report & tracker ergonomics at scale** (2026-06-27, AD-053–065). The
+  headline stats became a broken-over-total matrix with adaptive percents + a legend card (AD-053–057).
+  **AD-061** folder/host-grouped the NON-triage tabs (Internal/External/Out-of-scope) via
+  `simpleGroups(items,keyOf,head,rowFn,tcls)` — same `.domgrp` collapsible + `.groupview` viewport as the
+  triage tabs, `keyOf`=`folderOf`/`hostOf`. **AD-062** gave the fix tracker collapsible sections, a K/N
+  fixed counter, a completion outline, Expand/Collapse-all, a fixed-height viewport, and group-level
+  pagination (50/page). **AD-063→064** made viewports drag-resizable in HEIGHT and fixed the grip that
+  could only shrink by switching `max-height`→ definite `height` (SYNTHESIS lesson #13). **AD-064** added
+  the **All: Fixed** bulk box (KEEPING the Broken/Working verdicts — the operator reversed an initial
+  "remove them" ask; reverted via `git checkout` and re-applied additively, lesson #18), stacked the
+  tracker header for long URLs, cleared the amber when all links are fixed *or* working (no green outline),
+  and moved the pager ABOVE the scroll viewport. **AD-065** extended drag-resizable COLUMNS to the
+  non-triage tabs (`table.grptbl` + a self-contained resize IIFE — the triage resize bails when there are
+  no `data-url` rows, lesson #16), removed ALL minimum column widths (blanket `min-width:0`, grip floor
+  40→16), and folded the lengthy per-tab help into a "How this tab works" `<details>`. Verified headlessly
+  (resize broadcast/persist/reset, resolve-by-working, pager-outside, definite-height); SYNTHESIS §4/§5
+  updated with code examples (lessons #13–20). Suites 170/0.
+
+- **prior_step**: **Triage polish — untested-domain highlight, popup interstitial, drop report-side
+  Fixed box** (2026-06-26, AD-048–052). Domain grouping generalized to the Blocked tab with richer
+  headers (All: Broken/Working bulk pair, Mixture + all-tested indicators, tested K/N counter); "Internal
+  pages"→"Internal destinations"; **AD-049** persisted crawl settings in the JSON so a rebuild/re-check
+  rewrite shows the real config line (not the rewrite process's CLI defaults); **AD-050** dashed-amber
+  header on any group with untested links; **AD-051** blob: popup interstitial naming the next link;
+  **AD-052** removed the per-referrer Fixed box from the base report (fix-tracking lives in the tracker).
+  All suites green.
 
 - **prior_step**: Added a **"Fixed on" timestamp** and **shareable state** to the fix
   tracker (2026-06-25, AD-033). The Fixed box now stamps its own date/time when ticked (clears on

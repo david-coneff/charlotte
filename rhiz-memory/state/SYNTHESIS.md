@@ -8,7 +8,7 @@ didn't, so the hard-won knowledge survives even when the per-decision detail is
 too much to re-read. `RESUME_BLOCK.md` is the "where am I right now" pointer;
 `_instance.md` is the governance charter; this is the retrospective map.
 
-_Last synthesized: 2026-06-26, through AD-052._
+_Last synthesized: 2026-06-27, through AD-065._
 
 ---
 
@@ -36,10 +36,14 @@ The non-negotiables (full charter in `_instance.md`):
 - **Loose coupling.** Every file is independently runnable; couplings are runtime /
   file-format, never `require()` across toolchains.
 
-The throughline of the last ~35 decisions (AD-017–052): turn the report from a
+The throughline of the last ~48 decisions (AD-017–065): turn the report from a
 *read-only artifact* into a **triage workstation** — mark links Broken/Working,
 track fixes, and hand the verdicts off — without ever breaking the zero-dependency,
-self-contained, open-from-`file://` properties.
+self-contained, open-from-`file://` properties. The most recent arc (AD-053–065)
+is **ergonomics at scale**: every tab folder/domain-grouped into collapsible
+sections, group-level pagination, fixed-height viewports the operator can drag
+taller, drag-resizable columns with no enforced minimum, an `All: Fixed` bulk box,
+and collapsible help — so a 6,000-destination crawl stays scannable and tunable.
 
 ---
 
@@ -90,7 +94,7 @@ self-contained, open-from-`file://` properties.
 - Client-side **pagination** with a configurable breakpoint (`--page-size`, GUI dropdown).
 - Multi-site **index report** + per-site reports + combined JSON.
 
-### Triage workstation (AD-028–052)
+### Triage workstation (AD-028–065)
 - Per-link **Broken / Working** verdicts — mutually exclusive, auto-stamped
   **Last-tested** time. Errors default to "assumed broken"; Blocked default to
   "uncertain" (so ticking Broken *confirms* dead). State keyed
@@ -105,13 +109,26 @@ self-contained, open-from-`file://` properties.
 - Satellite **link window**: clicking a broken link opens/ reuses ONE popup docked to
   the side of the report with more room; each (re)use first flashes a **blob:
   interstitial** naming the link being loaded (so identical 404s are distinguishable).
+- **Every tab grouped + tunable (AD-061/063/065).** Non-triage tabs (Internal/External/
+  Out-of-scope) fold into the same collapsible sections (by first-level folder, or by host
+  for External) with a count each and Expand/Collapse-all. Every tab's list lives in a
+  fixed-height scroll viewport the operator can **drag taller** (definite `height`, no cap),
+  and every grouped table's **columns are drag-resizable with no minimum** (broadcast across
+  the tab's groups, persisted `cwcol:host:scope`, with a Reset button). The lengthy per-tab
+  help collapses into a **"How this tab works"** disclosure.
 
-### Fix tracker (standalone, AD-008, AD-030–033, AD-047)
+### Fix tracker (standalone, AD-008, AD-030–033, AD-047, AD-062/064)
 - **Export fix tracker** bakes the still-broken links into a separate self-contained
   HTML, grouped **By page** (referrer → its broken links, one Notes field per page) or
   **By broken link** (link → every page that links to it). A **Fixed** checkbox per
   (page,link) pair stamps its own **Fixed-on** time; the same pair's flag is shared
   across both views. Verdicts + Last-tested carried in from the report.
+- Each section is **collapsible** with a stacked header (long link on its own row), a live
+  **K/N fixed** counter, an **All: Fixed** bulk box (ticks every Fixed box in the group), the
+  By-broken-link **Broken/Working** bulk verdict, and a **translucent-amber outline** that
+  clears once every link is fixed *or* working. The list scrolls in a resizable fixed-height
+  viewport with the **pager kept ABOVE it** (visible while scrolling), and **group-level
+  pagination** (50/page) keeps thousands of groups light.
 - State persists in the tracker's own `cwfix:host:` namespace (`ft:`/`vd:`/`vt:`/`n:`),
   pkey = `ref + NL + broken`.
 
@@ -187,6 +204,20 @@ contain **no backtick, no `${}`, no backslash**. Double-quotes in emitted markup
   rebuild/re-check *and* the CLI *and* old workflows at once, no GUI change needed.
 - **blob: interstitial** for the popup — verified that a `file://` page can top-level-
   navigate to a blob it created, which is what makes the "loading next link" cue work locally.
+- **One grouping primitive, two flavors.** `domainGroups(arr, scope, head, cells, keyOf)` (triage,
+  with verdict controls) and `simpleGroups(items, keyOf, head, rowFn, tcls)` (non-triage, no controls)
+  render the SAME `.domgrp` collapsible; `keyOf` is `hostOf` for domains and `folderOf` for first-level
+  folders. Every tab ends up visually and behaviorally identical for free (AD-061).
+- **Iterative UI by screenshot loop.** Almost all of AD-061–065 was the operator reacting to a headless
+  screenshot, one small change at a time. The tight `synthstate → inject probe/force-tab → --screenshot
+  → Read` cycle made dozens of refinements cheap and low-risk — the feedback loop *was* the design tool.
+- **"Resolved = fixed OR working."** Completion isn't just "fixed": a link confirmed **Working** needs no
+  fix, so a tracker section's amber clears when every link is fixed *or* working — a one-line semantic that
+  matches how people actually triage, computed from the group's own `.vo` boxes (AD-064).
+- **Per-context divergence when the convention stops fitting.** The report's group headers are one
+  right-aligned row; the tracker's grouped key is a long URL, so its header deliberately STACKS (title row
+  / left-aligned controls row / notes row). Copying the convention would have wrapped badly — diverging on
+  purpose read far better (AD-064).
 
 ---
 
@@ -253,6 +284,81 @@ These are the traps. Re-reading this section before touching the relevant area s
     synthetic fixtures must use host `x` (`http://x/...`), not `x.test`. A few "bake"
     failures in `tracker2-test` are **stale test data**, not regressions — `exportTracker`
     is unchanged.
+
+13. **`max-height` + `resize` = a grip that only shrinks.** CSS `resize:vertical` writes the
+    element's `height`, but a `max-height` *caps* it — so once content is taller than the cap
+    (scrollbar already showing) the box is AT max-height and dragging the corner DOWN does
+    nothing; only dragging up (shrink) works. The operator reported exactly that: "the corner
+    works upward, there's a limiter downward." **Fix:** a definite default `height` and NO
+    `max-height` (keep `min-height` as a floor); pin nested viewports back to `height:auto` so
+    they don't inherit it. (AD-063 → AD-064.)
+    ```css
+    /* broke: grip shows, can't grow past 460 */     .groupview{max-height:460px;overflow:auto;resize:vertical}
+    /* worked: default height, drags both ways */     .groupview{height:460px;min-height:160px;overflow:auto;resize:vertical}
+    .domgrp .dombody{height:auto;resize:none}    /* nested table body: don't inherit the 460 / no grip */
+    .tablewrap .tablewrap{height:auto;resize:none}  /* nested found-on list: same */
+    ```
+
+14. **`classList` / `closest` break the DOM-stub tests.** The first `All: Fixed` pass used
+    `el.classList.toggle()` and `this.closest('.grp')`; the `El()` stub implements neither, so
+    `revtest`/`tracker3` throw. **Fix:** reuse the report IIFE's idiom — token-matching
+    `hasCls`/`addCls`/`toggleCls`/`grpOf` (the stub only needs `.className` + `.parentNode`).
+    `grpOf` must match the EXACT `grp` token, or `.grpbody`/`.grphead` false-match.
+    ```js
+    // broke under the stub:  var g=this.closest('.grp'); g.classList.toggle('collapsed');
+    function hasCls(el,c){return (' '+(el.className||'')+' ').indexOf(' '+c+' ')>=0;}
+    function grpOf(el){var n=el;while(n){if(hasCls(n,'grp'))return n;n=n.parentNode;}return null;}
+    var g=grpOf(this); toggleCls(g,'collapsed');   // worked
+    ```
+
+15. **CSS escapes are template-literal poison too (extends #7).** `content:"\25BC"` inside
+    `TRACKER_TEMPLATE` (a backtick literal later embedded as a JSON string) trips the
+    no-backslash rule and corrupts the outer template. **Fix:** the literal glyph, like
+    `report.js` already uses.
+    ```css
+    /* broke */   .caret::before{content:"\25BC"}
+    /* worked */  .caret::before{content:"▼"}      .grp.collapsed .caret::before{content:"▶"}
+    ```
+
+16. **Shared infra is unreachable if its IIFE bails or its selector is scoped.** The
+    drag-resize machinery lives in the triage IIFE, which opens with
+    `if(!document.querySelector('tr[data-url]')) return;` and only selects
+    `table.haspick,table.blkpick`. "Just reuse it" for the non-triage tabs silently did nothing
+    (no `data-url` rows; wrong selector). **Fix:** the always-run non-triage IIFE carries its
+    OWN copy, keyed `cwcol:host:<internal|external|outscope>`, selecting `table.grptbl`.
+    **Lesson:** before reusing across IIFEs, check BOTH the early-return gating and the selector.
+
+17. **`table-layout:fixed` columns won't shrink past the global min-widths.** A resizable column
+    stalls at `th:first-child{min-width:360px}` / `td:last-child{min-width:300px}`, plus
+    `.tcol`/`.pickcol` had their own `min-width` — so "some columns have a minimum, others
+    don't." **Fix:** blanket `min-width:0` on the resizable tables' `th,td`, drop the per-class
+    minimums, and lower the JS grip floor so every column resizes uniformly with no minimum.
+    ```css
+    table.haspick,table.blkpick,table.grptbl{table-layout:fixed;width:max-content}
+    table.haspick th,table.haspick td,table.grptbl th,table.grptbl td{min-width:0}  /* defeat globals */
+    ```
+    ```js
+    // broke: 40px floor + per-column min-width      cur=Math.max(40, startW+dx);
+    // worked: a token floor only (keeps the grip grabbable, ~no minimum)  cur=Math.max(16, startW+dx);
+    ```
+
+18. **Revert-and-reapply beats piecemeal un-editing on a course reversal.** When the ask flipped
+    ("remove the Broken/Working boxes" → "keep them, just ADD `All: Fixed`"), un-doing four
+    removal edits by hand is error-prone. **Fix:** `git checkout report-templates.js` to restore
+    the committed baseline, then apply only the additive change — one clean diff, no
+    half-reverted state. (Cheap because the prior step was already committed.)
+
+19. **Verify a "new" test failure is actually new (extends #12).** `tracker-test`/`tracker2-test`
+    failed after a tracker edit; `git stash` + regenerate + re-run showed the SAME failure on the
+    committed baseline — they assert an older fixture shape and were never in the maintained set
+    (`tracker3` is). Only attribute a regression once you've reproduced green→red across the edit.
+
+20. **Forcing a screenshot tab: static `<html class>` is unreliable; force it last.** Injecting
+    `class="tab-errext"` on `<html>` did NOT stick (the report's no-flash restore script left the
+    default), so the shot showed the wrong tab. **Fix:** force it from an END-of-body
+    `<script>document.documentElement.className='tab-errext'</script>` that runs after the head
+    script; for the tracker, dispatch a real click on the target `gtab`. (Refines #11: static for
+    panel ISOLATION, end-of-body JS for ACTIVE-TAB selection.)
 
 ---
 

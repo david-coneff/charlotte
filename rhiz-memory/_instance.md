@@ -119,6 +119,7 @@ CRAWLER.md / README.md ──document──▶ all of the above
 | Decisions | `rhiz-memory/state/decisions.md` |
 | Planning / State | `rhiz-memory/state/SESSION_HANDOFF.md`, `rhiz-memory/state/RESUME_BLOCK.md` |
 | Risk / Oversight | `rhiz-memory/audits/` |
+| Upstream candidates | `rhiz-memory/RHIZOME-CORE-CANDIDATES.md` (universal principles staged for promotion into `david-coneff/rhizome`) |
 | Contracts | `package.json` (bin entries, optional deps); crawl.js JSON report shape |
 | Documentation | `README.md`, `CRAWLER.md` |
 | Dependencies | `package.json` (`playwright` — optional, lazy-loaded) |

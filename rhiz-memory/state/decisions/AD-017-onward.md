@@ -1514,3 +1514,28 @@ tables). A **↔ Reset columns** button sits beside Expand/Collapse all.
 column's grip widens it 340→500px, sets an inline `width:500px`, and persists `[…,500]` at the right index in
 `cwfixcol:x:page` (localStorage works on file:// here). `trk-merge` extended: the By-page table is a single
 `.grptbl` with a `.colgrip` on all 8 headers. Tracker template stays 0/0/0; full suite 244/0.
+
+## AD-078: Memory consolidation + a universal-principles package staged for the Rhizome core
+**Date:** 2026-06-27
+**Problem:** after a long report/tracker arc (AD-053–077) the memory had drifted: `SESSION_HANDOFF.md` and
+`RESUME_BLOCK.md` were frozen at the 2026-06-24 migration (stale `next_action` = a moot broodforge-branch
+deletion) and had each accreted a redundant append-log duplicating the ADR record; the §5 lessons and the
+capability inventory lagged the latest work. Separately, the operator asked to extract the *universal*
+lessons for the protocol repo `david-coneff/rhizome` — which is out of this session's scope.
+**Decision:** (1) appended this arc's hard-won lessons as SYNTHESIS §5 **#23–#30** (inner-IIFE breaks the
+test slicer; `require` doesn't validate the template string; per-test DOM stubs; cross-IIFE helper
+duplication; two-paths-diverge counting; reproduce-before-fix + encode-the-invariant; headless probe-source
+pollution; `max-content` clipped by ancestor `overflow:hidden`; regenerate the fixture first) and added a
+**themed index** atop §5 so 30 entries stay navigable. (2) Refreshed §2 capability inventory (merged int/ext
+tracker view + Type column AD-076, resizable tracker columns AD-077, the Referrer-pages card + triaged
+wording AD-075, per-subfolder export + Pages column AD-074) and §6 testing (the headless-probe family; 244/0).
+(3) **Rewrote** `SESSION_HANDOFF.md` and `RESUME_BLOCK.md` to short, current, pointer-style records (the
+blow-by-blow is the ADR log; the page indexes it, doesn't copy it). (4) Created
+**`rhiz-memory/RHIZOME-CORE-CANDIDATES.md`** — 12 *transferable* principles (verify the emitted artifact;
+stubs vs real-env; single-source user-facing numbers; reproduce-then-invariant; chokepoint for cross-cutting
+behavior; additive/revert-and-reapply; sibling-surface consistency; reset-needs-layered-defaults; shared-code
+preconditions; the feedback loop is the tool; record the trap with its code; test infra ages) — each cited to
+a concrete Charlotte instance, with project-specific mechanics deliberately left in SYNTHESIS. A future
+session with `david-coneff/rhizome` in scope reviews/merges them into the core, then prunes the file.
+**Verification:** docs-only (no code touched); §5 numbering continuous 1–30; the candidates file is
+self-contained and cross-referenced from `_instance.md`'s memory map. No suite run needed.

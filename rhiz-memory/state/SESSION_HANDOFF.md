@@ -1,130 +1,67 @@
 # Session Handoff — Charlotte
 
-This is Charlotte's session-handoff artifact — the durable, self-contained
-"what a cold reader needs to resume Charlotte's development" record.
+The durable, self-contained "what a cold reader needs to resume Charlotte's development" record.
+This page stays **short and current**; the blow-by-blow lives in the ADR log and the retrospective,
+which it points to (it is NOT a second copy of them).
 
 ---
 
-- **status**: Charlotte migration **complete and pushed**
-  (`claude/festive-cerf-7loovw`). Broodforge removal **decided** (delete the
-  `claude/html-web-crawler-sd0i4p` branch) but **blocked from this session** —
-  the git relay denies writes/deletes to any branch other than the designated
-  `festive-cerf` (HTTP 403, a policy denial), and the GitHub MCP server exposes
-  no delete-branch tool. The branch must be deleted by the operator.
-  **Update 2026-06-24:** crawler **report features** added — selectable
-  broken-link export to the allowlist (checkbox column + Export/Copy on the
-  Errors tabs), a **Runtime** headline stat, and **Charlotte** branding with a
-  🕸️ favicon — committed and pushed. (AD-007)
+- **status** (2026-06-27): Charlotte is **mature and actively refined**. The crawler engine, the
+  self-contained HTML **crawl report**, and the standalone **fix tracker** are all in service on
+  branch **`claude/festive-cerf-7loovw`** (pushed). The latest arc was a long, operator-driven
+  **ergonomics + workflow pass** on the report and tracker (AD-053–077). All maintained test suites
+  pass: **244/0** (DOM-stub + headless-Chromium probes — see SYNTHESIS §6).
 
-- **objective**: Lift the web-crawler tool out of `broodforge` (where it lived
-  under `tools/` with no code coupling to the rest of the tree) and stand it up
-  as its own repository, `david-coneff/charlotte`, running identically.
+- **what Charlotte is**: a zero-dependency (Node built-ins only; Playwright optional) single-domain
+  crawler that maps a site, verifies links (incl. inside PDF/Office docs), and writes a
+  self-contained HTML report you open from `file://`. Charter + design principles: `_instance.md`.
 
-- **key_decisions_and_insights** (conclusions already reached — do not re-derive):
-  - The crawler had **zero functional dependence** on broodforge and nothing in
-    broodforge imported or executed it (verified in the migration handoff). Its
-    removal there cannot break a build, test, or import. (AD-001)
-  - In broodforge the crawler existed **only on the branch
-    `claude/html-web-crawler-sd0i4p`** — it was never merged to `main` or to
-    `claude/festive-cerf-7loovw`. So broodforge's mainline never carried it.
-  - **Flattened to repo root** (`crawl.js`, not `tools/crawl.js`): it is the
-    whole project now, and the code already names itself `crawl.js` in its own
-    `--help`. The 22 `tools/`-prefixed paths in `CRAWLER.md` were updated to
-    match; tool source was otherwise carried **byte-for-byte**. (AD-002, AD-006)
-  - **Both toolchains kept** (Node: crawl.js/crawl-gui.hta/crawl-render.js;
-    Browser: web-crawler.html/local-cors-proxy.js) — migrate the tool whole. (AD-003)
-  - Added `package.json` (name `charlotte`, `playwright` as an
-    optionalDependency, `bin` entries `crawl`/`crawl-render`), `README.md`, and
-    the crawler's `.gitignore` output-pattern block. (AD-004)
-  - Adopted the Rhizome memory convention in this repo (`rhiz-memory/`). (AD-005)
-  - Report enhancements (AD-007): checkbox-select broken links on the two Errors
-    tabs → **Export to allowlist…** / **Copy** (emits the same `url # reason —
-    found on: src` lines; round-trip verified to move links to Suppressed); a
-    **Runtime** headline stat; Charlotte branding (title/header + 🕸️ favicon);
-    `broodforge*` localStorage keys and default UA renamed to `charlotte*`.
-  - Fix-tracker (AD-008): per-referrer checkboxes on the Errors tabs + **Export
-    fix tracker** → a standalone, tabbed (internal/external) HTML checklist of
-    referrer→broken-link pairs with editable **Fixed** boxes and a **Notes · who
-    to contact** field; self-renders from an embedded JSON island, state persisted
-    in localStorage. Verified report→export→render.
-  - Refactor (AD-009): extracted the report/output layer (~570 lines) from
-    `crawl.js` into a sibling **`report.js`** (`buildReport`, `writeOutputs`,
-    `buildIndexReport`, `writeCombinedJson` + render caps / branding / `esc`);
-    `crawl.js` dropped 1,861→1,301 lines and `require`s the three writers back.
-    Report output verified **byte-for-byte identical** to pre-split.
+- **where the detail lives** (do not duplicate it here):
+  - **Decisions** — `state/decisions.md` is an ADR **index**; bodies in `decisions/AD-001-016.md`
+    (migration + engine) and `decisions/AD-017-onward.md` (report / triage / sharing / tracker;
+    AD-017–077). Every behavior change is one AD with its verification.
+  - **Retrospective** — `state/SYNTHESIS.md`: capability inventory (§2), what worked (§4), the
+    **hard-won lessons** (§5, themed index up top — read before touching the relevant area),
+    testing approach (§6), open threads (§7).
+  - **Reference docs** — `CRAWLER.md` (full suite reference), `README.md` (quick start).
 
-- **milestone_checklist**:
-  - [x] Located the crawler + migration handoff on broodforge `claude/html-web-crawler-sd0i4p`
-  - [x] Extracted the 6 files byte-for-byte into charlotte at repo root
-  - [x] Flattened `CRAWLER.md` doc paths (`tools/crawl.js` → `crawl.js`)
-  - [x] Added `.gitignore`, `README.md`, `package.json`
-  - [x] Verified: `node crawl.js --help`, `node crawl-render.js --help`, `node --check local-cors-proxy.js`
-  - [x] Authored `rhiz-memory/` instance (intent, objectives, decisions)
-  - [x] Report: selectable broken-link → allowlist export on the Errors tabs (checkbox + Export/Copy)
-  - [x] Report: Runtime headline stat; Charlotte branding + 🕸️ favicon; `broodforge*`→`charlotte*` keys/UA
-  - [x] Verified features against a local fixture (export round-trips to Suppressed)
-  - [x] Per-referrer fix checkboxes + standalone editable fix-tracker export (notes per row); verified report→export→render
-  - [x] Extracted the report/output layer into `report.js` (AD-009); `crawl.js` 1,861→1,301 lines, report output byte-identical, multi-site + `--help` verified
-  - [x] GUI loads multiple default Start URLs from `crawl-gui-domains.txt` (AD-010); parsing verified
-  - [x] External-links tab: Expand/Collapse-all toggle for the per-domain sections (AD-011); verified
-  - [x] Resumable crawls: `--state` journal + `--resume` (single + multi-site), SIGKILL-resume verified with zero re-crawl (AD-012). Poison-URL quarantine + GUI Resume button still pending.
-  - [x] Bugfix: Pause now honored during external-check + second-pass loops (verified). `--recheck-from` re-checks broken links on demand with current settings, correcting + deduping the record (AD-013). GUI **Re-check broken links** button added
-    (JScript syntax-verified; HTA not runtime-testable here). Still pending: GUI Resume
-    button + poison-URL quarantine.
-  - [x] Partitioned `crawl.js` (1,480→998 lines) into leaf modules `parse.js` / `fetch.js` / `log.js` / `seen.js` (AD-014); byte-identical report + JSON vs pre-split, resume/multi-site/recheck verified.
-  - [x] Completed the resume feature (AD-015): poison-URL quarantine (session-based) + truncate-on-fresh + GUI **Resume crawl** button. Verified.
-  - [x] Partitioned `crawl.js` further (1,013→625 lines) into `cli.js` (arg parsing/help) / `netutil.js` (rate-limit, backoff, robots-delay, url helpers) / `recheck.js` (`--recheck-from` mode) (AD-016); byte-identical report + JSON vs pre-split, help/die/recheck/multi-site/resume verified. The ~450-line crawl engine stays in `crawl.js` as the irreducible core.
-  - [x] Removed the report's per-table render cap (AD-017): `RENDER_CAP` 5,000→`Infinity`, so the HTML renders every row instead of truncating at 5,000 (full data was/is also in JSON). Verified a 6,000-link fixture renders all 6,000 rows; small reports unaffected.
-  - [x] Opt-in client-side report pagination (AD-018): off-by-default `--paginate` (+ GUI checkbox) shows large tables 1,000 rows/page with Prev/Next/jump; display-only (export/selection still act on every row). DOM-stub verified across pages; default report unchanged but for 3 inert CSS lines.
-  - [x] Uncapped + paginated the "found on" referrer list (AD-019): removed `REF_CAP` (500) so every referrer of a broken link is listed in the HTML (no "+N more"); the `--paginate` pager now also pages these nested lists (1,000/page). Verified with a 1,501-referrer fixture (all listed; nested pager DOM-stub passes; tracker payload carries all 1,501).
-  - [x] Live re-tuning (AD-020): `--tune-file FILE` lets you change delay/rps/crawl-delay/timeout on a *running* crawl (pause → edit → resume), no restart; GUI Resume writes the tune file from its rate fields. Rate limiter reads the gap per request; normal crawl byte-identical. Verified end-to-end (PAUSED→RETUNED→RESUMED, rate change took effect).
-  - [x] "Link instances" headline metric (AD-021): total link *occurrences* (internal + external, **not** deduped) summed across all crawled pages — `Σ(page.internal+page.external)`. Headline stat + `summary.linkInstances` JSON + multi-site per-site & grand total. Verified with a duplicate-link fixture (10 instances vs 5 unique).
-  - [x] Fixed `--recheck-from` on a multi-site **index** JSON (AD-022): was reading 0 flagged links and **wiping** the report to zero errors. Now multi-site crawls write per-site JSONs, and re-check re-probes each site + rebuilds the index (or errors safely if per-site JSONs are absent). Single-site path unchanged. Reproduced + fixed + verified (no data loss).
-  - [x] Broken-link triage workflow in the report (AD-023, all report.js): fix tracker **grouped by referrer page** (one contact note/page); **Tested**/**Not broken** boxes + a **live per-tab counter** on the Errors tabs; **Not broken** excludes from the tracker; **Broken link instances** headline stat (+JSON +multi-site) that **updates live** as links are screened; **Export fix tracker** always enabled; links open in a **side-docked reused window**. DOM-stub + real-crawl verified.
-  - [x] `--rebuild-from` + GUI **Rebuild report** button (AD-024): regenerate the HTML report from a prior `--json` (single or multi-site index) using the current report.js — no crawl/network — to apply new report features to an old crawl. `summary.runtimeMs` now stored + restored so rebuilds preserve runtime. Verified (old-style JSON → new-feature HTML; multi-site).
-  - [x] Internal-pages column widths fixed (`.pagestbl`): narrow Depth/Status/Int/Ext, wide URL/Title; report widened 1100→1500px. Manual-testing triage on the **Blocked** tab (AD-025): Tested + **Broken** (confirm) boxes, live counter, confirmed-broken links **add** to the Broken-instances header + route into the fix tracker by Kind (no tab split needed). DOM-stub + real-fixture verified.
-  - [x] Report wording clarified (AD-027): **External links→External destinations**, **Link instances→Hyperlink instances**, **Broken link instances→Broken hyperlink instances**, **Errors·int/ext→Broken·int/ext**, + a legend ("destinations are unique; instances count every hyperlink"). Display-only; JSON keys unchanged. Verified.
-  - [x] Unified **Broken/Working** triage (AD-028): all three tabs (Errors·int/ext + Blocked) now use two **mutually-exclusive** boxes — **Broken** (hand-confirm dead) + **Working** (confirm loads) — replacing the standalone **Tested** box ("tested" is implied by either). Errors stay *assumed-broken-and-counted* (only **Working** subtracts; **Broken** is an explicit confirm); Blocked stays opt-in (**Broken** adds). One `wire()`/`update()` path over all three; `cwbroken:`/`cwok:` keys (Broken wins ties on reload); fix-tracker okbox-exclusion scoped to the Errors panels. 30/30 DOM-stub asserts + export test pass.
-  - [x] **Last tested** timestamp column (AD-029): a column left of the Broken/Working boxes on all three triage tabs **auto-fills the local date+time** (`YYYY-MM-DD HH:MM`) whenever a verdict is set; re-stamps on change, clears on untick-to-default. New string-valued `cwts:` localStorage key; restored verbatim on reload (no retroactive stamp). Gated on `showPick` so partial reports are unaffected. 38/38 DOM-stub asserts pass.
-  - [x] **Share verdicts** toolbar (AD-030): verdicts live in localStorage, so they don't travel when the report file is emailed. Added (final report, above tabs) **💾 Save shareable copy** (bakes verdicts into a new self-contained HTML via a `window.__CW_SEED__` island injected before `</head>`; primes the recipient only if they have none; seed-`<`-escaped so a `</script>`-bearing URL can't break out) and **⬇ Export / ⬆ Import verdicts** JSON (import merges by link + reloads; host-checked). `getF`/`getS` fall back to the seed when localStorage is unavailable. 19/19 DOM-stub asserts pass.
-  - [x] **Repo partitioning** (2026-06-26): `decisions.md` (35 ADRs) → an ADR **index** over `decisions/AD-001-016.md` + `decisions/AD-017-onward.md` (bodies byte-for-byte preserved; new ADRs append to the onward file + an index row). `report.js` **894→743 lines**: `NEWWIN` + `TRACKER_TEMPLATE` extracted to **report-templates.js** (AD-036), report output byte-identical. `crawl-gui.hta` (920 lines) left monolithic on purpose (single distributable HTA); `CRAWLER.md` (855 lines) left as one reference doc.
-  - [x] **GUI resume counters fix** (AD-035): Crawled/Good/Broken/Blocked no longer reset to 0 on Resume — crawler emits `# resume-stats crawled/good/broken/blocked/external` after the journal replay; the GUI **adds** them (so multi-site accumulates) and **sets** external. Verified real full + synthetic partial resume.
-  - [x] **NEWWIN `popup=yes`**: the side-docked, reused link window is forced as a popup (some browsers opened `window.open(...,features)` as a tab). Code was already correct (7/7 newwin asserts) — an old report file just predates the script; **regenerate / Rebuild** to get it.
-  - [x] **Fix tracker: "Fixed on" time + shareable state** (AD-033): the Fixed box now stamps its own **Fixed on** date/time (`cwfix:host:ft:`+pkey; clears on untick). Added a tracker **share toolbar** (⬇ Export / ⬆ Import / 💾 Save copy) porting the report's AD-030 — Export snapshots all `cwfix:host:` state to JSON, Import merges + reloads (host-checked), Save copy bakes a `window.__CW_TRK_SEED__` island before `</head>`; `seedFromCopy()` primes on open, `rawGet` falls back to the seed without localStorage. Backslash-free seed escaping via `String.fromCharCode(92)`. 18/18 DOM-stub asserts (incl. a `</script>` round-trip) + template stays backtick/`${}`/backslash-free.
-  - [x] **Fix tracker: timestamp + verdict UI** (AD-032): the exported fix tracker now mirrors the main report on each broken-link row — a **Last tested** timestamp + a mutually-exclusive **Broken/Working** verdict pair (baked in at export from the report's `cwbroken:`/`cwok:`/`cwts:`; editable + persisted in the tracker's `cwfix:host:` namespace via `vd:`/`vt:`). Toggling auto-stamps the time, is mutually exclusive, and **syncs per URL** across every referrer row of that link. Note field retitled "who to contact" → **Notes**. Template stays backtick/`${}`/backslash-free. 15/15 DOM-stub asserts (incl. a minimal innerHTML parser to exercise the real wiring).
-  - [x] **Allowlist export UI now opt-in** (AD-031): the in-report allowlist export (pick boxes + Select-all + Export-to-allowlist/Copy-lines on the Errors tabs) is **off by default**, gated behind `--allowlist-export` (`cfg.allowlistExport`; GUI checkbox *Allowlist export tools in report (legacy)*, unchecked). Superseded by the fix tracker + Broken/Working tools. Reading `--allowlist` **input** and the Suppressed tab are unchanged. Column CSS made class-based (`.pickcol`/`.tscell`/`.tcol`/`.urlcol`) so the layout holds with/without the pick column; header/row counts stay in sync (6/6 default, 7/7 opt-in). cli.js flag + GUI checkbox (3 command builders) + generic config-file support. Verified; existing tests still pass.
-  - [x] GUI split into **Settings** vs **Run & monitor** tabs (`showTab()`; pure show/hide) to cut vertical length — Settings = the 3 config fieldsets, Run = command preview + action buttons + status/stats/live log. Opens on Settings; Start/Re-check/Rebuild jump to Run. JScript parses, divs balanced.
-  - [x] GUI layout cleanup: command-preview box constrained (`max-width:820px`, was full-window) and the **Options** checkboxes stacked into a vertical list of clickable labels (were inline). Cosmetic only — field ids/state unchanged; JScript parses.
-  - [x] GUI: report **pagination on by default**; new **`crawl-gui-config.txt`** overrides any form field's default on launch (`key = value` by field id; `loadGuiConfig()`), with a documented `.example` + gitignore (AD-026). JScript parses; stub-verified.
-  - [~] Remove crawler from broodforge — operator chose *delete the branch*;
-    blocked from this session (branch-write policy 403 + no delete-branch tool).
-    Operator to delete `claude/html-web-crawler-sd0i4p` via the GitHub UI.
+- **the two surfaces, in one line each**:
+  - **Crawl report** (`report.js` + `report-templates.js`): broken-over-total stat matrix with a
+    Referrer-pages-with-broken-links card + amber→green triage outlines; three triage tabs
+    (Broken·internal/external + Blocked) with per-link **Broken/Working** verdicts; non-triage tabs
+    (Internal/External/Out-of-scope) folder/host-grouped; every grouped table drag-resizable; one
+    reused side-docked **satellite window** for testing any link; light/dark theme.
+  - **Fix tracker** (`report-templates.js` `TRACKER_TEMPLATE`): a self-contained, exported checklist.
+    Internal + external worked **together** (Type column), grouped **By page** / **By broken link**
+    under folder/domain parents; inverted Fixed/Broken stat matrix incl. a **Pages** column;
+    resizable columns; bulk **per-page / per-subfolder** mini-tracker export for delegation; multi-file
+    Import + a Power-Automate consolidation path (`merge-fix-state.js`, `SHAREPOINT-MERGE.md`).
 
-- **next_action**: Operator to delete the `claude/html-web-crawler-sd0i4p`
-  branch in broodforge (GitHub → Branches → delete). This session cannot: the
-  git relay returns 403 on writes/deletes to any branch other than the
-  designated `claude/festive-cerf-7loovw`, and no delete-branch API tool is
-  exposed. No PR depends on the branch and the crawler is safely in charlotte,
-  so the deletion is safe.
+- **the hard constraint a cold reader WILL trip on**: `TRACKER_TEMPLATE` and `NEWWIN` are strings
+  later embedded as a JSON literal, so they must contain **no backtick, no `${}`, no backslash**
+  (emit `"` via `String.fromCharCode(34)`, backslash via the `BS` var, glyphs literally) AND **no
+  inner IIFE** (the test harness slices on the first `})();`). After any template edit: run the
+  `0/0/0` substring guard + a `new Function(TPL.slice(iife))` parse-check, and **regenerate
+  `synth.html`** before testing. (SYNTHESIS §5 #7/#15/#21/#23/#30.)
 
-- **active_risks**: None to the tool. The only open item is the broodforge-side
-  cleanup decision above.
+- **active_risks / blockers**: none to the tool.
 
-- **blockers**: None.
+- **next_action**: none pending — await the next operator refinement. Candidate housekeeping when
+  convenient: (a) the browser toolchain (`web-crawler.html`) still lacks the triage/tracker UX;
+  (b) `decisions/AD-017-onward.md` has grown to ~60 ADRs and could be partitioned again per the
+  index's own convention; (c) open threads in SYNTHESIS §7.
 
 - **resume_instructions**:
-  1. Read `rhiz-memory/state/RESUME_BLOCK.md` for the one-screen save-state.
-  2. Read `rhiz-memory/state/decisions.md` — now an ADR **index**; full bodies live in `decisions/`
-     (`AD-001-016.md`, `AD-017-onward.md`).
-  3. Read `CRAWLER.md` for the full tool reference.
-  4. Resolve next_action (broodforge removal) with the operator.
-
-- **resume_block_ref**: `rhiz-memory/state/RESUME_BLOCK.md`
+  1. `_instance.md` (identity + charter + the template constraint).
+  2. `state/RESUME_BLOCK.md` (one-screen current save-state).
+  3. `state/SYNTHESIS.md` §5 lessons (themed index) before touching report/tracker code.
+  4. `state/decisions.md` for the specific AD behind anything you're changing.
 
 ---
 
 ## Provenance
 
-Created 2026-06-24 as part of migrating the crawler out of broodforge. The
-migration was directed by `CRAWLER-MIGRATION-HANDOFF.md` on broodforge's
-`claude/html-web-crawler-sd0i4p` branch.
+Created 2026-06-24 during the broodforge → charlotte migration; **rewritten 2026-06-27** to drop the
+stale migration framing and the redundant milestone log (both fully captured in the ADR log) and to
+reflect the matured report/tracker. The broodforge-branch cleanup that earlier sessions tracked here
+is moot and was removed.

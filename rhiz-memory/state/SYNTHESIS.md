@@ -94,21 +94,26 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
 - Client-side **pagination** with a configurable breakpoint (`--page-size`, GUI dropdown).
 - Multi-site **index report** + per-site reports + combined JSON.
 
-### Triage workstation (AD-028–065)
+### Triage workstation (AD-028–065, AD-075)
 - Per-link **Broken / Working** verdicts — mutually exclusive, auto-stamped
   **Last-tested** time. Errors default to "assumed broken"; Blocked default to
   "uncertain" (so ticking Broken *confirms* dead). State keyed
   `cwbroken:/cwok:/cwts: host:url` in localStorage.
-- Live header stats — Broken·internal/external destination counts + broken hyperlink
-  instances update *as you triage*.
+- Live header stats — **Broken internal/external destinations** + broken hyperlink
+  instances + **Referrer pages with broken links** (AD-075, distinct pages still carrying a
+  broken link — the workload-by-owner number) all update *as you triage*; each broken card
+  carries an amber→green **triage-completeness outline** keyed by a compact upper-right legend.
+  (Project-wide the verdict action is called **triaged**, not "tested" — AD-075.)
 - **By-domain grouping** on Errors·external AND Blocked·uncertain: collapsible sections,
   a header **All: Broken / Working** bulk verdict (derived from the children, survives
-  reload), a **Mixture** indicator, an **all tested** indicator, a live
-  **tested K/N · B broken · W working** counter, and a **dashed-amber outline** on any
-  domain still carrying untested links (clears when all are tested).
-- Satellite **link window**: clicking a broken link opens/ reuses ONE popup docked to
-  the side of the report with more room; each (re)use first flashes a **blob:
-  interstitial** naming the link being loaded (so identical 404s are distinguishable).
+  reload), a **Mixture** indicator, an **all triaged** indicator, a live
+  **triaged K/N · B broken · W working** counter, and a **dashed-amber outline** on any
+  domain still carrying untriaged links (clears when all are triaged).
+- Satellite **link window**: clicking **any http(s) link on any tab** opens/reuses ONE popup
+  docked to the side with more room (a single global interceptor, broadened AD-075 from
+  `target=_blank`-only so it's an invariant; modified clicks still open a real new tab); each
+  (re)use first flashes a **blob: interstitial** naming the link being loaded (identical 404s
+  stay distinguishable).
 - **Every tab grouped + tunable (AD-061/063/065).** Non-triage tabs (Internal/External/
   Out-of-scope) fold into the same collapsible sections (by first-level folder, or by host
   for External) with a count each and Expand/Collapse-all. Every tab's list lives in a
@@ -117,12 +122,17 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
   the tab's groups, persisted `cwcol:host:scope`, with a Reset button). The lengthy per-tab
   help collapses into a **"How this tab works"** disclosure.
 
-### Fix tracker (standalone, AD-008, AD-030–033, AD-047, AD-062/064, AD-066–068, AD-071/072)
+### Fix tracker (standalone, AD-008, AD-030–033, AD-047, AD-062/064, AD-066–077)
 - **Export fix tracker** bakes the still-broken links into a separate self-contained
   HTML, grouped **By page** (referrer → its broken links, one Notes field per page) or
   **By broken link** (link → every page that links to it). A **Fixed** checkbox per
   (page,link) pair stamps its own **Fixed-on** time; the same pair's flag is shared
   across both views. Verdicts + Last-tested carried in from the report.
+- **Internal + external are ONE combined view** (AD-076): fixing is page-centric, so the old
+  Internal/External tab is gone — a page's section lists *every* broken link on it with a **Type**
+  column (By page) / badge (By broken link); `allList()` tags each entry, the stat matrix keeps its
+  int/ext breakdown. **Every grouped table's columns are drag-resizable** (AD-077, the report's
+  `.grptbl` grip/broadcast/persist mechanism, keyed per view, with **↔ Reset columns**).
 - Each section is **collapsible** with a stacked header (long link on its own row), a live
   **K/N fixed** counter, an **All: Fixed** bulk box (ticks every Fixed box in the group), the
   By-broken-link **Broken/Working** bulk verdict, and a **translucent-amber outline** that
@@ -137,12 +147,16 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
   expands so a tiny fixed share never rounds to a misleading `0%`; AD-071, mirrors AD-056).
 - State persists in the tracker's own `cwfix:host:` namespace (`ft:`/`vd:`/`vt:`/`n:`),
   pkey = `ref + NL + broken`.
-- **🗂 Per-page** (`savePerPage`, AD-072): batch-bake one mini-tracker **per referrer page**,
-  scoped to that page's links (DATA spliced between `/*CW_DATA_BOUNDS*/` markers in a cloned
-  doc with the rendered panels blanked; per-page `__CW_TRK_SEED__` of just that page's state).
-  Written to a folder via `showDirectoryPicker` (download fallback), each **named after the
-  sanitized page address** (`pageFileName`: scheme dropped, non-`[A-Za-z0-9-._]`→`_`). Delegate
-  a page, get the owner's JSON back, Import merges it by the same per-pair keys (same host).
+- **Bulk export** (`saveBatch(mode)`, AD-072/074): batch-bake mini-trackers **per referrer page**
+  (🗂) OR **per tier-1 subfolder** (🗁, `folderOf` — every page under `/about/` in one file), each
+  scoped to its links (DATA spliced between `/*CW_DATA_BOUNDS*/` markers in a cloned doc with the
+  rendered panels blanked; per-group `__CW_TRK_SEED__`). Written to a folder via `showDirectoryPicker`
+  (download fallback), each **named after the sanitized address** (`pageFileName`: scheme dropped,
+  non-`[A-Za-z0-9-._]`→`_`); all-Working groups skipped (toast reports how many). Delegate, get the
+  owner's JSON back, Import merges it by the same per-pair keys (same host).
+- Stat matrix has a 4th column **Pages with broken links / Pages remediated** (AD-074) — page-granular
+  workload (a page is "broken" once it has any non-Working link, "remediated" once every one is Fixed);
+  the subtitle counts **distinct** referrer pages (union, not the int+ext sum — §5 #26).
 
 ### Sharing (AD-030, AD-033, AD-069/070, AD-073)
 - Report and tracker both: **Export / Import** verdicts (JSON, merge-by-link, host-checked)
@@ -246,6 +260,14 @@ contain **no backtick, no `${}`, no backslash**. Double-quotes in emitted markup
 ## 5. What did NOT work — hard-won lessons
 
 These are the traps. Re-reading this section before touching the relevant area saves a cycle.
+
+**By theme** (jump to the cluster that matches what you're about to touch):
+- *The embedded template is a string later wrapped as JSON — it evades normal validation:* #7, #15, #21, #23.
+- *Test-harness traps (stubs, slicing, stale fixtures, shared infra):* #6, #12, #14, #16, #19, #23, #24, #28, #30.
+- *Cross-`<script>`/cross-window scope & helpers:* #2, #3, #25.
+- *CSS layout, resize grips & column widths:* #13, #17, #22, #29.
+- *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27.
+- *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20.
 
 1. **Native `<summary>` eats clicks on interactive children.** Real clicks on a checkbox
    inside a `<summary>` are consumed by the disclosure toggle, so the box never fires
@@ -400,19 +422,88 @@ These are the traps. Re-reading this section before touching the relevant area s
     falls back to CSS. **Fix:** express resettable defaults in CSS (a class, or `#panel .grptbl
     th:nth-child(n)`); reserve inline for the live override; reset = clear the override = revert to CSS.
 
+23. **Inner IIFEs in `TRACKER_TEMPLATE` break the slice-based test harness (the structural cousin of #7).**
+    The suites extract the client script with `TPL.indexOf('(function(){')` … `TPL.indexOf('})();')`. An
+    inner IIFE `(function(){…})()` plants a `})();` that the naive slice mistakes for the script's END, so
+    the eval'd slice is brace-unbalanced → "Unexpected end of input" in `revtest`/`tracker3`. `require()`
+    still passes — the template is just a string to Node, so **module-load is NOT a validation of the
+    template's contents.** **Fix:** never use an inner IIFE inside the template (use a named function), and
+    add an explicit `new Function(TPL.slice(iife))` parse-check after template edits. (AD-074.)
+    ```js
+    // broke: the test's slice stops at THIS })();
+    var refPages=(function(){ var s={}; …; return n; })();
+    // worked:
+    function distinctRefPages(){ var s={}; …; return n; }  var refPages=distinctRefPages();
+    ```
+
+24. **A structural DOM-id rename must touch every test's OWN stub — the suites don't share one.** `tracker3`,
+    `revtest`, etc. each build their own `mkEls`/`mkDoc`. Renaming `panel-int`/`panel-ext` → `panel-all`
+    crashed `revtest` on a null `getElementById('panel-all')` until its stub was updated too. **Fix:** when
+    renaming a structural id/selector, grep ALL test files for the old name; a green core suite can still
+    hide a stub that builds the old DOM. (AD-076.)
+
+25. **Helpers don't cross `<script>` IIFE boundaries — and that's a real browser ReferenceError, not a test
+    artifact.** `report.js` ships two separate `<script>` IIFEs; `saveBlob`/`dl`/`toast` defined in one are
+    `undefined` in the other. The suite caught it (`saveBlob is not defined`, exporttest 13→3) — the browser
+    throws identically. **Fix:** duplicate shared helpers into each IIFE scope, as the pre-existing duplicated
+    `toast` already did. (AD-069.)
+
+26. **Two code paths that count "the same thing" differently WILL diverge — and a careful operator notices.**
+    The tracker subtitle summed internal-tab + external-tab page counts (double-counting a page that links
+    both → **551**) while the per-page export counted the distinct union (**512**). The operator spotted the
+    39-gap. **Fix:** derive the displayed number from the SAME function that drives the behavior (`count()`
+    over the combined list), and surface the reconciliation (the export toast now reports how many all-Working
+    pages it skipped). (AD-074.)
+
+27. **Audit a reported bug before fixing; if the code is already right, encode the invariant.** "The reused
+    link-window isn't applied to the External tab" — but an anchor audit showed **25/25** anchors already
+    routed through one global interceptor (the operator's report was a stale file). Rather than "works for
+    me," verify empirically, then HARDEN: broaden the interceptor to catch any `http(s)` link regardless of
+    `target`, so the consistency is an invariant, not a per-anchor accident. (AD-075.)
+
+28. **Headless probe-source pollution: a whole-document substring search false-matches the probe's own
+    injected `<script>`.** A test injected URL literals (`'ext/e1'`) then searched the cloned document for
+    them and false-positived — because `savePerPage` clones the LIVE document (probe included) into each
+    output. **Fix:** assert on the PARSED data (the scoped `DATA`, computed counts like `bInst`), never a
+    substring scan of a document that contains your probe. (AD-072.)
+
+29. **`width:max-content` gets clipped by an ancestor's `overflow:hidden`; mix the overflow axes.** Porting
+    resizable columns to the tracker, the group wrapper had `overflow:hidden` (border-radius) and the table
+    wrap was `overflow:visible`, so a dragged-wide table was CLIPPED, not scrollable. **Fix:**
+    `overflow-x:auto;overflow-y:hidden` on the wrap (a valid auto/hidden mix — `visible`+`auto` is not). (AD-077.)
+
+30. **Regenerate the generated artifact after EVERY template edit, before testing (sharpens #6's note).** The
+    suites extract the live IIFE from `synth.html`; a probe read a STALE `synth.html` (pre-edit) and reported
+    the new stat cards "missing." **Fix:** `node synthstate.js synth.html` is the first step of every test run
+    after touching `report*.js` — baked-in fixtures lie. (Bit repeatedly; AD-074/075.)
+
 ---
 
 ## 6. Testing approach
 
 No test framework (zero-dep ethos). Tests are standalone Node scripts in the scratchpad
 that either (a) drive the *real* browser IIFE extracted from a generated report under a
-DOM/`localStorage` stub, or (b) drive real Chromium headless. Key suites:
-`domtest` (domain grouping + indicators + untested highlight), `vtest` (triage verdicts),
-`sharetest` (verdict export/import/seed), `revtest` (tracker By-page/By-link sync),
-`tracker3-test` (tracker export/save-copy/seed), `newwin-test` (satellite window +
-interstitial), `cfgtest` (settings round-trip). Refactors are checked **byte-identical**.
-Visual claims are confirmed with a headless screenshot. **Always run the suites against a
-freshly regenerated report** (`synthstate.js synth.html`), since they extract the live IIFE.
+DOM/`localStorage` stub, or (b) drive real Chromium headless (`--dump-dom`). As of 2026-06-27
+the maintained set is **244/0**:
+
+- **DOM-stub suites** (extract + eval the live IIFE): `domtest` (domain grouping + indicators +
+  untested highlight), `vtest` (triage verdicts), `sharetest` (verdict export/import/seed),
+  `revtest` (tracker By-page/By-link sync), `tracker3-test` (tracker export/save-copy/seed +
+  multi-file import + subtitle), `newwin-test` (satellite window + interstitial), `exporttest`
+  (fix-tracker export inclusion rules), `cfgtest`/`cfgtest2` (settings round-trip).
+- **Headless-Chromium probes** (real DOM/CSS/events): `pageE2E`/`folderE2E` (per-page/per-subfolder
+  scoped exports), `trk-pages` (Pages-remediated stat), `pgcard-probe`/`pgcard-dyn` (the report's
+  Referrer-pages card, live recompute + outline), `trk-merge` (merged int/ext view + Type column +
+  grips), `trk-resize` (a dispatched mousedown→move→up that actually widens + persists a column),
+  `pagetest`/`merge-fix-state` (filename sanitize + the reference merger).
+
+Technique notes that recur: drive async promise chains to completion before `--dump-dom` with
+**synchronous thenables** (`{then:f=>…}`) since `setTimeout`/microtasks don't flush before the dump;
+assert on **parsed data**, never substring-scans of a doc that contains your probe (§5 #28); and
+**always regenerate `synth.html` first** (`node synthstate.js synth.html`) — the suites extract the
+live IIFE, so a stale fixture lies (§5 #30). Refactors are checked **byte-identical**; visual claims
+with a headless screenshot. (`blocked-test`/`manual-test`/`tracker2-test` are superseded, pre-existing
+crashes — NOT in the maintained set; §5 #12/#19.)
 
 ---
 

@@ -80,6 +80,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-069** (2026-06-27) — Export/Save buttons (report + tracker) use the File System Access "Save As" picker so the operator chooses folder + name, with the `<a download>` as a feature-detected fallback (AD-034 "if revisited")
 - **AD-070** (2026-06-27) — Export suggested filenames carry an auto-appended `_YYYY-MM-DD_HH-MM_SS` timestamp (stamped inside `saveBlob`, so picker + download fallback + every caller; `lastIndexOf('.')` keeps dotted-hostname extensions)
 - **AD-071** (2026-06-27) — Fix-tracker stat-card percentages adopt the report's adaptive `fmtPct` (AD-056): one-decimal floor, precision expands so a tiny non-zero fixed share never rounds to a misleading `0%`
+- **AD-072** (2026-06-27) — Batch **🗂 Per-page** export: one self-contained mini-tracker per referrer page (DATA scoped via `/*CW_DATA_BOUNDS*/` markers + blanked panels, state-seeded), written to a picked folder (`showDirectoryPicker`, download fallback), filename = sanitized page address (slashes/illegal → `_`); for delegating fixes and re-importing each owner's JSON by the same per-pair keys
 
 ---
 

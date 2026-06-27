@@ -640,6 +640,20 @@ that single file and the recipient opens it with your progress already in place.
 checked to the same site, and a saved copy still displays where `file://` storage is locked
 down.
 
+**🗂 Per-page** turns the tracker into a delegation hub: it **batch-exports one mini-tracker
+per referrer page**, each a self-contained tracker **scoped to just that page's broken links**
+(and seeded with this tracker's current verdicts/fixes/notes for them), so you can hand each
+page's file to whoever owns that page. You pick a destination **folder once** (via the File
+System Access directory picker; where it's unavailable it falls back to downloading the files
+individually) and every file lands there at once, **auto-named after its page address** with
+slashes and other illegal filename characters turned into underscores
+(`http://site/blog/post-1` → `site_blog_post-1.html`). Pages whose links are all already
+marked Working are skipped (nothing to fix). Each owner fixes their page, hits **⬇ Export** in
+their mini-tracker, and you **⬆ Import** their JSON back here — because every fix is keyed by
+the same *(page → link)* pair and the site matches, Import simply merges their ticks in, with
+no boxes to re-find. (The minis carry only their own page's links — the other pages' rendered
+lists are stripped out, so each file stays small and scoped to its owner.)
+
 #### Saving and sharing your verdicts
 
 **Your triage auto-saves — there's no "Save" button to forget.** Every tick, verdict,

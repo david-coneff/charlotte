@@ -117,7 +117,7 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
   the tab's groups, persisted `cwcol:host:scope`, with a Reset button). The lengthy per-tab
   help collapses into a **"How this tab works"** disclosure.
 
-### Fix tracker (standalone, AD-008, AD-030–033, AD-047, AD-062/064, AD-066–068, AD-071)
+### Fix tracker (standalone, AD-008, AD-030–033, AD-047, AD-062/064, AD-066–068, AD-071/072)
 - **Export fix tracker** bakes the still-broken links into a separate self-contained
   HTML, grouped **By page** (referrer → its broken links, one Notes field per page) or
   **By broken link** (link → every page that links to it). A **Fixed** checkbox per
@@ -137,6 +137,12 @@ and collapsible help — so a 6,000-destination crawl stays scannable and tunabl
   expands so a tiny fixed share never rounds to a misleading `0%`; AD-071, mirrors AD-056).
 - State persists in the tracker's own `cwfix:host:` namespace (`ft:`/`vd:`/`vt:`/`n:`),
   pkey = `ref + NL + broken`.
+- **🗂 Per-page** (`savePerPage`, AD-072): batch-bake one mini-tracker **per referrer page**,
+  scoped to that page's links (DATA spliced between `/*CW_DATA_BOUNDS*/` markers in a cloned
+  doc with the rendered panels blanked; per-page `__CW_TRK_SEED__` of just that page's state).
+  Written to a folder via `showDirectoryPicker` (download fallback), each **named after the
+  sanitized page address** (`pageFileName`: scheme dropped, non-`[A-Za-z0-9-._]`→`_`). Delegate
+  a page, get the owner's JSON back, Import merges it by the same per-pair keys (same host).
 
 ### Sharing (AD-030, AD-033, AD-069/070)
 - Report and tracker both: **Export / Import** verdicts (JSON, merge-by-link, host-checked)

@@ -158,13 +158,13 @@ tr.done td:not(.c):not(.v):not(.ft):not(.ts){opacity:.5;text-decoration:line-thr
   <div class="tabs"><button class="tab active" data-t="int" type="button">Internal</button><button class="tab" data-t="ext" type="button">External</button></div>
   <div class="tabs" style="margin-left:8px"><button class="gtab active" data-g="page" type="button" title="Group by referrer page, listing the broken links on each page — confirm a page has all its broken links fixed">By page</button><button class="gtab" data-g="link" type="button" title="Group by broken link, listing every page that links to it — confirm a broken link is resolved everywhere it appears">By broken link</button></div>
   <button id="expAll" class="btn" type="button" title="Expand every group on this tab">Expand all</button><button id="colAll" class="btn" type="button" title="Collapse every group on this tab">Collapse all</button>
-  <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">⬇ Export</button><button id="cwImp" class="btn" type="button" title="Load a tracker-state JSON someone shared (merges by entry, then reloads)">⬆ Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in — email that single file">💾 Save copy</button><input type="file" id="cwImpF" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
+  <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">⬇ Export</button><button id="cwImp" class="btn" type="button" title="Load a tracker-state JSON someone shared (merges by entry, then reloads)">⬆ Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in — email that single file">💾 Save copy</button><button id="cwPages" class="btn" type="button" title="Batch-save one mini-tracker per referrer page — each scoped to just that page's broken links and named after the page address — into a folder you pick. Hand a page's file to whoever owns it; they fix &amp; export, you Import their JSON back here.">🗂 Per-page</button><input type="file" id="cwImpF" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
  </div>
  <div class="tabview" id="tv-int"><div class="pagerbar" id="pager-int"></div><div class="trkview" id="view-int"><div id="panel-int"></div></div></div>
  <div class="tabview hidden" id="tv-ext"><div class="pagerbar" id="pager-ext"></div><div class="trkview" id="view-ext"><div id="panel-ext"></div></div></div>
 </div></main>
 <script>
-var DATA = "__DATA__";
+var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
 (function(){
   var NS='cwfix:'+(DATA.host||'')+':', NL=String.fromCharCode(10);
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -345,11 +345,99 @@ var DATA = "__DATA__";
   function applyState(obj){var s=lsObj();if(!s||!obj||!obj.v)return 0;var k,c=0;for(k in obj.v){if(obj.v.hasOwnProperty(k)){try{s.setItem(k,obj.v[k]);c++;}catch(e){}}}return c;}
   function importState(file){if(!file)return;if(!lsObj()){toast('This browser blocks storage for local files — serve the tracker over a local web server to import');return;}var r=new FileReader();r.onload=function(){var obj;try{obj=JSON.parse(String(r.result));}catch(e){obj=null;}if(!obj||obj.app!=='charlotte-fix-tracker'||!obj.v){toast('Not a Charlotte fix-tracker state file');return;}if((obj.host||'')!==(DATA.host||'')){toast('That state is for a different site — not applied');return;}var c=countState(obj);applyState(obj);toast('Imported '+c+' entr'+(c===1?'y':'ies')+' — reloading…');setTimeout(function(){try{location.reload();}catch(e){}},700);};r.onerror=function(){toast('Could not read the file');};try{r.readAsText(file);}catch(e){toast('Could not read the file');}}
   function saveCopy(){var st=collectState();var SO='<scr'+'ipt>window.__CW_TRK_SEED__=',SC='</scr'+'ipt>';var seed=SO+JSON.stringify(st).split('<').join(BS+'u003c')+';'+SC;var src='<!doctype html>'+NL+document.documentElement.outerHTML,pos;while((pos=src.indexOf(SO))>=0){var en=src.indexOf(SC,pos);if(en<0)break;src=src.slice(0,pos)+src.slice(en+SC.length);}if(src.indexOf('</head>')>=0)src=src.replace('</head>',function(){return seed+'</head>';});else src=seed+src;saveBlob(new Blob([src],{type:'text/html;charset=utf-8'}),'charlotte-fix-tracker-'+(DATA.host||'state')+'-shared.html','Saved a self-contained copy with your state baked in');}
+  // ---- Per-page mini-trackers ------------------------------------------------------------------
+  // Batch-export one self-contained tracker per referrer page, scoped to just that page's broken
+  // links and seeded with this tracker's CURRENT state for them, so fix work can be delegated
+  // page-by-page and each owner's exported JSON merged straight back here (same host + same per-pair
+  // keys => Import just merges). Files go into a folder the operator picks (File System Access
+  // getDirectory); each is named after its page address with slashes / other illegal characters
+  // turned into underscores. Where the directory API is missing it falls back to individual downloads.
+  function pageFileName(u){
+    var s=String(u),sch=s.indexOf('://');if(sch>=0)s=s.slice(sch+3);
+    var out='',i,c,code;
+    for(i=0;i<s.length;i++){c=s.charAt(i);code=s.charCodeAt(i);
+      var ok=(code>=48&&code<=57)||(code>=65&&code<=90)||(code>=97&&code<=122)||c==='-'||c==='.'||c==='_';
+      out+=ok?c:'_';}
+    while(out.indexOf('__')>=0)out=out.split('__').join('_');
+    while(out.length&&(out.charAt(0)==='_'||out.charAt(0)==='.'))out=out.slice(1);
+    while(out.length&&(out.charAt(out.length-1)==='_'||out.charAt(out.length-1)==='.'))out=out.slice(0,-1);
+    if(out.length>120)out=out.slice(0,120);
+    return out||'page';
+  }
+  // Keep only the state keys that belong to page P: fixed flag + fixed-on for (P -> any), the note
+  // on P, and the verdict + last-tested for every broken link P references (brokenSet).
+  function scopedSeed(full,P,brokenSet){
+    var v={},k,suf;
+    for(k in full.v){if(!full.v.hasOwnProperty(k)||k.indexOf(NS)!==0)continue;suf=k.slice(NS.length);var keep=false;
+      if(suf.indexOf('vd:')===0||suf.indexOf('vt:')===0){keep=brokenSet.hasOwnProperty(suf.slice(3));}
+      else if(suf.indexOf('ft:')===0){var rest=suf.slice(3),nl=rest.indexOf(NL);keep=(nl>=0&&rest.slice(0,nl)===P);}
+      else if(suf.indexOf('n:')===0){keep=(suf.slice(2)===P);}
+      else {var nl2=suf.indexOf(NL);keep=(nl2>=0&&suf.slice(0,nl2)===P);}
+      if(keep)v[k]=full.v[k];}
+    return {app:'charlotte-fix-tracker',host:(DATA.host||''),v:v};
+  }
+  function savePerPage(){
+    var GI=groups(DATA.internal||[]),GE=groups(DATA.external||[]),full=collectState();
+    var seen={},order=[],i;
+    function addP(g){for(i=0;i<g.order.length;i++){var p=g.order[i];if(!seen.hasOwnProperty(p)){seen[p]=1;order.push(p);}}}
+    addP(GI);addP(GE);
+    function entries(g,P){var L=g.map[P]||[],o=[],j;for(j=0;j<L.length;j++)o.push({url:L[j].broken,reason:L[j].reason,refs:[P],v:L[j].v,ts:L[j].ts});return o;}
+    // Build the work list: a page qualifies if it still has at least one link that is not Working.
+    var jobs=[],used={};
+    for(i=0;i<order.length;i++){var P=order[i],ints=entries(GI,P),exts=entries(GE,P),any=false,bs={},j;
+      for(j=0;j<ints.length;j++){bs[ints[j].url]=1;if(initVerdict(ints[j].url,ints[j].v)!=='working')any=true;}
+      for(j=0;j<exts.length;j++){bs[exts[j].url]=1;if(initVerdict(exts[j].url,exts[j].v)!=='working')any=true;}
+      if(!any)continue;
+      var nm=pageFileName(P),baseNm=nm,nn=2;while(used.hasOwnProperty(nm+'.html')){nm=baseNm+'-'+nn;nn++;}used[nm+'.html']=1;
+      jobs.push({P:P,name:nm+'.html',data:{host:(DATA.host||''),generatedAt:(DATA.generatedAt||''),internal:ints,external:exts,ticked:{}},seed:scopedSeed(full,P,bs)});}
+    if(!jobs.length){toast('No pages with outstanding broken links to export');return;}
+    // One shell, reused for every page: clone the document, blank the rendered lists (so no other
+    // page's links ride along and the files stay small — fill() rebuilds the scoped view on open),
+    // strip any baked seed island, then splice scoped DATA between the boundary markers per page.
+    var clone=document.documentElement.cloneNode(true);
+    function blank(id){var el=clone.querySelector('#'+id);if(el)el.innerHTML='';}
+    blank('panel-int');blank('panel-ext');blank('pager-int');blank('pager-ext');
+    var shell='<!doctype html>'+NL+clone.outerHTML;
+    var SO='<scr'+'ipt>window.__CW_TRK_SEED__=',SC='</scr'+'ipt>',pos;
+    while((pos=shell.indexOf(SO))>=0){var en=shell.indexOf(SC,pos);if(en<0)break;shell=shell.slice(0,pos)+shell.slice(en+SC.length);}
+    var M='/*CW_DATA_BOUNDS*/',a=shell.indexOf(M),b=(a>=0)?shell.indexOf(M,a+M.length):-1;
+    if(a<0||b<0){toast('Could not locate the data block to scope — export aborted');return;}
+    var pre=shell.slice(0,a+M.length),post=shell.slice(b);
+    function docFor(job){
+      var dj=JSON.stringify(job.data).split('</').join('<'+BS+'/');
+      var seed=SO+JSON.stringify(job.seed).split('<').join(BS+'u003c')+';'+SC;
+      var head=(pre.indexOf('</head>')>=0)?pre.replace('</head>',function(){return seed+'</head>';}):(seed+pre);
+      return head+dj+post;
+    }
+    function blobFor(job){return new Blob([docFor(job)],{type:'text/html;charset=utf-8'});}
+    function done(nw){toast('Wrote '+nw+' page tracker'+(nw===1?'':'s')+' of '+jobs.length);}
+    function fallback(){
+      toast('Folder export unavailable — downloading '+jobs.length+' file'+(jobs.length===1?'':'s')+' individually');
+      var idx=0;function step(){if(idx>=jobs.length)return;var job=jobs[idx++];dl(blobFor(job),job.name);setTimeout(step,200);}
+      step();
+    }
+    if(window.showDirectoryPicker){
+      window.showDirectoryPicker().then(function(dir){
+        var idx=0,nw=0;
+        function step(){
+          if(idx>=jobs.length){done(nw);return;}
+          var job=jobs[idx++];
+          dir.getFileHandle(job.name,{create:true})
+            .then(function(fh){return fh.createWritable();})
+            .then(function(w){return w.write(blobFor(job)).then(function(){return w.close();});})
+            .then(function(){nw++;if(nw===1||nw%25===0)toast('Writing page trackers… '+nw+'/'+jobs.length);step();})
+            .catch(function(){step();});
+        }
+        toast('Writing '+jobs.length+' page tracker'+(jobs.length===1?'':'s')+'…');step();
+      }).catch(function(e){if(e&&e.name==='AbortError')return;fallback();});
+    }else{fallback();}
+  }
   // On opening a baked copy: prime localStorage from the seed unless this browser already has state.
   function seedFromCopy(){var sd=SEED();if(!sd||!sd.v||(sd.host||'')!==(DATA.host||''))return;var s=lsObj();if(!s)return;var i,k,n=0,has=false;try{n=s.length;}catch(e){n=0;}for(i=0;i<n;i++){try{k=s.key(i);}catch(e){k=null;}if(k&&k.indexOf(NS)===0){has=true;break;}}if(has)return;for(k in sd.v){if(sd.v.hasOwnProperty(k)){try{s.setItem(k,sd.v[k]);}catch(e){}}}}
   seedFromCopy();
   var be=document.getElementById('cwExp');if(be)be.addEventListener('click',exportState);
   var bcp=document.getElementById('cwCopy');if(bcp)bcp.addEventListener('click',saveCopy);
+  var bpp=document.getElementById('cwPages');if(bpp)bpp.addEventListener('click',savePerPage);
   var bi=document.getElementById('cwImp'),bif=document.getElementById('cwImpF');
   if(bi&&bif){bi.addEventListener('click',function(){bif.click();});bif.addEventListener('change',function(){var f=this.files&&this.files[0];importState(f);try{this.value='';}catch(e){}});}
   var ci=count('int'),ce=count('ext');

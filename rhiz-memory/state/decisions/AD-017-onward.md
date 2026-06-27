@@ -1330,3 +1330,41 @@ so the two stay in lockstep. Constraint-clean (single-quoted `'0.0'`, no backtic
 `3/7→42.9%`, `1/800→0.1%`, `1/10000→0.01%`, `1/1000000→0.0001%`. End-to-end headless render with one fixed
 reference seeded among 5,000 broken instances: the live `#st-fInstP` card reads `(0.02%)` where the old
 `Math.round` would have shown `(0%)`, and `#st-fIntP` reads `(0.0%)` (one-decimal floor). Full suite 170/0.
+
+## AD-072: Batch per-page mini-tracker export (scoped, sanitized filenames) for delegating fixes
+**Date:** 2026-06-27
+**Problem:** the fix tracker's Import already merges the FULL per-link state (fixed flags + fixed-on,
+verdicts + last-tested, notes — everything under `cwfix:<host>:`), keyed per `(referrer page -> broken
+link)` pair, so several people's exports accumulate cleanly. What was missing was the *fan-out* side: a way
+to hand each page-owner a tracker for **just their page** instead of the whole-site file. Goal: from the
+central tracker, batch-produce one self-contained mini-tracker per referrer page, named after the page so
+they can be distributed, fixed, and re-imported with no manual re-ticking.
+**Decision:** a **🗂 Per-page** toolbar action (`savePerPage`) that, for every referrer page with at least
+one still-not-Working link, bakes a mini-tracker scoped to that page. Scoping reuses `groups()` (already
+inverts entries to `ref -> [{broken,...}]`), rebuilding each entry as `{url,reason,refs:[P],v,ts}` so the
+mini's DATA carries ONLY P's links. The output shell is a **clone of the live document with the rendered
+group lists blanked** (`#panel-int/#panel-ext/#pager-*` emptied) so no other page's links ride along and the
+files stay small — `fill()` rebuilds the scoped view on open. The scoped DATA is spliced into the shell
+between two `/*CW_DATA_BOUNDS*/` comment markers added around the `var DATA = "__DATA__"` injection point (so
+a running tracker can re-scope itself; markers survive `report.js`'s `tpl.replace('"__DATA__"', …)`). Each
+mini also gets a `__CW_TRK_SEED__` island holding **only P's state keys** (`scopedSeed` filters
+collectState by: `vd:`/`vt:` for the broken URLs P references, `ft:`+bare-pkey+`n:` for ref===P), so current
+progress carries and re-fan-out is faithful. Batch delivery uses **`showDirectoryPicker()`** (operator picks
+one folder, all files written via `getFileHandle(create) -> createWritable`); where the directory API is
+absent it falls back to sequential `<a download>`s. Filenames come from `pageFileName(url)`: drop the scheme,
+then map every char outside `[A-Za-z0-9-._]` to `_` (so slashes and `?:&=` become underscores, "looks
+similar" per the request), collapse repeats, trim, cap 120, dedupe with `-2/-3`. Round-trip works because the
+mini's host == central's host and its fix keys are the identical `ref+NL+broken` pairs, so Import (applyState,
+a per-key merge) drops them straight in. Constraint-clean (no backtick/`${}`/backslash; backslash via `BS`,
+the `<scr'+'ipt>` split, and `<`→`BS+u003c` seed-escaping all mirror `saveCopy`).
+**Verification:** new `pagetest` (10) unit-checks `pageFileName` (slashes→`_`, scheme dropped, length cap,
+no `/` in output) + the marker placement. New `pageE2E` (13) drives the real feature in headless Chromium via
+synchronous-thenable `showDirectoryPicker`/`Blob` stubs: a 3-page fixture (A→{u1,u2}, B→{u1,e1},
+C→{working-only}) yields exactly TWO files `x_pageA.html`/`x_pageB.html` (C skipped), each scoped DATA holds
+only that page's links (A:int[u1,u2]/ext[]; B:int[u1]/ext[e1]), refs reduced to the single page, panels
+blanked, host preserved. Opening the scoped pageA mini renders `bInst=2,bInt=2` (the count being 2 not 3 is
+itself proof no other page's link leaked into DATA). Tracker template stays 0/0/0; full suite 193/0
+(170 core + 10 pagetest + 13 pageE2E). Note: a first test cut whole-text-searched the minis for foreign URLs
+and false-positived — `savePerPage` clones the live doc, which at click time includes the probe `<script>`
+whose own source contained those URL literals; the authoritative no-leak signal is the parsed scoped DATA and
+the `bInst` count, not a substring scan of the cloned document.

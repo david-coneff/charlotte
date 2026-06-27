@@ -1050,3 +1050,21 @@ group controls' tooltips were reworded "domain"→"group" (neutral for both). `r
 functional probe — a group starts amber `tested 0/1`, **All: Working** flips it to `tested 1/1 · 1 working`
 with the untested outline cleared + the row's okbox checked, and the panel counter moves to `1 / 5`.
 domtest (domain infra) + vtest/sharetest/revtest/exporttest/newwin/tracker3 all pass.
+
+## AD-060: Consistent fixed-height internal-scroll viewport across all tabs
+**Date:** 2026-06-27
+**Problem:** scroll behaviour was inconsistent — the flat tables (Internal destinations, Suppressed,
+Out-of-scope) sat in a fixed-height `.tablewrap` (max-height + `overflow:auto`, internal scrollbar), but
+the GROUPED tabs (External destinations, Broken·internal/external, Blocked) let their group list grow to
+fit and relied on the whole-window scrollbar. The operator wants the fixed-size-viewport-with-internal-
+scrollbar everywhere.
+**Decision:** a `.groupview{max-height:460px;overflow:auto;border;radius;padding}` (same height as
+`.tablewrap`) and a `groupView(inner)` helper now wrap the grouped output of all four grouped panels
+(`extGroups`, and `domainGroups(...)` for errint/errext/blockd) — so each tab's list scrolls *in place*
+rather than stretching the page. Toolbars (Expand/Collapse-all, help, counters) stay ABOVE the viewport.
+The triage wiring is unaffected: `panel(scope).querySelectorAll(...)` still finds the groups/rows/tables
+through the wrapper, and the resizable-column `triTables` still resolves. Nested Found-on `<details>`
+keep their own 220px inner scroll.
+**Verification:** headless render of a 14-folder Broken·internal fixture — the groups sit in a bordered
+fixed-height viewport with a visible internal scrollbar (page no longer grows); the toolbars/counter stay
+outside it. Full suite (domtest/vtest/sharetest/revtest/exporttest/newwin/tracker3) passes.

@@ -1017,3 +1017,25 @@ clears them. ES5-clean, in the triage IIFE.
 (Blocked tab, 2 domain groups) — 7 grips/table, the URL column resizes, the 2nd group's URL column
 broadcasts to the same width, persists to `cwcol:x:blockd`, and Reset clears both inline widths + storage.
 Full suite passes.
+
+## AD-059: Broken·internal grouped by first-level path folder
+**Date:** 2026-06-27
+**Problem:** Errors·external and Blocked group by domain, but Errors·**internal** was a single flat table
+— on a big site that's hundreds of broken pages with no structure. The operator wanted the same
+collapsible grouping for internal, keyed by the **first path folder** (`site.gov/about/` vs
+`site.gov/blog/`) so a whole section can be triaged together.
+**Decision:** generalize `domainGroups(arr, scope, headHtml, cellsFn, keyOf)` with an optional key
+function (defaults to `hostOf`), and add `folderOf(u)` = host + first non-empty path segment + "/" (root
+pages → bare host; subdomains naturally split). The Errors·internal panel now renders
+`domainGroups(activeInt, "errint", errintHead, triageCells, folderOf)` with `domainTools("errint")` and a
+`folderHelp`, replacing the flat `pickRows` table (now removed). `wireDomains()` added `'errint'`, so the
+existing per-group machinery — bulk **All: Broken/Working**, **Mixture**/**all tested** indicators, live
+**tested K/N** counter, dashed-amber untested outline (AD-050), Expand/Collapse-all — works unchanged. The
+group controls' tooltips were reworded "domain"→"group" (neutral for both). `recomputeBroken` + the panel
+`tcount` already query `tr[data-url]`, so the header stats + counter still update across groups. Partial
+(read-only) reports keep the flat table.
+**Verification:** generated report — Errors·internal renders 5 folder groups (`…/about-dhw/`, `…/media/`,
+`…/providers/`, `…/services-programs/`, `…/registry.prometric.com/`) from a mixed-path fixture; headless
+functional probe — a group starts amber `tested 0/1`, **All: Working** flips it to `tested 1/1 · 1 working`
+with the untested outline cleared + the row's okbox checked, and the panel counter moves to `1 / 5`.
+domtest (domain infra) + vtest/sharetest/revtest/exporttest/newwin/tracker3 all pass.

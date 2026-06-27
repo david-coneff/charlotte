@@ -806,6 +806,17 @@ user's case and now shows `2 concurrent · 3000ms · 1 rps cap · max unlimited 
 … · external checked` (NOT the 4/100/200/3 defaults); an old JSON with the block deleted falls back to
 cfg without error. Confirmed through the REAL CLI: `node crawl.js --rebuild-from rb.json` emits that
 same original-settings line. domtest/vtest/sharetest/revtest/newwin all still PASS.
+**Follow-up (2026-06-27) — old JSONs still showed bogus defaults.** AD-049 only helps a JSON that HAS the
+settings block; rebuilding/re-checking a JSON written BEFORE the block existed (the operator's 4h-26m
+crawl from 06-25) still fabricated "max 200 pages / depth 3" — clearly wrong (it crawled 3,512). Root
+fix: `settingsAreKnown(state, cfg)` = `state.settings present` OR `not a --rebuild-from/--recheck-from
+run`. When false (a rewrite of a settings-less JSON) the config line shows **"crawl settings not recorded
+(rebuilt from an older crawl's JSON)"** plus the parts that ARE in the JSON (scope, runtime, suppressed,
+retries) instead of inventing defaults; and `buildReportJson` OMITS the settings block in that case, so
+the rewrite process's defaults are never laundered into a fresh block (which would make the next rebuild
+trust them). New cfgtest2 (8 asserts): fresh shows real cfg; rewrite-with-settings shows them; rewrite of
+a settings-less JSON says "not recorded" (no 200/3) yet keeps runtime+scope; JSON records settings for
+fresh, omits for the old-JSON rewrite, re-persists when present.
 
 ## AD-050: Dashed-amber header outline on per-domain groups with untested links
 **Date:** 2026-06-26

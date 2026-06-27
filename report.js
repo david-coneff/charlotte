@@ -38,6 +38,13 @@ function effSettings(state, cfg) {
   };
 }
 
+// Are the crawl's settings genuinely known for this report? Yes for a fresh crawl (cfg IS the crawl's
+// settings) or any rewrite whose JSON carried a "settings" block (restored to state.settings). No ONLY
+// when a --rebuild-from / --recheck-from rewrite loaded a JSON written before settings were recorded —
+// then cfg is just the rewrite process's CLI defaults. Gate both the displayed config line AND what
+// buildReportJson persists, so those bogus defaults are never shown OR laundered into a fresh JSON.
+function settingsAreKnown(state, cfg) { return !!(state && state.settings) || !(cfg && (cfg.rebuildFrom || cfg.recheckFrom)); }
+
 // The side-docked link-window script (NEWWIN) and the standalone fix-tracker document
 // (TRACKER_TEMPLATE) are large self-contained strings — kept in their own module (AD-036).
 const { NEWWIN, TRACKER_TEMPLATE } = require("./report-templates");
@@ -248,14 +255,23 @@ function buildReport(state, cfg, allow, partial) {
   const oosTab = scoped ? `<div class="tab" data-tab="outscope">Out of scope (${state.outOfScope.size})</div>` : "";
   const oosPanel = scoped ? `<div class="panel hidden" id="panel-outscope">${state.outOfScope.size ? `<p class="muted">Same domain but outside <code>${esc(state.pathPrefix)}</code> — recorded, not crawled.</p>${capNote(state.outOfScope.size)}<div class="tablewrap"><table><thead><tr><th>URL</th><th>Found on</th></tr></thead><tbody>${oosRows}</tbody></table></div>` : `<p class="muted">No out-of-scope links found.</p>`}</div>` : "";
 
-  const settings = effSettings(state, cfg);   // original crawl settings (survives a rebuild/re-check rewrite)
-  const depthLabel = settings.maxDepth === Infinity ? "unlimited" : settings.maxDepth;
-  const pagesLabel = settings.maxPages === Infinity ? "unlimited" : settings.maxPages;
+  // Header line = crawl settings + run metadata (runtime, suppressed). A FRESH crawl's cfg is real; a
+  // --rebuild-from / --recheck-from rewrite restores the settings from the JSON's "settings" block
+  // (AD-049). But a JSON written BEFORE that block existed has nothing to restore, so for such a rewrite
+  // the cfg is only the rewrite process's CLI DEFAULTS (e.g. "max 200 pages") — fabricated, not the
+  // crawl's. settingsKnown is false ONLY in that case; then we say so rather than show bogus limits.
+  const settingsKnown = settingsAreKnown(state, cfg);
   const scopeLabel = scoped ? `scope ${esc(state.pathPrefix)}/` : "whole domain";
-  // Config + run metadata for the header line: the crawl settings, then run stats that describe the
-  // RUN rather than the results — runtime and suppressed (moved off the stat grid at the operator's
-  // request so the grid holds only result counts).
-  const cfgLine = `${settings.concurrency} concurrent · ${settings.delay}ms delay · ${settings.rps ? settings.rps + " rps cap" : "no rps cap"}${state.crawlDelay ? ` · crawl-delay ${state.crawlDelay}s` : ""} · max ${pagesLabel} pages / depth ${depthLabel} · ${scopeLabel}${settings.includeSubdomains ? " · subdomains internal" : ""}${settings.checkExternal ? " · external checked" : ""}${state.retries ? ` · ${state.retries} rate-limit retries` : ""}${partial ? ` · ${fmtDur(elapsedMs)} so far` : ` · ran in ${fmtDur(elapsedMs)}`} · ${suppressed.length.toLocaleString()} suppressed`;
+  const runMeta = `${partial ? `${fmtDur(elapsedMs)} so far` : `ran in ${fmtDur(elapsedMs)}`} · ${suppressed.length.toLocaleString()} suppressed`;
+  let cfgLine;
+  if (settingsKnown) {
+    const settings = effSettings(state, cfg);
+    const depthLabel = settings.maxDepth === Infinity ? "unlimited" : settings.maxDepth;
+    const pagesLabel = settings.maxPages === Infinity ? "unlimited" : settings.maxPages;
+    cfgLine = `${settings.concurrency} concurrent · ${settings.delay}ms delay · ${settings.rps ? settings.rps + " rps cap" : "no rps cap"}${state.crawlDelay ? ` · crawl-delay ${state.crawlDelay}s` : ""} · max ${pagesLabel} pages / depth ${depthLabel} · ${scopeLabel}${settings.includeSubdomains ? " · subdomains internal" : ""}${settings.checkExternal ? " · external checked" : ""}${state.retries ? ` · ${state.retries} rate-limit retries` : ""} · ${runMeta}`;
+  } else {
+    cfgLine = `crawl settings not recorded (rebuilt from an older crawl's JSON) · ${scopeLabel}${state.retries ? ` · ${state.retries} rate-limit retries` : ""} · ${runMeta}`;
+  }
   // While a crawl is in progress the open report refreshes itself in JS (see the
   // script below) — but only when you're not interacting, and it restores your
   // tab/scroll. No <meta refresh>, so a reload never interrupts you mid-scroll.
@@ -891,12 +907,14 @@ function buildReportJson(state, cfg, allow, partial) {
   for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);
   const refsOf = (url) => { const s = state.refs.get(url); return s ? [...s] : []; };
   const errOut = (e) => ({ url: e.url, reason: e.reason, kind: e.kind || "internal", foundOn: refsOf(e.url).length ? refsOf(e.url) : (e.source ? [e.source] : []) });
-  const st = effSettings(state, cfg);
+  const st = settingsAreKnown(state, cfg) ? effSettings(state, cfg) : null;
   return JSON.stringify({
     crawledAt: state.startedAt, partial: !!partial, scope: state.pathPrefix || "(whole domain)",
-    // The crawl's settings, so a later --rebuild-from / --recheck-from rewrite can show the
-    // ORIGINAL run's config line instead of the rewrite process's CLI defaults. Infinity -> null.
-    settings: { concurrency: st.concurrency, delay: st.delay, rps: st.rps, maxPages: st.maxPages === Infinity ? null : st.maxPages, maxDepth: st.maxDepth === Infinity ? null : st.maxDepth, includeSubdomains: !!st.includeSubdomains, checkExternal: !!st.checkExternal },
+    // The crawl's settings (only when genuinely known), so a later --rebuild-from / --recheck-from
+    // rewrite shows the ORIGINAL run's config line instead of CLI defaults (Infinity -> null). OMITTED
+    // when this write is itself a rewrite of a JSON that never recorded them — so the rewrite process's
+    // bogus defaults are never laundered into a fresh settings block.
+    ...(st ? { settings: { concurrency: st.concurrency, delay: st.delay, rps: st.rps, maxPages: st.maxPages === Infinity ? null : st.maxPages, maxDepth: st.maxDepth === Infinity ? null : st.maxDepth, includeSubdomains: !!st.includeSubdomains, checkExternal: !!st.checkExternal } } : {}),
     log: { manifest: state.logManifest || "", singleFile: !!state.logSingleFile, parts: state.logParts || [] },
     summary: { pagesCrawled: state.pages.length, queued: state.queue.length, externalLinks: state.external.size, linkInstances: state.pages.reduce((n, p) => n + (p.internal || 0) + (p.external || 0), 0), brokenLinkInstances: active.reduce((n, e) => n + (refsOf(e.url).length || 1), 0), outOfScope: state.outOfScope.size, errorsInternal: active.filter((e) => (e.kind || "internal") !== "external").length, errorsExternal: active.filter((e) => e.kind === "external").length, blocked: (state.blocked || []).length, suppressed: suppressed.length, retries: state.retries || 0, runtimeMs: Number.isFinite(state.runtimeMs) ? state.runtimeMs : Math.max(0, (state.finishedMs || Date.now()) - (state.startedMs || Date.parse(state.startedAt) || Date.now())) },
     internalPages: state.pages,

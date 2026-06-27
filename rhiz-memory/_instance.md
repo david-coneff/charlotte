@@ -43,22 +43,41 @@ Charlotte:
   headless-browser re-check of suspect links).
 - Produce a self-contained HTML report (optionally JSON) that needs no server,
   network, or dependency to view.
-- Run the core crawler with **zero install** — Node built-in modules only.
+- Run the **shipped** core crawler with **zero install at runtime** — the
+  distributed `crawl.js` and its siblings execute on Node's built-in modules
+  alone; no `npm install` is required to *run* them.
+
+**MAY (added 2026-06-27, AD-081):**
+- Author the core source as **small modules compiled by a build-time roll-up**
+  (Vite / rollup / esbuild, per `david-coneff/rhizome` →
+  `rhizome/docs/cross-project-design-standards.md`, **DS-002**)
+  into the single shipped file — so source stays small and AI-digestible while
+  the deliverable stays single-file. The build is a **dev-time** convenience: the
+  build tools are `devDependencies` only, and the **built artifact must preserve
+  the runtime invariants above** (zero-install execution, self-contained report)
+  and be **verified equivalent** (deterministic byte/behaviour check + the test
+  suite green) before it ships. A consumer who only wants to *run* Charlotte
+  needs the built file and Node — never the build toolchain.
 
 **SHALL NOT:**
 - Follow or read external pages. External links are recorded and, at most,
   checked once for whether they resolve. The crawler never reads an external
   page or follows its links.
-- Require npm dependencies for the core crawler. Playwright is the only external
-  dependency anywhere, it is **optional**, lazy-loaded, and used solely by
-  `crawl-render.js` (which degrades to plain HTTP checks with `--http-fallback`).
+- Require npm dependencies **at runtime** for the core crawler, or require a
+  build step merely to *run* a distributed artifact. Playwright is the only
+  external *runtime* dependency anywhere, it is **optional**, lazy-loaded, and
+  used solely by `crawl-render.js` (which degrades to plain HTTP checks with
+  `--http-fallback`). (Build-time `devDependencies` for the roll-up above are
+  permitted; they are never needed to run a shipped artifact.)
 - Spoof identity. `--browser` sends an honest desktop-browser `User-Agent` and
   the headers a browser sends — no cookie, JS, or fingerprint spoofing.
 
 ### Design principles
 
-1. **Zero-dependency core.** `crawl.js` and `local-cors-proxy.js` use only Node
-   built-ins (`http`, `https`, `fs`, `path`, `zlib`, `url`).
+1. **Zero-dependency *runtime*.** The shipped `crawl.js` and `local-cors-proxy.js`
+   use only Node built-ins (`http`, `https`, `fs`, `path`, `zlib`, `url`) to run.
+   The *source* may be authored as smaller modules and rolled up at build time
+   (AD-081 / DS-002) provided the built artifact keeps this runtime property.
 2. **Single-domain scope.** Internal links are followed within limits; external
    links are recorded, never followed. Depth applies only to the internal crawl.
 3. **Self-contained outputs.** The HTML report embeds everything it needs; it
@@ -116,12 +135,12 @@ CRAWLER.md / README.md ──document──▶ all of the above
 |---|---|
 | Governance | `rhiz-memory/_instance.md` (this file) |
 | Synthesis (features / architecture / lessons) | `rhiz-memory/state/SYNTHESIS.md` |
-| Decisions | `rhiz-memory/state/decisions.md` |
+| Decisions | `rhiz-memory/state/decisions.md` (index) → range files in `state/decisions/` (`AD-001-016`, `AD-017-034`, `AD-035-052`, `AD-053-065`, `AD-066-081`) |
 | Planning / State | `rhiz-memory/state/SESSION_HANDOFF.md`, `rhiz-memory/state/RESUME_BLOCK.md` |
 | Risk / Oversight | `rhiz-memory/audits/` |
 | Upstream candidates | `rhiz-memory/RHIZOME-CORE-CANDIDATES.md` (universal principles staged for promotion into `david-coneff/rhizome`) |
 | Contracts | `package.json` (bin entries, optional deps); crawl.js JSON report shape |
-| Documentation | `README.md`, `CRAWLER.md` |
+| Documentation | `README.md`; the full reference is partitioned under `CRAWLER/` (rhiz-Merkle DAG — start at `CRAWLER/CRAWLER_index.md`; `CRAWLER.md` is a pointer stub) |
 | Dependencies | `package.json` (`playwright` — optional, lazy-loaded) |
 
 ---

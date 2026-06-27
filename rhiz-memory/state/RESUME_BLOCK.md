@@ -36,8 +36,15 @@ this page is the index card, not a copy.)
 
 - **active_risks / blockers**: none.
 
-- **next_action**: none pending; await the next operator refinement. Housekeeping candidates in
-  `SESSION_HANDOFF.md` (browser-toolchain parity; partition the ADR body file; SYNTHESIS §7 threads).
+- **2026-06-27 housekeeping** (AD-078–081): memory consolidated; the 12 universal principles
+  **promoted into `david-coneff/rhizome`** (AD-079); the ADR log + `CRAWLER.md` **partitioned** via
+  rhiz-Partition (AD-080 — ADR ranges + a `CRAWLER/` rhiz-Merkle DAG); and the **charter relaxed to
+  permit a build-time roll-up** (AD-081, DS-002).
+
+- **next_action**: recommended next step — act on AD-081: split `report.js`/`report-templates.js` into
+  small `src/` modules behind a **Vite single-file roll-up** (rhiz-Partition modality B), preserving
+  byte/behaviour equivalence, the 244/0 suite, AND the template constraints. Then: browser-toolchain
+  parity; SYNTHESIS §7 threads. (Partitioning the ADR body file is done.)
 
 - **gotcha to load FIRST before editing report/tracker code**: the template strings are
   backtick/`${}`/backslash/inner-IIFE-free (embedded as JSON; the test harness slices on `})();`).

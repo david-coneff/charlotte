@@ -1,0 +1,66 @@
+{
+  "docgraph-version": 1,
+  "docgraph-type": "section-index",
+  "source-file": "CRAWLER.md",
+  "split-heading-level": 2,
+  "created": "2026-06-27T16:07:48Z",
+  "updated": "2026-06-27T16:07:48Z",
+  "parent-index": null,
+  "sections": [
+    {
+      "section-order": 1,
+      "section-id": "preamble",
+      "filename": "CRAWLER_part_01_preamble.md",
+      "content-hash": "sha256:d6618fc03bd4f02250ae07a3c64c513f96b07a64d77d5357f1334cfcfeb5bfdf",
+      "line-count": 27,
+      "byte-count": 1595,
+      "description": "Suite orientation: what Charlotte is (a single-domain crawler that maps a site, records but never follows first-tier external links, verifies links \u2014 including inside PDF/Office docs \u2014 and writes a self-contained HTML report) plus the pick-your-tool table linking each entry point."
+    },
+    {
+      "section-order": 2,
+      "section-id": "crawljs-node-crawler-recommended",
+      "filename": "CRAWLER_part_02_crawljs-node-crawler-recommended.md",
+      "content-hash": "sha256:39302e424c65128aae96806352a900a0cc7de980cedb00119a32416d38cc2a8c",
+      "line-count": 770,
+      "byte-count": 46656,
+      "description": "The flagship Node crawler \u2014 the primary, recommended tool, kept whole as one coherent reference with its own internal ### TOC (~770 lines). Covers requirements, quick start, common runs, the full option list, multi-site runs, scope/depth, rate limiting + robots/adaptive-backoff/auto-resume, document-link scanning, the --recheck-from / --rebuild-from modes, the headless Playwright second opinion (crawl-render.js), large-crawl checkpoints + resume (--state/--resume), mid-crawl re-tuning (--tune-file), memory tuning, the self-contained HTML report, and the allowlist."
+    },
+    {
+      "section-order": 3,
+      "section-id": "crawl-guihta-windows-gui",
+      "filename": "CRAWLER_part_03_crawl-guihta-windows-gui.md",
+      "content-hash": "sha256:8f3de6c19ac381ae438d319ff34971137d76545e2f3447a16f8b4dd6ab8a613d",
+      "line-count": 108,
+      "byte-count": 5427,
+      "description": "The Windows GUI front-end (crawl-gui.hta) that builds the crawl.js command line and launches it: requirements, the optional crawl-gui-domains.txt (default start URLs) and crawl-gui-config.txt (default option values) files, and how to run it."
+    },
+    {
+      "section-order": 4,
+      "section-id": "web-crawlerhtml-in-browser-crawler",
+      "filename": "CRAWLER_part_04_web-crawlerhtml-in-browser-crawler.md",
+      "content-hash": "sha256:203e4f864b190b86bee2bc4c858ba3d8e662c29a5ecc2839ee4449c4d2d11f3d",
+      "line-count": 26,
+      "byte-count": 1124,
+      "description": "The in-browser crawler variant (web-crawler.html) that runs entirely in a tab \u2014 for a live, interactive report with no Node install."
+    },
+    {
+      "section-order": 5,
+      "section-id": "local-cors-proxyjs-proxy-for-the-html-ve",
+      "filename": "CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md",
+      "content-hash": "sha256:77c2fea2bcabb15f4126490b0f158ce99686240a8e392a03b6c67d75bc1442dc",
+      "line-count": 30,
+      "byte-count": 1041,
+      "description": "The zero-dependency CORS proxy (local-cors-proxy.js) that lets web-crawler.html cross origins from a file:// page."
+    },
+    {
+      "section-order": 6,
+      "section-id": "be-a-responsible-crawler",
+      "filename": "CRAWLER_part_06_be-a-responsible-crawler.md",
+      "content-hash": "sha256:af45ecec6d20f4c24844110f33c5d1784a2155c530eacf3d4b9b08b1fb613990",
+      "line-count": 5,
+      "byte-count": 212,
+      "description": "Politeness guidance: honest User-Agent/headers, rate limits, and respecting robots.txt \u2014 how to crawl responsibly."
+    }
+  ],
+  "index-hash": "sha256:670aa170fe1b47a39a4b837c90eb63680835a1a5ddbd163f60f432da3a28b204"
+}

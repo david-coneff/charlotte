@@ -652,6 +652,10 @@ Because that state lives in localStorage and *not* inside the report file, simpl
 `.html` gives the recipient a blank-triage copy (nothing travels). A **Share your testing
 verdicts** toolbar (above the tabs, on the final report) carries it across:
 
+> Every **Export / Save** action here (and in the fix tracker) opens a **"Save As" file picker** so
+> you choose the folder and filename, rather than dropping the file into your Downloads folder. (In
+> browsers without the File System Access API it falls back to a normal download.)
+
 - **💾 Save shareable copy** — downloads a *new* self-contained report HTML with your current
   verdicts and timestamps **baked in** (as a `window.__CW_SEED__` island). Email that single
   file; the recipient just opens it and sees everything. It primes their browser only if they

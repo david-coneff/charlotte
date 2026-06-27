@@ -77,6 +77,7 @@ by appending its body to the latest range file in `decisions/` and adding a one-
 - **AD-066** (2026-06-27) — Light/dark theme toggle (🌙/☀️, upper-right) on the report + tracker via `html[data-theme="light"]` overrides + an `--accent-fg` var; persisted in localStorage, no-flash
 - **AD-067** (2026-06-27) — Two-level nesting in the fix tracker: By-page / By-broken-link sections roll up under a collapsible folder (internal) / domain (external) parent (regex-free `hostOf`/`folderOf`; section-level pagination with repeated parent headers)
 - **AD-068** (2026-06-27) — Inverted Fixed/Broken stat matrix on the fix tracker (top row = Fixed instances/internal/external + % of broken; bottom row = Broken, verdict-driven); recomputes live on Fixed + Working/Broken changes
+- **AD-069** (2026-06-27) — Export/Save buttons (report + tracker) use the File System Access "Save As" picker so the operator chooses folder + name, with the `<a download>` as a feature-detected fallback (AD-034 "if revisited")
 
 ---
 

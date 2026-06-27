@@ -1264,3 +1264,26 @@ Inverted vs the report (Fixed on top, Broken below) because in the tracker the f
 becomes a fixed destination at 2/2); mark A Working → `b:2/1/1 f:0/0/0` (broken + fixed both drop correctly);
 un-Working → `b:4/2/1 f:2/1/0` restored. Screenshot shows the green-Fixed-over-red-Broken matrix. Tracker
 template stays 0 backtick / 0 `${}` / 0 backslash; full suite 170/0.
+
+## AD-069: Export/Save buttons use the File System Access "Save As" picker (download fallback)
+**Date:** 2026-06-27
+**Problem:** every Export/Save button — report: Export verdicts, Save shareable copy, Export fix tracker,
+(legacy) allowlist export; tracker: Export, Save copy — used the `<a download>` trick, which drops the file
+into the browser's default Downloads folder with no choice of location or name. The operator wants a folder
+picker. (Import already opens a picker via `<input type=file>`, so it was already fine.)
+**Decision:** a `saveBlob(blob, name, okMsg)` helper tries `window.showSaveFilePicker()` (a real "Save As"
+dialog — operator picks folder + filename; the `types` accept-map is derived from the file extension), writes
+the blob to the returned handle, then toasts success. Feature-detected: where the API is missing OR throws
+(non-Chromium, or a restricted context), it falls back to the old `<a download>` path; cancelling the picker
+(AbortError) is silent. This is exactly the additive, download-as-universal-fallback enhancement AD-034
+deferred to "if revisited" — localStorage auto-save is untouched. The report has TWO export IIFEs (the
+allowlist/tracker-export script and the share-toolbar script) in separate scopes, so `dl`+`saveBlob` are
+duplicated into both — same pattern as the already-duplicated `toast`. The suite caught the first cut calling
+`saveBlob` across the IIFE boundary (`saveBlob is not defined` — a REAL ReferenceError that would also fire in
+the browser, not just a test artifact). The tracker is one IIFE; its `saveBlob` is constraint-clean
+(no backtick/`${}`/backslash).
+**Verification:** `showSaveFilePicker` is present on `file://` in Chromium (probed = `function`). Headless with
+a stubbed picker: clicking "Export fix tracker" calls
+`showSaveFilePicker({suggestedName:'charlotte-fix-tracker.html', types:[{accept:{'text/html':['.html']}}]})`
+and writes the 43 KB blob to the handle. With the picker absent (the DOM-stub suites) it falls back to
+download — full suite 170/0 including exporttest (13) and tracker3 (18).

@@ -661,14 +661,26 @@ ${trackerEmbed}
     t.textContent=msg; t.className='toast show';
     setTimeout(function(){ t.className='toast'; }, 2400);
   }
+  // dl + saveBlob duplicated here so this IIFE's exports (allowlist + fix-tracker) use the same Save-As
+  // picker as the share toolbar's IIFE below (the two scripts are separate scopes — like toast above).
+  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
+  function saveBlob(blob, name, okMsg){
+    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
+    if(window.showSaveFilePicker){
+      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
+      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
+      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
+        .then(function(h){ return h.createWritable(); })
+        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
+        .then(function(){ toast(okMsg); })
+        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
+      return;
+    }
+    fb();
+  }
   function doExport(scope){
     var txt=text(scope), name=dlName(), n=picked(scope).length;
-    try{
-      var blob=new Blob([txt],{type:'text/plain;charset=utf-8'}), url=URL.createObjectURL(blob);
-      var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click();
-      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
-      toast('Exported '+n+' link(s) → '+name);
-    }catch(e){ toast('Export failed'); }
+    saveBlob(new Blob([txt],{type:'text/plain;charset=utf-8'}), name, 'Exported '+n+' link(s) → '+name);
   }
   function doCopy(scope){
     var txt=text(scope), n=picked(scope).length;
@@ -712,12 +724,7 @@ ${trackerEmbed}
     data.ticked={};   // fix-tracking lives in the tracker now — nothing to seed from the report
     var inj=JSON.stringify(data).split('</').join('<'+BS+'/');
     var doc=tpl.replace('"__DATA__"', function(){ return inj; });
-    try{
-      var blob=new Blob([doc],{type:'text/html;charset=utf-8'}), url=URL.createObjectURL(blob), a=document.createElement('a');
-      a.href=url; a.download='charlotte-fix-tracker.html'; document.body.appendChild(a); a.click();
-      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0);
-      toast('Exported fix tracker'+(nx?' ('+nx+' link'+(nx===1?'':'s')+' marked Working excluded)':''));
-    }catch(e){ toast('Tracker export failed'); }
+    saveBlob(new Blob([doc],{type:'text/html;charset=utf-8'}), 'charlotte-fix-tracker.html', 'Exported fix tracker'+(nx?' ('+nx+' link'+(nx===1?'':'s')+' marked Working excluded)':''));
   }
   var tb=document.querySelectorAll('.trackbtn');
   for(var ti=0;ti<tb.length;ti++){ tb[ti].addEventListener('click', exportTracker); }
@@ -767,17 +774,35 @@ ${trackerEmbed}
   // ---- share testing verdicts (localStorage stays in THIS browser; the file doesn't carry it) ----
   function toast(msg){ var t=document.getElementById('cw-toast'); if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); } t.textContent=msg; t.className='toast show'; setTimeout(function(){ t.className='toast'; }, 2600); }
   function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
+  // Save a blob through the File System Access "Save As" PICKER so the operator chooses the folder + name
+  // (instead of it landing in the default Downloads folder). Feature-detected: where the API is missing or
+  // restricted it falls back to a plain download (dl). Cancelling the picker is silent. This is the additive,
+  // download-as-fallback enhancement AD-034 left for "if revisited".
+  function saveBlob(blob, name, okMsg){
+    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
+    if(window.showSaveFilePicker){
+      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
+      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
+      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
+        .then(function(h){ return h.createWritable(); })
+        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
+        .then(function(){ toast(okMsg); })
+        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
+      return;
+    }
+    fb();
+  }
   // Snapshot every saved verdict (cwbroken: / cwok: / cwts:) for THIS crawl's host.
   function collectState(){ var out={app:'charlotte-verdicts', host:HOST, v:{}}, s=L(); if(!s) return out; var i,k,n=0; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0||k.indexOf('cwts:'+HOST+':')===0)) out.v[k]=s.getItem(k); } return out; }
   function countVerdicts(st){ var links={}, k, pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', v=(st&&st.v)||{}; for(k in v){ if(!v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) links[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) links[k.slice(po.length)]=1; } var c=0,z; for(z in links){ if(links.hasOwnProperty(z)) c++; } return c; }
-  function exportVerdicts(){ var st=collectState(), c=countVerdicts(st); if(!c){ toast('No verdicts to export yet — mark some links Broken or Working first'); return; } toast(dl(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}), 'charlotte-verdicts-'+HOST+'.json') ? ('Exported '+c+' verdict'+(c===1?'':'s')) : 'Export failed'); }
+  function exportVerdicts(){ var st=collectState(), c=countVerdicts(st); if(!c){ toast('No verdicts to export yet — mark some links Broken or Working first'); return; } saveBlob(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}), 'charlotte-verdicts-'+HOST+'.json', 'Exported '+c+' verdict'+(c===1?'':'s')); }
   // Replace each url the file has an opinion on (clear its 3 keys, then set what the file holds);
   // urls the file doesn't mention are left as-is, so several people's exports merge cleanly.
   function applyState(obj){ var s=L(); if(!s||!obj||!obj.v) return 0; var pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', pt='cwts:'+HOST+':', urls={}, k; for(k in obj.v){ if(!obj.v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) urls[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) urls[k.slice(po.length)]=1; else if(k.indexOf(pt)===0) urls[k.slice(pt.length)]=1; } var u; for(u in urls){ if(urls.hasOwnProperty(u)){ try{ s.removeItem(pb+u); s.removeItem(po+u); s.removeItem(pt+u); }catch(e){} } } var c=0; for(k in obj.v){ if(obj.v.hasOwnProperty(k)){ try{ s.setItem(k,obj.v[k]); c++; }catch(e){} } } return c; }
   function importVerdicts(file){ if(!file) return; if(!L()){ toast('This browser blocks storage for local files — serve the report over a local web server to import'); return; } var r=new FileReader(); r.onload=function(){ var obj; try{ obj=JSON.parse(String(r.result)); }catch(e){ obj=null; } if(!obj||obj.app!=='charlotte-verdicts'||!obj.v){ toast('That isn\\'t a Charlotte verdicts file'); return; } if(obj.host!==HOST){ toast('That file is for “'+obj.host+'”, not “'+HOST+'” — not applied'); return; } var c=countVerdicts(obj); applyState(obj); toast('Imported '+c+' verdict'+(c===1?'':'s')+' — reloading…'); setTimeout(function(){ try{ location.reload(); }catch(e){} }, 700); }; r.onerror=function(){ toast('Could not read the file'); }; try{ r.readAsText(file); }catch(e){ toast('Could not read the file'); } }
   // Bake the current verdicts into a fresh self-contained copy of this report: serialize the page,
   // strip any prior seed, and inject window.__CW_SEED__ just before </head> so it runs first.
-  function saveShareableCopy(){ var st=collectState(), c=countVerdicts(st); var SO='<scr'+'ipt>window.__CW_SEED__=', SC='</scr'+'ipt>'; var seed=SO+JSON.stringify(st).replace(/</g,'\\\\u003c')+';'+SC; var src='<!doctype html>\\n'+document.documentElement.outerHTML, pos; while((pos=src.indexOf(SO))>=0){ var en=src.indexOf(SC,pos); if(en<0) break; src=src.slice(0,pos)+src.slice(en+SC.length); } if(src.indexOf('</head>')>=0) src=src.replace('</head>', seed+'</head>'); else src=seed+src; toast(dl(new Blob([src],{type:'text/html;charset=utf-8'}), 'charlotte-report-'+HOST+'-shared.html') ? ('Saved a shareable copy with '+c+' verdict'+(c===1?'':'s')+' baked in') : 'Save failed'); }
+  function saveShareableCopy(){ var st=collectState(), c=countVerdicts(st); var SO='<scr'+'ipt>window.__CW_SEED__=', SC='</scr'+'ipt>'; var seed=SO+JSON.stringify(st).replace(/</g,'\\\\u003c')+';'+SC; var src='<!doctype html>\\n'+document.documentElement.outerHTML, pos; while((pos=src.indexOf(SO))>=0){ var en=src.indexOf(SC,pos); if(en<0) break; src=src.slice(0,pos)+src.slice(en+SC.length); } if(src.indexOf('</head>')>=0) src=src.replace('</head>', seed+'</head>'); else src=seed+src; saveBlob(new Blob([src],{type:'text/html;charset=utf-8'}), 'charlotte-report-'+HOST+'-shared.html', 'Saved a shareable copy with '+c+' verdict'+(c===1?'':'s')+' baked in'); }
   // On opening a shared copy: prime localStorage from the seed, but ONLY if this browser has no
   // verdicts for this host yet — never clobber a recipient's own triage.
   function seedFromCopy(){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; if(!sd||!sd.v||sd.host!==HOST) return; var s=L(); if(!s) return; var i,k,n=0,has=false; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0)){ has=true; break; } } if(has) return; for(k in sd.v){ if(sd.v.hasOwnProperty(k)){ try{ s.setItem(k,sd.v[k]); }catch(e){} } } }

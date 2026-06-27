@@ -603,14 +603,17 @@ several pages the verdict is **synced per URL** across every row it appears in. 
 persist in the browser** (localStorage), so it can be worked through and handed off over
 time.
 
-At the top, a **stat matrix** scores the work: the **bottom row is Broken** (verdict-driven — broken
-hyperlink instances, broken internal destinations, broken external destinations; a link drops out the
-moment you mark it **Working**), and the **top row is Fixed** (how many of those references/destinations
-you've **remediated**, each with its **% of the broken total** shown beneath — formatted like the report's
-broken-stats percentages: at least one decimal, and *more* precision when the fixed share is a tiny sliver
-of the broken total, so a handful of fixes among thousands never rounds to a misleading `0%`). The two axes
-are independent: *Broken/Working* is
-whether the link loads; *Fixed* is whether the page's reference to it has been removed or corrected.
+At the top, a **stat matrix** scores the work across four columns: the **bottom row is Broken**
+(verdict-driven — broken hyperlink instances, broken internal destinations, broken external destinations,
+and **pages with broken links**; a link drops out the moment you mark it **Working**), and the **top row
+is Fixed** (how many of those references/destinations/pages you've **remediated**, each with its **% of the
+broken total** shown beneath — formatted like the report's broken-stats percentages: at least one decimal,
+and *more* precision when the fixed share is a tiny sliver of the broken total, so a handful of fixes among
+thousands never rounds to a misleading `0%`). The **Pages with broken links / Pages remediated** pair is the
+workload-by-owner view — a *page* is counted once it has any still-broken link, and "remediated" once every
+one of its broken links is Fixed — so you can see how many distinct pages (and their responsible parties)
+still need attention, not just how many links. The two axes are independent: *Broken/Working* is whether the
+link loads; *Fixed* is whether the page's reference to it has been removed or corrected.
 
 Within each tab the groups are **collapsible sections** — grouped **By page** (referrer page →
 its broken links) or **By broken link** (link → every page that links to it), toggled at the
@@ -642,19 +645,25 @@ same site and only apply keys under this tracker's own `cwfix:<host>:` namespace
 can't inject stray storage), and a saved copy still displays where `file://` storage is locked
 down.
 
-**🗂 Per-page** turns the tracker into a delegation hub: it **batch-exports one mini-tracker
-per referrer page**, each a self-contained tracker **scoped to just that page's broken links**
-(and seeded with this tracker's current verdicts/fixes/notes for them), so you can hand each
-page's file to whoever owns that page. You pick a destination **folder once** (via the File
-System Access directory picker; where it's unavailable it falls back to downloading the files
-individually) and every file lands there at once, **auto-named after its page address** with
-slashes and other illegal filename characters turned into underscores
-(`http://site/blog/post-1` → `site_blog_post-1.html`). Pages whose links are all already
-marked Working are skipped (nothing to fix). Each owner fixes their page, hits **⬇ Export** in
-their mini-tracker, and you **⬆ Import** their JSON back here — because every fix is keyed by
-the same *(page → link)* pair and the site matches, Import simply merges their ticks in, with
-no boxes to re-find. (The minis carry only their own page's links — the other pages' rendered
-lists are stripped out, so each file stays small and scoped to its owner.)
+Two **bulk-export** buttons turn the tracker into a delegation hub, each batch-writing a set of
+self-contained mini-trackers into a **folder you pick once** (File System Access directory picker;
+where it's unavailable it falls back to downloading the files individually):
+
+- **🗂 Bulk export: per page** — one mini-tracker **per referrer page**, scoped to just that page's
+  broken links, **auto-named after the page address** (slashes and other illegal filename characters
+  become underscores: `http://site/blog/post-1` → `site_blog_post-1.html`).
+- **🗁 Bulk export: per subfolder** — one mini-tracker **per tier-1 site subfolder** (`folderOf`):
+  every page under e.g. `/blog/` goes into a *single* file, scoped to all of those pages' broken
+  links and named after the folder (`site/blog/` → `site_blog.html`). Use this to hand a whole
+  section of the site to one owner instead of a file per page.
+
+Either way each file is **seeded with this tracker's current verdicts/fixes/notes** for its pages,
+and groups whose links are all already marked **Working are skipped** (the toast reports how many).
+Each owner fixes their slice, hits **⬇ Export** in their mini-tracker, and you **⬆ Import** their
+JSON back here — because every fix is keyed by the same *(page → link)* pair and the site matches,
+Import simply merges their ticks in, with no boxes to re-find. (The minis carry only their own
+pages' links — the rest of the site's rendered lists are stripped out, so each file stays small and
+scoped to its owner.)
 
 To scale that beyond email — a central tracker on **SharePoint** consuming a folder that owners
 drop their JSON into, merged by a **Power Automate** flow (or the `merge-fix-state.js` CLI) — see

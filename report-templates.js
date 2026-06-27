@@ -71,7 +71,7 @@ html[data-theme="light"]{--bg:#f4f6f9;--panel:#ffffff;--panel2:#eaeef3;--fg:#1c2
 header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
 main{max-width:1280px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px}
 .statcard{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:18px}
-.statrow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.statrow+.statrow{margin-top:10px}
+.statrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.statrow+.statrow{margin-top:10px}
 .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;text-align:center}
 .statn{font-size:24px;font-weight:700;line-height:1.1}
 .statl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-top:5px}
@@ -145,11 +145,13 @@ tr.done td:not(.c):not(.v):not(.ft):not(.ts){opacity:.5;text-decoration:line-thr
   <div class="stat fixed"><div class="statn"><span id="st-fInst">0</span> <span class="statpct" id="st-fInstP"></span></div><div class="statl">Fixed hyperlink instances</div></div>
   <div class="stat fixed"><div class="statn"><span id="st-fInt">0</span> <span class="statpct" id="st-fIntP"></span></div><div class="statl">Fixed internal destinations</div></div>
   <div class="stat fixed"><div class="statn"><span id="st-fExt">0</span> <span class="statpct" id="st-fExtP"></span></div><div class="statl">Fixed external destinations</div></div>
+  <div class="stat fixed"><div class="statn"><span id="st-fPg">0</span> <span class="statpct" id="st-fPgP"></span></div><div class="statl">Pages remediated</div></div>
  </div>
  <div class="statrow">
   <div class="stat broken"><div class="statn" id="st-bInst">0</div><div class="statl">Broken hyperlink instances</div></div>
   <div class="stat broken"><div class="statn" id="st-bInt">0</div><div class="statl">Broken internal destinations</div></div>
   <div class="stat broken"><div class="statn" id="st-bExt">0</div><div class="statl">Broken external destinations</div></div>
+  <div class="stat broken"><div class="statn" id="st-bPg">0</div><div class="statl">Pages with broken links</div></div>
  </div>
  <p class="statnote">Top row = how many references you've <strong>Fixed</strong> (remediated the link on the page), as a share of the <strong>Broken</strong> workload below. Marking a link <strong>Working</strong> drops it from the broken counts.</p>
 </div>
@@ -158,7 +160,7 @@ tr.done td:not(.c):not(.v):not(.ft):not(.ts){opacity:.5;text-decoration:line-thr
   <div class="tabs"><button class="tab active" data-t="int" type="button">Internal</button><button class="tab" data-t="ext" type="button">External</button></div>
   <div class="tabs" style="margin-left:8px"><button class="gtab active" data-g="page" type="button" title="Group by referrer page, listing the broken links on each page — confirm a page has all its broken links fixed">By page</button><button class="gtab" data-g="link" type="button" title="Group by broken link, listing every page that links to it — confirm a broken link is resolved everywhere it appears">By broken link</button></div>
   <button id="expAll" class="btn" type="button" title="Expand every group on this tab">Expand all</button><button id="colAll" class="btn" type="button" title="Collapse every group on this tab">Collapse all</button>
-  <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">⬇ Export</button><button id="cwImp" class="btn" type="button" title="Load one or more tracker-state JSON files (e.g. a folder of contributors' exports) — merges them all by entry, then reloads">⬆ Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in — email that single file">💾 Save copy</button><button id="cwPages" class="btn" type="button" title="Batch-save one mini-tracker per referrer page — each scoped to just that page's broken links and named after the page address — into a folder you pick. Hand a page's file to whoever owns it; they fix &amp; export, you Import their JSON back here.">🗂 Per-page</button><input type="file" id="cwImpF" accept="application/json,.json" multiple style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
+  <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">⬇ Export</button><button id="cwImp" class="btn" type="button" title="Load one or more tracker-state JSON files (e.g. a folder of contributors' exports) — merges them all by entry, then reloads">⬆ Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in — email that single file">💾 Save copy</button><button id="cwPages" class="btn" type="button" title="Batch-save one mini-tracker per referrer PAGE — each scoped to just that page's broken links and named after the page address — into a folder you pick. Hand a page's file to whoever owns it; they fix &amp; export, you Import their JSON back here.">🗂 Bulk export: per page</button><button id="cwFolders" class="btn" type="button" title="Batch-save one mini-tracker per tier-1 site SUBFOLDER — every page under e.g. /about/ goes in one file, scoped to those pages' broken links and named after the folder — into a folder you pick. For delegating a whole section of the site to one owner.">🗁 Bulk export: per subfolder</button><input type="file" id="cwImpF" accept="application/json,.json" multiple style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
  </div>
  <div class="tabview" id="tv-int"><div class="pagerbar" id="pager-int"></div><div class="trkview" id="view-int"><div id="panel-int"></div></div></div>
  <div class="tabview hidden" id="tv-ext"><div class="pagerbar" id="pager-ext"></div><div class="trkview" id="view-ext"><div id="panel-ext"></div></div></div>
@@ -255,17 +257,20 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   // counted only among broken links, so Fixed is always a share of Broken. Both update live as Fixed boxes
   // and Broken/Working verdicts change.
   function recompute(){
-    var s={bInt:0,bExt:0,bInst:0,fInt:0,fExt:0,fInst:0};
-    function tally(list,isInt){var i,j;for(i=0;i<list.length;i++){var e=list[i],url=e.url,refs=e.refs||[];if(initVerdict(url,e.v)==='working')continue;if(isInt)s.bInt++;else s.bExt++;var allFixed=refs.length>0;for(j=0;j<refs.length;j++){s.bInst++;if(initChecked(refs[j],url))s.fInst++;else allFixed=false;}if(allFixed){if(isInt)s.fInt++;else s.fExt++;}}}
+    var s={bInt:0,bExt:0,bInst:0,fInt:0,fExt:0,fInst:0}, pg={};
+    // pg[referrer] tracks a page's broken links: it becomes a "broken page" once it has any non-Working
+    // link, and is "remediated" only when EVERY one of those links is Fixed (across internal + external).
+    function tally(list,isInt){var i,j;for(i=0;i<list.length;i++){var e=list[i],url=e.url,refs=e.refs||[];if(initVerdict(url,e.v)==='working')continue;if(isInt)s.bInt++;else s.bExt++;var allFixed=refs.length>0;for(j=0;j<refs.length;j++){var P=refs[j],fx=initChecked(P,url);s.bInst++;if(fx)s.fInst++;else allFixed=false;if(!pg.hasOwnProperty(P))pg[P]={af:true};if(!fx)pg[P].af=false;}if(allFixed){if(isInt)s.fInt++;else s.fExt++;}}}
     tally(DATA.internal||[],true);tally(DATA.external||[],false);
+    var bPg=0,fPg=0,P;for(P in pg){if(pg.hasOwnProperty(P)){bPg++;if(pg[P].af)fPg++;}}
     function setN(id,v){var e=document.getElementById(id);if(e)e.textContent=v.toLocaleString();}
     // Mirror the report's adaptive percent convention (AD-056): at least one decimal, and expand the
     // precision when the fixed share is so small it would round to 0.0 at one decimal.
     function fmtPct(p){if(!(p>0))return '0.0';var d=1;while(d<10&&Number(p.toFixed(d))===0)d++;return p.toFixed(d);}
     function setP(id,num,den){var e=document.getElementById(id);if(e)e.textContent=den>0?'('+fmtPct(num/den*100)+'%)':'';}
-    setN('st-bInst',s.bInst);setN('st-bInt',s.bInt);setN('st-bExt',s.bExt);
-    setN('st-fInst',s.fInst);setN('st-fInt',s.fInt);setN('st-fExt',s.fExt);
-    setP('st-fInstP',s.fInst,s.bInst);setP('st-fIntP',s.fInt,s.bInt);setP('st-fExtP',s.fExt,s.bExt);
+    setN('st-bInst',s.bInst);setN('st-bInt',s.bInt);setN('st-bExt',s.bExt);setN('st-bPg',bPg);
+    setN('st-fInst',s.fInst);setN('st-fInt',s.fInt);setN('st-fExt',s.fExt);setN('st-fPg',fPg);
+    setP('st-fInstP',s.fInst,s.bInst);setP('st-fIntP',s.fInt,s.bInt);setP('st-fExtP',s.fExt,s.bExt);setP('st-fPgP',fPg,bPg);
   }
   // Tiny class helpers — no classList/closest, so the same code also runs under the DOM-stub tracker tests
   // (and matches the report IIFE's idiom). grpOf walks up to the enclosing .grp via exact-token matching,
@@ -396,33 +401,46 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
     if(out.length>120)out=out.slice(0,120);
     return out||'page';
   }
-  // Keep only the state keys that belong to page P: fixed flag + fixed-on for (P -> any), the note
-  // on P, and the verdict + last-tested for every broken link P references (brokenSet).
-  function scopedSeed(full,P,brokenSet){
+  // Keep only the state keys that belong to the given set of pages: fixed flag + fixed-on + note for
+  // each page in pageSet, and the verdict + last-tested for every broken link those pages reference
+  // (brokenSet). pageSet has one page (per-page export) or many (per-subfolder export).
+  function scopedSeed(full,pageSet,brokenSet){
     var v={},k,suf;
     for(k in full.v){if(!full.v.hasOwnProperty(k)||k.indexOf(NS)!==0)continue;suf=k.slice(NS.length);var keep=false;
       if(suf.indexOf('vd:')===0||suf.indexOf('vt:')===0){keep=brokenSet.hasOwnProperty(suf.slice(3));}
-      else if(suf.indexOf('ft:')===0){var rest=suf.slice(3),nl=rest.indexOf(NL);keep=(nl>=0&&rest.slice(0,nl)===P);}
-      else if(suf.indexOf('n:')===0){keep=(suf.slice(2)===P);}
-      else {var nl2=suf.indexOf(NL);keep=(nl2>=0&&suf.slice(0,nl2)===P);}
+      else if(suf.indexOf('ft:')===0){var rest=suf.slice(3),nl=rest.indexOf(NL);keep=(nl>=0&&pageSet.hasOwnProperty(rest.slice(0,nl)));}
+      else if(suf.indexOf('n:')===0){keep=pageSet.hasOwnProperty(suf.slice(2));}
+      else {var nl2=suf.indexOf(NL);keep=(nl2>=0&&pageSet.hasOwnProperty(suf.slice(0,nl2)));}
       if(keep)v[k]=full.v[k];}
     return {app:'charlotte-fix-tracker',host:(DATA.host||''),v:v};
   }
-  function savePerPage(){
+  // mode 'page'   -> one mini-tracker per referrer page.
+  // mode 'folder' -> one mini-tracker per tier-1 site subfolder (folderOf): every page under e.g.
+  //                  site/about/ goes into a single file, scoped to all of those pages' broken links.
+  function saveBatch(mode){
+    var gnoun=(mode==='folder')?'subfolder':'page', noun=gnoun+' tracker';
     var GI=groups(DATA.internal||[]),GE=groups(DATA.external||[]),full=collectState();
-    var seen={},order=[],i;
-    function addP(g){for(i=0;i<g.order.length;i++){var p=g.order[i];if(!seen.hasOwnProperty(p)){seen[p]=1;order.push(p);}}}
+    // All referrer pages (union across both tabs).
+    var seen={},pages=[],i;
+    function addP(g){for(i=0;i<g.order.length;i++){var p=g.order[i];if(!seen.hasOwnProperty(p)){seen[p]=1;pages.push(p);}}}
     addP(GI);addP(GE);
-    function entries(g,P){var L=g.map[P]||[],o=[],j;for(j=0;j<L.length;j++)o.push({url:L[j].broken,reason:L[j].reason,refs:[P],v:L[j].v,ts:L[j].ts});return o;}
-    // Build the work list: a page qualifies if it still has at least one link that is not Working.
-    var jobs=[],used={};
-    for(i=0;i<order.length;i++){var P=order[i],ints=entries(GI,P),exts=entries(GE,P),any=false,bs={},j;
+    // Group those pages: each page is its own group (per-page) or its tier-1 folder (per-subfolder).
+    var grpMap={},grpOrder=[];
+    for(i=0;i<pages.length;i++){var pg=pages[i],key=(mode==='folder')?folderOf(pg):pg;if(!grpMap.hasOwnProperty(key)){grpMap[key]=[];grpOrder.push(key);}grpMap[key].push(pg);}
+    // All broken links referenced by the pages in pageSet, each entry's refs reduced to that set.
+    function collect(g,pageSet){var byU={},ord=[],k,j;for(k in pageSet){if(!pageSet.hasOwnProperty(k))continue;var L=g.map[k]||[];for(j=0;j<L.length;j++){var e=L[j],u=e.broken;if(!byU.hasOwnProperty(u)){byU[u]={url:u,reason:e.reason,v:e.v,ts:e.ts,refs:[],s:{}};ord.push(u);}var rec=byU[u];if(!rec.s.hasOwnProperty(k)){rec.s[k]=1;rec.refs.push(k);}}}var out=[],m;for(m=0;m<ord.length;m++){var r=byU[ord[m]];out.push({url:r.url,reason:r.reason,refs:r.refs,v:r.v,ts:r.ts});}return out;}
+    // Build the work list: a group qualifies if it still has at least one link that is not Working.
+    var jobs=[],used={},skipped=0;
+    for(i=0;i<grpOrder.length;i++){
+      var key=grpOrder[i],plist=grpMap[key],pset={},pp;
+      for(pp=0;pp<plist.length;pp++)pset[plist[pp]]=1;
+      var ints=collect(GI,pset),exts=collect(GE,pset),any=false,bs={},j;
       for(j=0;j<ints.length;j++){bs[ints[j].url]=1;if(initVerdict(ints[j].url,ints[j].v)!=='working')any=true;}
       for(j=0;j<exts.length;j++){bs[exts[j].url]=1;if(initVerdict(exts[j].url,exts[j].v)!=='working')any=true;}
-      if(!any)continue;
-      var nm=pageFileName(P),baseNm=nm,nn=2;while(used.hasOwnProperty(nm+'.html')){nm=baseNm+'-'+nn;nn++;}used[nm+'.html']=1;
-      jobs.push({P:P,name:nm+'.html',data:{host:(DATA.host||''),generatedAt:(DATA.generatedAt||''),internal:ints,external:exts,ticked:{}},seed:scopedSeed(full,P,bs)});}
-    if(!jobs.length){toast('No pages with outstanding broken links to export');return;}
+      if(!any){skipped++;continue;}  // every link in this group is already marked Working — nothing to fix
+      var nm=pageFileName(key),baseNm=nm,nn=2;while(used.hasOwnProperty(nm+'.html')){nm=baseNm+'-'+nn;nn++;}used[nm+'.html']=1;
+      jobs.push({name:nm+'.html',data:{host:(DATA.host||''),generatedAt:(DATA.generatedAt||''),internal:ints,external:exts,ticked:{}},seed:scopedSeed(full,pset,bs)});}
+    if(!jobs.length){toast('Nothing to export — every link is already marked Working');return;}
     // One shell, reused for every page: clone the document, blank the rendered lists (so no other
     // page's links ride along and the files stay small — fill() rebuilds the scoped view on open),
     // strip any baked seed island, then splice scoped DATA between the boundary markers per page.
@@ -442,9 +460,10 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
       return head+dj+post;
     }
     function blobFor(job){return new Blob([docFor(job)],{type:'text/html;charset=utf-8'});}
-    function done(nw){toast('Wrote '+nw+' page tracker'+(nw===1?'':'s')+' of '+jobs.length);}
+    var skipNote=skipped?(' ('+skipped+' '+gnoun+(skipped===1?'':'s')+' skipped — all links already Working)'):'';
+    function done(nw){toast('Wrote '+nw+' '+noun+(nw===1?'':'s')+' of '+jobs.length+skipNote);}
     function fallback(){
-      toast('Folder export unavailable — downloading '+jobs.length+' file'+(jobs.length===1?'':'s')+' individually');
+      toast('Folder export unavailable — downloading '+jobs.length+' file'+(jobs.length===1?'':'s')+' individually'+skipNote);
       var idx=0;function step(){if(idx>=jobs.length)return;var job=jobs[idx++];dl(blobFor(job),job.name);setTimeout(step,200);}
       step();
     }
@@ -457,10 +476,10 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
           dir.getFileHandle(job.name,{create:true})
             .then(function(fh){return fh.createWritable();})
             .then(function(w){return w.write(blobFor(job)).then(function(){return w.close();});})
-            .then(function(){nw++;if(nw===1||nw%25===0)toast('Writing page trackers… '+nw+'/'+jobs.length);step();})
+            .then(function(){nw++;if(nw===1||nw%25===0)toast('Writing '+noun+'s… '+nw+'/'+jobs.length);step();})
             .catch(function(){step();});
         }
-        toast('Writing '+jobs.length+' page tracker'+(jobs.length===1?'':'s')+'…');step();
+        toast('Writing '+jobs.length+' '+noun+(jobs.length===1?'':'s')+'…');step();
       }).catch(function(e){if(e&&e.name==='AbortError')return;fallback();});
     }else{fallback();}
   }
@@ -469,11 +488,17 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   seedFromCopy();
   var be=document.getElementById('cwExp');if(be)be.addEventListener('click',exportState);
   var bcp=document.getElementById('cwCopy');if(bcp)bcp.addEventListener('click',saveCopy);
-  var bpp=document.getElementById('cwPages');if(bpp)bpp.addEventListener('click',savePerPage);
+  var bpp=document.getElementById('cwPages');if(bpp)bpp.addEventListener('click',function(){saveBatch('page');});
+  var bpf=document.getElementById('cwFolders');if(bpf)bpf.addEventListener('click',function(){saveBatch('folder');});
   var bi=document.getElementById('cwImp'),bif=document.getElementById('cwImpF');
   if(bi&&bif){bi.addEventListener('click',function(){bif.click();});bif.addEventListener('change',function(){importStateFiles(this.files);try{this.value='';}catch(e){}});}
   var ci=count('int'),ce=count('ext');
-  document.getElementById('sub').textContent=(DATA.host||'')+' · generated '+(DATA.generatedAt||'')+' · '+(ci.pages+ce.pages)+' referrer page(s), '+(ci.total+ce.total)+' broken-link instance(s) · fixes, verdicts, times & notes saved in this browser';
+  // DISTINCT referrer pages across both tabs — a page that links both a broken internal AND a broken
+  // external destination is ONE page, not two (counting ci.pages+ce.pages would double it). This is the
+  // same set the per-page export enumerates, so the two numbers line up.
+  function distinctRefPages(){var s={},n=0,add=function(list){var g=groups(list),i;for(i=0;i<g.order.length;i++){if(!s.hasOwnProperty(g.order[i])){s[g.order[i]]=1;n++;}}};add(DATA.internal||[]);add(DATA.external||[]);return n;}
+  var refPages=distinctRefPages();
+  document.getElementById('sub').textContent=(DATA.host||'')+' · generated '+(DATA.generatedAt||'')+' · '+refPages+' referrer page(s), '+(ci.total+ce.total)+' broken-link instance(s) · fixes, verdicts, times & notes saved in this browser';
   fill();
 })();
 </script>

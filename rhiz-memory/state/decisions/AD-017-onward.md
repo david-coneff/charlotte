@@ -1404,3 +1404,36 @@ stray non-`cwfix` key is NOT written (NS guard), a wrong-host file in the same b
 batch triggers exactly one reload. Tracker template stays 0/0/0. Full suite **211/0** (was 193 + 6 multi-import
 + 12 merge). Note: the locked-down-tenant constraints (custom script, CORS) are the real design driver here —
 documented so the "why not just fetch the folder from the page" question doesn't get reopened.
+
+## AD-074: Tracker batch-export by page OR subfolder, distinct referrer-page counting, + a Pages workload column
+**Date:** 2026-06-27
+**Problem:** three related fixes after the per-page export (AD-072) shipped. (1) The tracker subtitle reported
+`ci.pages + ce.pages` referrer pages — the SUM of the internal-tab and external-tab page counts, which
+double-counts any page that links both a broken internal AND a broken external destination; this made the
+subtitle (e.g. 551) disagree with the per-page export's file count (e.g. 512, a deduped union minus
+all-Working pages). (2) Operators wanted to delegate a whole site SECTION to one owner, not just a file per
+page. (3) The stat matrix counted links (instances/destinations) but not *pages*, so it under-described the
+real workload — "how many distinct pages (and owners) still need attention."
+**Decision:** (1) subtitle now counts **distinct** referrer pages via a `distinctRefPages()` union over both
+lists (named function, NOT an inner IIFE — see verification). (2) `savePerPage` generalized to
+**`saveBatch(mode)`**: `mode==='page'` keeps one file per page; `mode==='folder'` groups pages by
+`folderOf` (tier-1 path folder) so every page under e.g. `/blog/` lands in one file, scoped to all those
+pages' broken links and named after the folder. A shared `collect(g,pageSet)` gathers the broken links any
+page in the set references, reducing each entry's `refs` to that set; `scopedSeed` now takes a pageSet (not a
+single page). Two descriptive buttons — **🗂 Bulk export: per page** / **🗁 Bulk export: per subfolder** —
+wire to `saveBatch('page')`/`saveBatch('folder')`; toasts use a per-mode noun and report skipped (all-Working)
+groups. (3) A fourth stat-matrix column **Pages with broken links** (bottom) / **Pages remediated** (top):
+`recompute` now also folds a `pg[referrer]` map — a page is "broken" once it has any non-Working link and
+"remediated" only when EVERY such link is Fixed (across internal + external) — emitting `st-bPg`/`st-fPg` with
+the same adaptive `%`. Grid widened `repeat(3,1fr)` → `repeat(4,minmax(0,1fr))`.
+**Verification:** new headless `trk-pages` probe — A links 2 broken (both fixed), B links 1 (unfixed), C links
+a Working-only link → `Pages with broken links=2`, `Pages remediated=1`, `(50.0%)` (C correctly excluded).
+New `folderE2E` (10) drives `saveBatch('folder')`: pages under `about/` collapse into one `x_about.html` with
+both pages' links (each ref'd by its own page), `blog/`→`x_blog.html`, root→`x.html`, an all-Working `legacy/`
+skipped. `pageE2E` (per-page, now `saveBatch('page')`) still green. tracker3 gains a subtitle case (a
+cross-linking page counts as 1, not 2). **Gotcha:** the first cut wrote `distinctRefPages` as an inner IIFE
+`(function(){…})()`; its `})();` is the first such token after the main IIFE's `(function(){`, so the tests'
+slice-extraction (`indexOf("})();")`) cut the IIFE short → "Unexpected end of input" in revtest + tracker3
+(module-load still passed, since the template is just a string). Fixed by using a named function. Lesson:
+**no inner IIFEs in the template** — the slice-based test harness treats the first `})();` as the IIFE end.
+Tracker template stays 0/0/0; full suite 222/0.

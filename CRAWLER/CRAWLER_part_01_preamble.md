@@ -4,7 +4,7 @@ docgraph-type: section
 section-id: preamble
 section-order: 1
 parent-index: CRAWLER_index.json
-content-hash: sha256:d6618fc03bd4f02250ae07a3c64c513f96b07a64d77d5357f1334cfcfeb5bfdf
+content-hash: sha256:c1fcbc2326ead69a9bf0f223eaf17200863800b3500d1ddf0317775614ea5c38
 ---
 # 🕸️ Charlotte — Domain Crawler
 
@@ -14,10 +14,10 @@ run it.
 
 | File | Runtime | Use it when |
 |------|---------|-------------|
-| [`crawl.js`](#crawljs--node-crawler-recommended) | Node | Mapping any domain from your machine. No CORS limits. **Start here.** |
-| [`crawl-gui.hta`](#crawl-guihta--windows-gui) | Windows | You'd rather click than type — a form front-end for `crawl.js`. |
-| [`web-crawler.html`](#web-crawlerhtml--in-browser-crawler) | Browser | You want a live, interactive report in the page, or you host the file on the domain you're mapping. |
-| [`local-cors-proxy.js`](#local-cors-proxyjs--proxy-for-the-html-version) | Node | Only needed to let `web-crawler.html` crawl across domains from `file://`. |
+| [`crawl.js`](CRAWLER_part_02_crawljs-node-crawler-recommended.md) | Node | Mapping any domain from your machine. No CORS limits. **Start here.** |
+| [`crawl-gui.hta`](CRAWLER_part_03_crawl-guihta-windows-gui.md) | Windows | You'd rather click than type — a form front-end for `crawl.js`. |
+| [`web-crawler.html`](CRAWLER_part_04_web-crawlerhtml-in-browser-crawler.md) | Browser | You want a live, interactive report in the page, or you host the file on the domain you're mapping. |
+| [`local-cors-proxy.js`](CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md) | Node | Only needed to let `web-crawler.html` crawl across domains from `file://`. |
 
 All three apply the same rules:
 

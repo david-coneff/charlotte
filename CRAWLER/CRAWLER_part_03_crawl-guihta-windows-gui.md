@@ -4,7 +4,7 @@ docgraph-type: section
 section-id: crawl-guihta-windows-gui
 section-order: 3
 parent-index: CRAWLER_index.json
-content-hash: sha256:8f3de6c19ac381ae438d319ff34971137d76545e2f3447a16f8b4dd6ab8a613d
+content-hash: sha256:624a5b306d46e12ac13452cc8906c9f5bbaa04c1c1064e7934fa2f1da2a1375d
 ---
 ## `crawl-gui.hta` — Windows GUI
 
@@ -98,7 +98,7 @@ Other buttons: **Open output folder** (jumps to where files were written) and
 case you want to script it later).
 
 Everything the GUI sets maps directly to a `crawl.js` flag documented above, so
-the [Rate limiting](#rate-limiting) and [Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports)
+the [Rate limiting](CRAWLER_part_02_crawljs-node-crawler-recommended.md#rate-limiting) and [Allowlist](CRAWLER_part_02_crawljs-node-crawler-recommended.md#allowlist-stop-known-broken-links-from-cluttering-future-reports)
 sections apply unchanged.
 
 > If Windows shows a security prompt when opening the `.hta`, that's the normal

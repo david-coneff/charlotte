@@ -146,6 +146,18 @@ CRAWLER.md / README.md ──document──▶ all of the above
 | Documentation | `README.md`; the full reference is partitioned under `CRAWLER/` (rhiz-Merkle DAG — start at `CRAWLER/CRAWLER_index.md`; `CRAWLER.md` is a pointer stub) |
 | Dependencies | `package.json` (`playwright` — optional, lazy-loaded) |
 
+### Knowledge map (reachable index of this instance's memory)
+
+Every article in this rhiz-memory tree is reachable from here:
+
+- [`state/SESSION_HANDOFF.md`](state/SESSION_HANDOFF.md) — current work context and next action.
+- [`state/RESUME_BLOCK.md`](state/RESUME_BLOCK.md) — fast-resume snapshot of in-flight state.
+- [`state/SYNTHESIS.md`](state/SYNTHESIS.md) — features / architecture / lessons retrospective.
+- [`state/decisions.md`](state/decisions.md) — the ADR index → the `AD-*` range files under `state/decisions/`.
+- [`audits/2026-06-27-ergonomics-review.md`](audits/2026-06-27-ergonomics-review.md) — oversight / ergonomics audit.
+- [`RHIZOME-CORE-CANDIDATES.md`](RHIZOME-CORE-CANDIDATES.md) — universal principles staged for promotion into `david-coneff/rhizome` (now a promotion record).
+- The full product reference is partitioned under [`CRAWLER/CRAWLER_index.md`](../CRAWLER/CRAWLER_index.md) (a rhiz-Merkle DAG; root [`CRAWLER.md`](../CRAWLER.md) is a pointer stub).
+
 ---
 
 ## Provenance

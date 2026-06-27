@@ -4,7 +4,7 @@ docgraph-type: section
 section-id: crawljs-node-crawler-recommended
 section-order: 2
 parent-index: CRAWLER_index.json
-content-hash: sha256:39302e424c65128aae96806352a900a0cc7de980cedb00119a32416d38cc2a8c
+content-hash: sha256:996cac50a28aecf0f7b2d9d621719af2fa8c59e76b3aeaca05ebf41a65b5a72c
 ---
 ## `crawl.js` — Node crawler (recommended)
 
@@ -663,7 +663,7 @@ scoped to its owner.)
 
 To scale that beyond email — a central tracker on **SharePoint** consuming a folder that owners
 drop their JSON into, merged by a **Power Automate** flow (or the `merge-fix-state.js` CLI) — see
-[`SHAREPOINT-MERGE.md`](SHAREPOINT-MERGE.md). The multi-select **⬆ Import** above is the no-flow
+[`SHAREPOINT-MERGE.md`](../SHAREPOINT-MERGE.md). The multi-select **⬆ Import** above is the no-flow
 fallback for that same loop.
 
 #### Saving and sharing your verdicts

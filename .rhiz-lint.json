@@ -1,0 +1,11 @@
+{
+  "knowledge_roots": ["rhiz-memory", "CRAWLER"],
+  "index_names": ["index.md", "README.md", "_instance.md", "decisions.md", "lessons-learned-synthesis.md"],
+  "line_warn": 1500,
+  "entry_points": [
+    "rhiz-memory/_instance.md",
+    "README.md",
+    "CRAWLER.md",
+    "SHAREPOINT-MERGE.md"
+  ]
+}

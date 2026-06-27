@@ -195,13 +195,13 @@ function buildReport(state, cfg, allow, partial) {
   const groupCount = (items, keyOf) => { const s = new Set(); for (const it of items.slice(0, RENDER_CAP)) s.add(keyOf(it.url)); return s.size; };
   // External — grouped by domain (host).
   const extRow = (e) => { const st = e.status === "ok" ? `<span class="pill ok">reachable</span>` : e.status === "err" ? `<span class="pill err">unreachable</span>` : `<span class="pill skip">not checked</span>`; return `<tr><td>${link(e.url)}</td><td>${st}</td><td class="muted">${srcCell(e.url)}</td></tr>`; };
-  const extHead = `<thead><tr><th>External URL</th><th>Status</th><th>Found on</th></tr></thead>`;
-  const extGroups = simpleGroups(extVals, hostOf, extHead, extRow);
+  const extHead = `<thead><tr><th style="width:460px">External URL</th><th style="width:120px">Status</th><th style="width:420px">Found on</th></tr></thead>`;
+  const extGroups = simpleGroups(extVals, hostOf, extHead, extRow, "grptbl");
   const extGroupN = groupCount(extVals, hostOf);
   // Internal destinations — grouped by first-level folder (pagestbl keeps the narrow Depth/Status/Int/Ext).
   const pageRow = (p) => `<tr><td>${p.depth}</td><td>${link(p.url)}</td><td>${esc(p.title || "—")}</td><td><span class="pill ok">${p.status}</span></td><td>${p.internal}</td><td>${p.external}</td></tr>`;
-  const internalHead = `<thead><tr><th>Depth</th><th>URL</th><th>Title</th><th>Status</th><th>Int</th><th>Ext</th></tr></thead>`;
-  const intGroups = simpleGroups(pages, folderOf, internalHead, pageRow, "pagestbl");
+  const internalHead = `<thead><tr><th style="width:64px">Depth</th><th style="width:380px">URL</th><th style="width:320px">Title</th><th style="width:96px">Status</th><th style="width:64px">Int</th><th style="width:64px">Ext</th></tr></thead>`;
+  const intGroups = simpleGroups(pages, folderOf, internalHead, pageRow, "grptbl");
   const intGroupN = groupCount(pages, folderOf);
   const errextHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errext" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
   const errintHead = `<thead><tr>${showAllow ? `<th class="pickcol"><input type="checkbox" class="pickall" data-scope="errint" title="Select all"></th>` : ``}<th class="tscell" title="Date &amp; time you last marked the link Broken or Working (auto-filled, saved in this browser)">Last tested</th><th class="tcol" title="Manual check confirms it's broken (it already counts by default)">Broken</th><th class="tcol" title="Manual check shows it works — dropped from the broken count + fix tracker">Working</th><th class="urlcol">Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead>`;
@@ -263,16 +263,19 @@ function buildReport(state, cfg, allow, partial) {
   const shareBar = `<div class="card sharebar"><div class="exportbar" style="margin-bottom:12px;align-items:baseline"><button type="button" class="btn trackbtn" title="Build one editable, self-contained checklist of every link still to fix — all broken + blocked links across internal AND external, except those you've marked Working — grouped by referrer page">🔧 Export fix tracker</button><span class="muted" style="font-size:12px">One checklist of everything still to fix — every broken &amp; blocked link (internal + external) <strong>except those you've marked Working</strong>, grouped by page. No need to open each tab.</span></div><p class="muted" style="margin:0 0 8px;font-size:13px"><strong>Share your testing verdicts.</strong> Your Broken/Working ticks &amp; timestamps are saved in <em>this</em> browser only — they don't travel if you just email this file. To hand them off:</p><div class="exportbar"><button type="button" class="btn" id="cwSaveCopy" title="Download a new self-contained report with your current verdicts baked in — email that file and the recipient just opens it">💾 Save shareable copy</button><span class="vsep"></span><button type="button" class="btn" id="cwExportV" title="Download your verdicts as a small JSON file to send alongside the report">⬇ Export verdicts</button><button type="button" class="btn" id="cwImportV" title="Load verdicts from a JSON file someone shared with you (merges by link, then reloads)">⬆ Import verdicts</button><input type="file" id="cwImportFile" accept="application/json,.json" style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0"></div></div>`;
   // One-line helper under each Errors table explaining the two kinds of checkbox.
   const pickHelp = `<p class="muted" style="margin:2px 0 10px">${showAllow ? `First box selects a link for the <strong>allowlist</strong>. Then two` : `Two`} mutually-exclusive boxes: <strong>Broken</strong> confirms it's really broken (it already counts by default — this just marks it triaged); <strong>Working</strong> marks it actually loads — Working links drop out of the broken count and the fix tracker (so one false positive can't flood it). Leave both unticked to keep the default “assumed broken”. The <strong>Last tested</strong> column auto-fills the date &amp; time of your latest verdict. <strong>Export fix tracker</strong> saves the still-broken links, grouped by referrer page, as a standalone editable checklist (one contact note per page, each broken link with its own Fixed checkbox). Verdicts are saved in this browser.</p>`;
+  // Collapsible wrapper for a tab's lengthy explanatory text — open by default, but the operator can
+  // collapse it to reclaim screen space (the open/closed state persists with the other <details>).
+  const helpBox = (inner) => `<details class="helpbox" open><summary>How this tab works</summary><div class="helpbody">${inner}</div></details>`;
 
   // Out-of-scope (same domain, outside the chosen subsection) — only shown when scoped.
   const scoped = !!state.pathPrefix;
   const oosItems = [...state.outOfScope.values()].sort((a, b) => a.url.localeCompare(b.url));
   const oosRow = (e) => `<tr><td>${link(e.url)}</td><td class="muted">${srcCell(e.url)}</td></tr>`;
-  const oosHead = `<thead><tr><th>URL</th><th>Found on</th></tr></thead>`;
+  const oosHead = `<thead><tr><th style="width:520px">URL</th><th style="width:420px">Found on</th></tr></thead>`;
   const oosGroupN = groupCount(oosItems, folderOf);
   const oosStat = scoped ? stat(state.outOfScope.size, "Out of scope", "") : "";
   const oosTab = scoped ? `<div class="tab" data-tab="outscope">Out of scope (${state.outOfScope.size})</div>` : "";
-  const oosPanel = scoped ? `<div class="panel hidden" id="panel-outscope">${state.outOfScope.size ? `<p class="muted">Same domain but outside <code>${esc(state.pathPrefix)}</code> — recorded, not crawled.</p>${capNote(state.outOfScope.size)}<div class="exptools"><button type="button" class="btn" id="oosExpand">Expand all</button><button type="button" class="btn" id="oosCollapse">Collapse all</button><span class="muted" style="font-size:12px">${oosGroupN} folder${oosGroupN === 1 ? "" : "s"}</span></div>${groupView(simpleGroups(oosItems, folderOf, oosHead, oosRow))}` : `<p class="muted">No out-of-scope links found.</p>`}</div>` : "";
+  const oosPanel = scoped ? `<div class="panel hidden" id="panel-outscope">${state.outOfScope.size ? `<p class="muted">Same domain but outside <code>${esc(state.pathPrefix)}</code> — recorded, not crawled.</p>${capNote(state.outOfScope.size)}<div class="exptools"><button type="button" class="btn" id="oosExpand">Expand all</button><button type="button" class="btn" id="oosCollapse">Collapse all</button><span class="muted" style="font-size:12px">${oosGroupN} folder${oosGroupN === 1 ? "" : "s"}</span><button type="button" class="btn grpcolreset" data-scope="outscope" title="Restore the default column widths on this tab">↔ Reset column widths</button></div>${groupView(simpleGroups(oosItems, folderOf, oosHead, oosRow, "grptbl"))}` : `<p class="muted">No out-of-scope links found.</p>`}</div>` : "";
 
   // Header line = crawl settings + run metadata (runtime, suppressed). A FRESH crawl's cfg is real; a
   // --rebuild-from / --recheck-from rewrite restores the settings from the JSON's "settings" block
@@ -400,24 +403,29 @@ function buildReport(state, cfg, allow, partial) {
  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:#06121f;border-color:var(--accent)}
  .hidden{display:none}code{background:var(--panel2);padding:1px 5px;border-radius:4px}
  .exptools{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+ /* Collapsible per-tab explanatory text — a muted, small disclosure so the (lengthy) help can be folded away. */
+ .helpbox{margin:0 0 10px}
+ .helpbox>summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;padding:4px 0}
+ .helpbox>summary:hover{color:var(--accent)}
+ .helpbox .helpbody{margin-top:4px}
  /* Triage tables — columns sized by CLASS so the layout holds with or without the (opt-in)
     allowlist pick column: .pickcol pick box · .tscell timestamp · .tcol Broken/Working · .urlcol URL. */
- .pickcol{min-width:34px;width:34px;text-align:center}
- .tcol{min-width:80px;width:80px;text-align:center}
+ .pickcol{width:34px;text-align:center}
+ .tcol{width:80px;text-align:center}
  .tscell{width:140px;white-space:nowrap}
  td.tscell{font-size:13px;color:var(--muted)}
  th.tscell{white-space:nowrap}
  .urlcol{width:380px}
  .reasoncol{width:180px}
- /* Triage tables use a FIXED layout (predictable widths) and size to the SUM of their column widths
-    (width:max-content) rather than stretching to 100% — so no column is starved and a very wide window
-    no longer leaves a giant mid-table gap. Every column is also RESIZABLE: drag the grip on a header's
-    right edge. Widths persist per browser and broadcast across a tab's domain groups so they stay
-    aligned; a "Reset column widths" button restores the defaults. */
- table.haspick,table.blkpick{table-layout:fixed;width:max-content;min-width:0;max-width:none}
- table.haspick th:first-child,table.haspick td:first-child,table.blkpick th:first-child,table.blkpick td:first-child{min-width:0}
- table.haspick td:last-child,table.blkpick td:last-child{min-width:0}
- .haspick th,.blkpick th{position:relative}
+ /* Triage AND non-triage grouped tables (.grptbl) use a FIXED layout (predictable widths) and size to the
+    SUM of their column widths (width:max-content) rather than stretching to 100% — so no column is starved
+    and a very wide window no longer leaves a giant mid-table gap. Every column is RESIZABLE: drag the grip
+    on a header's right edge. There is NO enforced minimum width — drag a column as narrow as you like.
+    Widths persist per browser and broadcast across a tab's groups so they stay aligned; a "Reset column
+    widths" button restores the defaults. */
+ table.haspick,table.blkpick,table.grptbl{table-layout:fixed;width:max-content;min-width:0;max-width:none}
+ table.haspick th,table.haspick td,table.blkpick th,table.blkpick td,table.grptbl th,table.grptbl td{min-width:0}
+ .haspick th,.blkpick th,.grptbl th{position:relative}
  .colgrip{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
  .colgrip:hover,.colgrip.drag{box-shadow:inset -2px 0 0 var(--accent)}
  table.haspick .foundcol,table.blkpick .foundcol{width:236px}
@@ -451,7 +459,7 @@ function buildReport(state, cfg, allow, partial) {
  .tablewrap .tablewrap{height:auto;min-height:0;resize:none}
  .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
  .testbar{margin:0 0 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.tcount{color:var(--muted);font-size:12px}
- .colreset{margin-left:auto;font-size:12px;padding:4px 10px}
+ .colreset,.grpcolreset{margin-left:auto;font-size:12px;padding:4px 10px}
  tr.notbroken td:not(.tcol):not(.tscell):not(.pickcol){opacity:.45;text-decoration:line-through}
  tr.confirmed td:not(.tcol):not(.tscell):not(.pickcol){color:var(--bad)}
  .exportbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}.exportbar .grow{flex:1}
@@ -507,12 +515,12 @@ function buildReport(state, cfg, allow, partial) {
    <div class="tab" data-tab="blockd">Blocked · uncertain (${blocked.length.toLocaleString()})</div>
    <div class="tab" data-tab="suppressed">Suppressed (${suppressed.length.toLocaleString()})</div>
   </div>
-  <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="exptools"><button type="button" class="btn" id="intExpand">Expand all</button><button type="button" class="btn" id="intCollapse">Collapse all</button><span class="muted" style="font-size:12px">${intGroupN} folder${intGroupN === 1 ? "" : "s"}</span></div>${groupView(intGroups)}` : `<p class="muted">No pages crawled.</p>`}</div>
-  <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extExpand">Expand all</button><button type="button" class="btn" id="extCollapse">Collapse all</button><span class="muted" style="font-size:12px">${extGroupN} domain${extGroupN === 1 ? "" : "s"}</span></div>${groupView(extGroups)}` : `<p class="muted">No external links found.</p>`}</div>
+  <div class="panel" id="panel-internal">${pages.length ? `${capNote(pages.length)}<div class="exptools"><button type="button" class="btn" id="intExpand">Expand all</button><button type="button" class="btn" id="intCollapse">Collapse all</button><span class="muted" style="font-size:12px">${intGroupN} folder${intGroupN === 1 ? "" : "s"}</span><button type="button" class="btn grpcolreset" data-scope="internal" title="Restore the default column widths on this tab">↔ Reset column widths</button></div>${groupView(intGroups)}` : `<p class="muted">No pages crawled.</p>`}</div>
+  <div class="panel hidden" id="panel-external">${state.external.size ? `${capNote(state.external.size)}<div class="exptools"><button type="button" class="btn" id="extExpand">Expand all</button><button type="button" class="btn" id="extCollapse">Collapse all</button><span class="muted" style="font-size:12px">${extGroupN} domain${extGroupN === 1 ? "" : "s"}</span><button type="button" class="btn grpcolreset" data-scope="external" title="Restore the default column widths on this tab">↔ Reset column widths</button></div>${groupView(extGroups)}` : `<p class="muted">No external links found.</p>`}</div>
   ${oosPanel}
-  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + pickHelp + folderHelp + testBar("errint") + domainTools("errint") + groupView(domainGroups(activeInt, "errint", errintHead, triageCells, folderOf)) : `<div class="tablewrap"><table><thead><tr><th>Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${errRows(activeInt)}</tbody></table></div>`}` : `<p class="muted">No internal errors. 🎉</p>`}</div>
-  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + pickHelp + domainHelp + testBar("errext") + domainTools("errext") + groupView(domainGroups(activeExt, "errext", errextHead, triageCells)) : `<div class="tablewrap"><table><thead><tr><th>External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${errRows(activeExt)}</tbody></table></div>`}` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
-  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? blockedHelp + domainHelp + blockedCounter("blockd") + domainTools("blockd") + groupView(domainGroups(blocked, "blockd", blockdHead, blockedCells)) : `${capNote(blocked.length)}<div class="tablewrap"><table><thead><tr><th>URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead><tbody>${blockedRows(blocked)}</tbody></table></div>`}` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-errint">${activeInt.length ? `<p class="muted">Broken internal pages — these are yours to fix.</p>${showPick ? exportBar("errint") + helpBox(pickHelp + folderHelp) + testBar("errint") + domainTools("errint") + groupView(domainGroups(activeInt, "errint", errintHead, triageCells, folderOf)) : `<div class="tablewrap"><table><thead><tr><th>Broken URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${errRows(activeInt)}</tbody></table></div>`}` : `<p class="muted">No internal errors. 🎉</p>`}</div>
+  <div class="panel hidden" id="panel-errext">${activeExt.length ? `<p class="muted">Unreachable external links — found on your pages, but the destination is down. Fix the link or remove it.</p>${showPick ? exportBar("errext") + helpBox(pickHelp + domainHelp) + testBar("errext") + domainTools("errext") + groupView(domainGroups(activeExt, "errext", errextHead, triageCells)) : `<div class="tablewrap"><table><thead><tr><th>External URL</th><th class="reasoncol">Reason</th><th class="foundcol">Found on</th></tr></thead><tbody>${errRows(activeExt)}</tbody></table></div>`}` : `<p class="muted">${cfg.checkExternal ? "No unreachable external links. 🎉" : "External links weren't verified — enable “Verify external links resolve”."}</p>`}</div>
+  <div class="panel hidden" id="panel-blockd">${blocked.length ? `<p class="muted">Our automated check couldn't confirm these (auth, anti-bot, rate-limiting, or timeouts) — they very likely work in a real browser. Verify by hand before treating as broken. Re-running with <code>--browser</code> and a slower rate (<code>--concurrency 1 --rps 0.5</code>) clears many of them.</p>${showPick ? helpBox(blockedHelp + domainHelp) + blockedCounter("blockd") + domainTools("blockd") + groupView(domainGroups(blocked, "blockd", blockdHead, blockedCells)) : `${capNote(blocked.length)}<div class="tablewrap"><table><thead><tr><th>URL</th><th class="reasoncol">Why uncertain</th><th class="kindcol">Kind</th><th class="foundcol">Found on</th></tr></thead><tbody>${blockedRows(blocked)}</tbody></table></div>`}` : `<p class="muted">Nothing blocked or uncertain. 🎉</p>`}</div>
   <div class="panel hidden" id="panel-suppressed">${suppressed.length ? `<p class="muted">Hidden from Errors via <code>${esc(cfg.allowlist)}</code>.</p><div class="tablewrap"><table><thead><tr><th>URL</th><th>Reason</th><th>Found on</th></tr></thead><tbody>${errRows(suppressed)}</tbody></table></div>` : `<p class="muted">Nothing suppressed.</p>`}</div>
  </div>
  ${logCard}
@@ -895,7 +903,7 @@ ${trackerEmbed}
   function gripDown(scope, th, idx, grip, e){
     e.preventDefault(); e.stopPropagation();
     var startX=e.clientX, startW=th.offsetWidth, cur=startW; addCls(grip,'drag');
-    function mv(ev){ cur=Math.max(40, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
+    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
     function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); rmCls(grip,'drag'); saveCol(scope, idx, cur); }
     document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true);
   }
@@ -923,16 +931,38 @@ ${trackerEmbed}
   function hasCls(el,c){ return (' '+(el.className||'')+' ').indexOf(' '+c+' ')>=0; }
   function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).replace(/^\s+/,''); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^\s+|\s+$/g,''); }
   function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
+  // ---- drag-resizable columns for the non-triage grouped tables (.grptbl) -----------------------------
+  // The triage tabs' resize lives in a triage-only IIFE that bails when there are no verdict rows, so the
+  // non-triage tables carry their own copy here. Same mechanic: a grip per header, the new width broadcast
+  // to that column index across EVERY group table in the tab (keeping the groups aligned), persisted per
+  // 'cwcol:host:scope'. No enforced minimum width — drag a column as narrow as you like.
+  var HOST=${JSON.stringify(state.startHost)};
+  function L(){ try{ return localStorage; }catch(e){ return null; } }
+  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
+  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
+  function grpTables(scope){ var P=document.getElementById('panel-'+scope); return P? P.querySelectorAll('table.grptbl') : []; }
+  function applyCol(scope, idx, px){ var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
+  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
+  function gripDown(scope, th, idx, grip, e){ e.preventDefault(); e.stopPropagation(); var startX=e.clientX, startW=th.offsetWidth, cur=startW; setCls(grip,'drag',true);
+    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
+    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); setCls(grip,'drag',false); saveCol(scope, idx, cur); }
+    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true); }
+  function wireResize(scope){ var ts=grpTables(scope); if(!ts.length) return; var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
+    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } } }
+  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
   var TABS=[['panel-external','ext'],['panel-internal','int'],['panel-outscope','oos']], t;
   for(t=0;t<TABS.length;t++){ (function(pid, pre){
     var P=document.getElementById(pid); if(!P) return;
+    var scope=pid.replace('panel-','');
     var tgs=P.querySelectorAll('.domtoggle'), i;
     for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
     var grps=P.querySelectorAll('.domgrp');
     function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
     var ex=document.getElementById(pre+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
     var co=document.getElementById(pre+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
+    wireResize(scope);
   })(TABS[t][0], TABS[t][1]); }
+  var rbs=document.querySelectorAll('.grpcolreset'); for(var r=0;r<rbs.length;r++){ rbs[r].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
 })();</script>
 ${pagerScript}${NEWWIN}</body></html>`;
 }

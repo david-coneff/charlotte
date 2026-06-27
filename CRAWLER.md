@@ -521,6 +521,11 @@ tabbed sections:
 
 Each tab's list sits in a **fixed-height viewport that scrolls internally** (so a long list never
 stretches the whole page) — and you can **drag its bottom-right corner to resize** the height to taste.
+Every grouped tab's table columns are **drag-resizable too**: grab the grip on a column header's right
+edge and drag (there's **no minimum width** — make a column as narrow as you like); the change broadcasts
+to every group on the tab so they stay aligned, persists in your browser, and an **↔ Reset column widths**
+button restores the defaults. On the triage tabs the lengthy per-tab explanation is tucked into a
+**“How this tab works”** disclosure you can collapse to reclaim space (it stays collapsed once you fold it).
 
 Across the top sits a row of **headline numbers**, split into two ideas a one-line legend
 spells out:

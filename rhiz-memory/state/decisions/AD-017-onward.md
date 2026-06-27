@@ -1175,3 +1175,30 @@ with `max-height:none` while `.domgrp .dombody` is `72px` content height with `r
 confirms the stacked header, the All:Fixed box, translucent amber on a Broken section, NO outline on a
 Working section, and the Prev/Page/Next bar above the scroll area. Full suite 170/0 (revtest's verdict
 sync still passes through the header restructure).
+
+## AD-065: Resizable columns on the non-triage tabs, no minimum column width, and collapsible per-tab help
+**Date:** 2026-06-27
+**Problem:** three gaps surfaced after the AD-061 folder grouping. (1) The drag-resizable columns (AD-058)
+only worked on the triage tabs — the Internal/External/Out-of-scope grouped tables were plain `<table>`,
+so their columns couldn't be resized (External's long "Found on" URLs had nowhere to go). (2) Some columns
+had CSS `min-width` (`.tcol` 80, `.pickcol` 34, the global first/last-child 360/300) and a 40px grip floor,
+so a few columns refused to shrink while others shrank freely — inconsistent, and the operator wants to
+decide widths themselves. (3) The per-tab explanatory text is lengthy and always-on, eating screen space.
+**Decision:** (1) the non-triage group tables are now `table.grptbl` (table-layout:fixed; width:max-content;
+default per-column widths set inline in the head), and the always-run non-triage IIFE carries its OWN copy
+of the resize machinery (`colKey/loadCols/grpTables/applyCol/saveCol/gripDown/wireResize/resetCols`, keyed
+`cwcol:host:<internal|external|outscope>`) — the triage resize lives in a triage-only IIFE that bails when
+there are no verdict rows, so it can't be reused. A grip per header broadcasts the new width to that column
+index across every group table in the tab; an "↔ Reset column widths" button sits in each tab's exptools.
+(2) ALL enforced minimums are gone: the resizable tables use a blanket `th,td{min-width:0}`, `.tcol`/
+`.pickcol` lost their `min-width`, and the grip floor dropped 40→16px (both triage + non-triage) — so any
+column drags as narrow as you like. (3) a `helpBox(inner)` wraps each triage tab's lengthy help
+(pickHelp/domainHelp/folderHelp/blockedHelp) in a `<details class="helpbox" open>` titled "How this tab
+works"; the one-line tab intro stays visible, the detail folds away, and the open/closed state persists via
+the existing charlotteD_ `<details>` persistence.
+**Verification:** headless probes — External/Internal/Out-of-scope render `table.grptbl` with a grip per
+header and an "↔ Reset column widths" button; dragging a header sets the width, BROADCASTS it across all
+group tables in the tab (`urlColAcrossTables=480px,480px,480px`), persists to `cwcol:x:external`, and Reset
+clears both the inline widths and the key; a column drags down to 16px (no minimum); first-column
+`offsetWidth` reads correctly (64/380). The help `<details>` is present, open by default, and collapses.
+Screenshot confirms the "How this tab works" disclosure on Broken·external. Full suite 170/0.

@@ -34,6 +34,7 @@ Subcommands (extra args are forwarded to the underlying tool):
   docs             doc-graph.py render-all --root <repo>
   verify <index>   doc-graph.py verify <index>
   maintain         lint + search index + docs   (the mechanical loop, no LLM)
+  report           rhiz-maintain.py --report — classify findings auto vs judgment
   update           refresh the cached rhizome checkout only
   self-update      overwrite this bootstrap with the channel's canonical copy
   channel          print the channel/ref this repo tracks (drift-guard reads this)
@@ -134,6 +135,8 @@ def main() -> int:
         rc |= _run([py, search, "--root-repo", str(root), "index"])
         rc |= _run([py, dg, "render-all", "--root", str(root)])
         return rc
+    if sub == "report":
+        return _run([py, str(R / "tools" / "rhiz-maintain.py"), "--report", "--root", str(root), *rest])
 
     print(f"unknown subcommand: {sub}\n{__doc__}", file=sys.stderr)
     return 2

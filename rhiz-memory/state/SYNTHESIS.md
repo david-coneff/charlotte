@@ -554,15 +554,12 @@ crashes — NOT in the maintained set; §5 #12/#19.)
 
 ## 7. Open threads / not yet done
 
-- **Laserfiche WebLink discover crawls 0 pages — one cause found & fixed (AD-090), live-site confirmation
-  PENDING (2026-06-28).** AD-089 removed the *false* instant "Done — 0 crawled in 0:00" (a stale-`DONE_` poll
-  artifact; its delivery hit the smart-quote trap §5 #31) but did not touch the real symptom. AD-090 found a
-  concrete, reproduced cause: the browser harvest read only the top frame, so a listing embedded in an `<iframe>`
-  (a common WebLink layout) yielded 0 links —> empty seeds —> nothing crawled. Fixed by harvesting all
-  `page.frames()` (§5 #32) and added a loud "rendered N pages but found nothing" diagnostic. NOT yet confirmed
-  this is DHW's specific cause — the dev environment can't reach `publicdocuments.dhw.idaho.gov` (network policy).
-  Next: re-run against the live site; if still empty, read the new diagnostic + the discover manifest to tell
-  whether it's settle/timeout, an auth/landing page, virtual-scroll, or a non-iframe JS-nav pattern.
+- **Laserfiche WebLink zero-crawl — RESOLVED 2026-06-28 (AD-090).** The browser harvest read only the
+  top frame, so a folder listing embedded in an `<iframe>` (a common WebLink layout) yielded 0 links —> empty
+  seeds —> nothing crawled. Fixed by harvesting all `page.frames()` (§5 #32) plus a `--settle 2500` render
+  cushion; the operator re-ran against the live DHW site and it crawls the repository again. (AD-089's instant
+  "Done — 0 crawled" was a separate, earlier bug — a stale-`DONE_` poll artifact whose fix delivery hit the
+  smart-quote trap §5 #31.)
 
 - The browser toolchain (`web-crawler.html`) has not received the triage/fix-tracker UX the
   Node report has; it remains the lightweight in-tab variant.

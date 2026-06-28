@@ -798,6 +798,17 @@ function setActivity(html, warn) {
   a.className = warn ? "statchip warn" : "statchip";
 }
 
+// Seconds of no progress before the "no new page" warning. Adaptive, not a fixed
+// 10s: a single request can legitimately take up to the configured Timeout, then
+// the inter-request Delay, then more for a slow multi-MB document download (whose
+// streaming keeps resetting the timeout). So scale the threshold with those
+// settings — a deliberately polite, document-heavy crawl shouldn't look "stuck".
+function stallSecs() {
+  var t = parseInt(val("timeout"), 10); if (!(t > 0)) t = 20000;
+  var d = parseInt(val("delay"), 10); if (!(d >= 0)) d = 0;
+  return Math.max(20, Math.ceil((t + d * 2) / 1000) + 15);
+}
+
 // Parse the crawler's progress log for live stats. Lines look like
 //   "<ISO> OK d0 200 http://… int=4 ext=1"   (a good page)
 //   "<ISO> ERR http://… :: HTTP 404"          (a broken one)
@@ -959,8 +970,9 @@ function poll() {
     else if (gExtTotal > 0 && gExtChecked < gExtTotal) setActivity("verifying external links " + gExtChecked + "/" + gExtTotal + siteTag, false);
     else {
       var idle = Math.floor((now - lastChangeMs) / 1000);
-      if (gCrawled === 0 && secs >= 5) setActivity("waiting for first page&hellip; (" + secs + "s)" + siteTag, true);
-      else if (idle >= 10) setActivity("no new page in " + idle + "s — may be stuck or rate-limited" + siteTag, true);
+      var stall = stallSecs();
+      if (gCrawled === 0 && secs >= stall) setActivity("waiting for first page&hellip; (" + secs + "s)" + siteTag, true);
+      else if (idle >= stall) setActivity("no new page in " + idle + "s — may be stuck or rate-limited" + siteTag, true);
       else setActivity("crawling&hellip;" + siteTag, false);
     }
   } else {

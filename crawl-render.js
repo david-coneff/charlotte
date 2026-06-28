@@ -864,35 +864,47 @@ async function runDiscover(cfg) {
     frontier = [];
     let idx = 0;
     const worker = async () => {
-      while (idx < level.length && rendered < cfg.maxPages && !stopped) {
+      while (rendered < cfg.maxPages && !stopped) {
+        // Claim a frontier index SYNCHRONOUSLY — no await between the bound check
+        // and the read — so concurrent workers never grab the same (or an
+        // out-of-range/undefined) item. (The await control() below must not sit
+        // between these two lines, or two workers race past the check at idx=0.)
+        if (idx >= level.length) break;
+        const job = level[idx++];
         await control();
         if (stopped) break;
-        const job = level[idx++];
-        let obs;
-        try { obs = await driver.harvest(job.url); }
-        catch (e) { obs = { status: 0, err: String(e && e.message || e), title: "", finalUrl: job.url, domLinks: [], rawAttrs: [] }; }
         rendered++;
-        const c = classify(obs.status, obs.err, obs.title);
-        const links = collectLinks(obs, job.url);
-        renderedPages.push({ url: job.url, status: obs.status, disposition: c.disp, title: obs.title || "", depth: job.depth, links: links.length });
-        const self = internal.get(job.key);
-        if (self) { self.rendered = true; self.depth = job.depth; }
-        if (c.disp === "broken") errors.push({ url: job.url, reason: c.note, source: job.depth === 0 ? "(seed)" : "(frontier)" });
+        try {
+          let obs;
+          try { obs = await driver.harvest(job.url); }
+          catch (e) { obs = { status: 0, err: String(e && e.message || e), title: "", finalUrl: job.url, domLinks: [], rawAttrs: [] }; }
+          const c = classify(obs.status, obs.err, obs.title);
+          const links = collectLinks(obs, job.url);
+          renderedPages.push({ url: job.url, status: obs.status, disposition: c.disp, title: obs.title || "", depth: job.depth, links: links.length });
+          const self = internal.get(job.key);
+          if (self) { self.rendered = true; self.depth = job.depth; }
+          if (c.disp === "broken") errors.push({ url: job.url, reason: c.note, source: job.depth === 0 ? "(seed)" : "(frontier)" });
 
-        for (const href of links) {
-          let u; try { u = new URL(href); } catch { continue; }
-          if (isAsset(u.pathname)) continue;
-          if (!hostMatches(u.hostname, start.hostname, cfg.includeSubdomains)) { recordRef(external, u, job.url); continue; }
-          if (!inScope(u, start, cfg.scope, cfg.pathPrefix)) { recordRef(outOfScope, u, job.url); continue; }
-          if (looksLikeDocument(u.pathname)) { recordRef(documents, u, job.url); continue; }
-          // In-scope HTML page: record for the seeds payload; recurse if budget allows.
-          recordRef(internal, u, job.url);
-          const key = canon(u);
-          if (!seen.has(key)) { seen.add(key); if (job.depth < cfg.maxDepth) frontier.push({ url: u.href, depth: job.depth + 1, key }); }
+          for (const href of links) {
+            let u; try { u = new URL(href); } catch { continue; }
+            if (isAsset(u.pathname)) continue;
+            if (!hostMatches(u.hostname, start.hostname, cfg.includeSubdomains)) { recordRef(external, u, job.url); continue; }
+            if (!inScope(u, start, cfg.scope, cfg.pathPrefix)) { recordRef(outOfScope, u, job.url); continue; }
+            if (looksLikeDocument(u.pathname)) { recordRef(documents, u, job.url); continue; }
+            // In-scope HTML page: record for the seeds payload; recurse if budget allows.
+            recordRef(internal, u, job.url);
+            const key = canon(u);
+            if (!seen.has(key)) { seen.add(key); if (job.depth < cfg.maxDepth) frontier.push({ url: u.href, depth: job.depth + 1, key }); }
+          }
+          const mark = c.disp === "ok" ? "✓" : c.disp === "broken" ? "✗" : "?";
+          console.log(`  [${rendered}${cfg.maxPages === Infinity ? "" : "/" + cfg.maxPages}] ${mark} d${job.depth}  ${job.url}  — ${links.length} link${links.length === 1 ? "" : "s"}${obs.status ? ", HTTP " + obs.status : obs.err ? ", " + obs.err.slice(0, 40) : ""}`);
+          logLine(`${new Date().toISOString()} ${c.disp === "ok" ? "OK" : c.disp === "broken" ? "ERR" : "BLOCKED"} d${job.depth} ${obs.status || 0} ${job.url} int=${links.length} ext=0`);
+        } catch (e) {
+          // A single page's failure must never abort the whole crawl.
+          errors.push({ url: job.url, reason: "discover error: " + (e && e.message || e), source: "(discover)" });
+          console.log(`  [${rendered}] ! d${job.depth}  ${job.url}  — error: ${e && e.message || e}`);
+          logLine(`${new Date().toISOString()} ERR d${job.depth} 0 ${job.url} int=0 ext=0`);
         }
-        const mark = c.disp === "ok" ? "✓" : c.disp === "broken" ? "✗" : "?";
-        console.log(`  [${rendered}${cfg.maxPages === Infinity ? "" : "/" + cfg.maxPages}] ${mark} d${job.depth}  ${job.url}  — ${links.length} link${links.length === 1 ? "" : "s"}${obs.status ? ", HTTP " + obs.status : obs.err ? ", " + obs.err.slice(0, 40) : ""}`);
-        logLine(`${new Date().toISOString()} ${c.disp === "ok" ? "OK" : c.disp === "broken" ? "ERR" : "BLOCKED"} d${job.depth} ${obs.status || 0} ${job.url} int=${links.length} ext=0`);
         if (cfg.delay) await sleep(cfg.delay);
       }
     };

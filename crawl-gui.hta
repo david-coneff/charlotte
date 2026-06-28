@@ -602,11 +602,12 @@ function startCrawl(resume) {
     deleteIfExists(stopPath);
     deleteIfExists(pausePath);
     deleteIfExists(tunePath);   // start clean so stale tune values can't carry over
-    deleteIfExists(livePath);   // fresh live log for this run
+    deleteIfExists(errPath);    // clear old error log so the errPath fallback in liveout shows fresh content
+    writeFile(livePath, “”);    // fresh live log — truncate/create-empty (deleteIfExists silently fails on locked files, leaving a stale DONE_ that triggers a false instant-finish on the next run)
     writeFile(batPath, bat);
   } catch (e) {
-    setStatus("Couldn't write helper files to " + workDir + " — " + e.message +
-      ". Pick an output folder you can write to, or click “Copy command” and run it in a terminal.", "bad");
+    setStatus(“Couldn't write helper files to “ + workDir + “ — “ + e.message +
+      “. Pick an output folder you can write to, or click “Copy command” and run it in a terminal.”, “bad”);
     return;
   }
 
@@ -675,8 +676,8 @@ function recheckLinks() {
   // Re-check honors the same Stop/Pause control files as a crawl, so those buttons work here too.
   var runCmd = buildRecheckCommand() + " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath);
   var bat = "@echo off\r\ncd /d " + q(workDir) + "\r\n" + runCmd + " > " + q(errPath) + " 2>&1\r\necho DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
-  try { deleteIfExists(stopPath); deleteIfExists(pausePath); deleteIfExists(livePath); writeFile(batPath, bat); }
-  catch (e) { setStatus("Couldn't write helper files to " + workDir + " — " + e.message + ". Click “Copy command” and run it in a terminal.", "bad"); return; }
+  try { deleteIfExists(stopPath); deleteIfExists(pausePath); deleteIfExists(errPath); writeFile(livePath, “”); writeFile(batPath, bat); }
+  catch (e) { setStatus(“Couldn't write helper files to “ + workDir + “ — “ + e.message + “. Click “Copy command” and run it in a terminal.”, “bad”); return; }
 
   runMode = "recheck";
   showTab("run");
@@ -712,8 +713,8 @@ function rebuildReport() {
   batPath  = workDir + "\\crawl-gui-run.bat";
 
   var bat = "@echo off\r\ncd /d " + q(workDir) + "\r\n" + buildRebuildCommand() + " > " + q(errPath) + " 2>&1\r\necho DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
-  try { deleteIfExists(livePath); writeFile(batPath, bat); }
-  catch (e) { setStatus("Couldn't write helper files to " + workDir + " — " + e.message + ". Click “Copy command” and run it in a terminal.", "bad"); return; }
+  try { deleteIfExists(errPath); writeFile(livePath, “”); writeFile(batPath, bat); }
+  catch (e) { setStatus(“Couldn't write helper files to “ + workDir + “ — “ + e.message + “. Click “Copy command” and run it in a terminal.”, “bad”); return; }
 
   runMode = "rebuild";
   showTab("run");
@@ -862,6 +863,7 @@ function processLine(ln) {
   var dm = ln.match(/^DONE_(\-?\d+)/);
   if (dm) { gDoneCode = parseInt(dm[1], 10); return; }
   if (ln.indexOf("# discover start ") === 0) { gDiscoverPhase = true; return; }
+  if (ln.indexOf("# crawl start ") === 0) { gDiscoverPhase = false; return; }
   var m = ln.match(/^\S+\s+(OK|ERR|SKIP|BLOCKED)\s+(.*)$/);
   if (m) {
     gCrawled++;
@@ -973,8 +975,9 @@ function poll() {
     else {
       var idle = Math.floor((now - lastChangeMs) / 1000);
       var stall = stallSecs();
-      if (gCrawled === 0 && secs >= stall) setActivity("waiting for first page&hellip; (" + secs + "s)" + siteTag, true);
+      if (gCrawled === 0 && secs >= stall) setActivity((gDiscoverPhase ? "browser rendering, waiting for first page" : "waiting for first page") + "&hellip; (" + secs + "s)" + siteTag, true);
       else if (idle >= stall) setActivity("no new page in " + idle + "s — may be stuck or rate-limited" + siteTag, true);
+      else if (gDiscoverPhase) setActivity("discovering JS links&hellip;" + siteTag, false);
       else setActivity("crawling&hellip;" + siteTag, false);
     }
   } else {

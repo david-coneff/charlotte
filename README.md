@@ -63,10 +63,11 @@ delay, etc. — so it honors what you set for a GUI crawl; `--no-config` opts ou
 page*, not a file — so without help, discover renders every one (thousands of
 wasted renders) and `crawl.js` only ever sees viewer HTML, never the document.
 Add `--laserfiche`: discover then treats `DocView.aspx?id=N` as a document,
-recording its file-download URL (`…&openpdf=true`, override with
-`--laserfiche-dl openfile=true`) so `crawl.js` fetches the real PDF/Office bytes
-and scans the links **inside** them — and skips rendering the viewer pages
-entirely. (In the GUI it's the on-by-default **Laserfiche document mode** box.)
+recording its file-download URL — by default `ElectronicFile.aspx?docid=N` (the
+native electronic file; override with `--laserfiche-dl openpdf=true` for image
+docs) — so `crawl.js` fetches the real PDF/Office bytes and scans the links
+**inside** them, and skips rendering the viewer pages entirely. (In the GUI it's
+the on-by-default **Laserfiche document mode** box.)
 
 On Windows, the GUI (`crawl-gui.hta`) has a **Discover (JS site)** checkbox — on
 by default — that runs this whole pipeline (render → harvest → verify + scan)

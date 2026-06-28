@@ -154,7 +154,7 @@ function parseArgs(argv) {
     stopFile: "",        // if this file appears mid-discover, stop gracefully (GUI Stop)
     pauseFile: "",       // while this file exists, pause discovery (GUI Pause)
     laserfiche: false,   // treat Laserfiche WebLink DocView.aspx?id=N as a document, not a page
-    laserficheDl: "openpdf=true",  // the query param that makes DocView return the file (openpdf|openfile)
+    laserficheDl: "electronicfile",  // how to reach the file bytes: 'electronicfile' (ElectronicFile.aspx?docid=N) | openpdf=true | openfile=true
     waitUntilSet: false, // did the user pass --wait-until explicitly?
     outSet: false,       // did the user pass --out explicitly?
   };
@@ -285,9 +285,10 @@ Discover (--discover) — render a JS site and harvest its real links:
                      viewer page) as a DOCUMENT, not a page — record its file
                      URL and don't render the viewer. Turns thousands of wasted
                      viewer renders into scannable file URLs for crawl.js.
-  --laserfiche-dl P  The query param that makes DocView return the file bytes
-                     (default openpdf=true; try openfile=true for native files).
-                     Implies --laserfiche.
+  --laserfiche-dl P  How to reach a document's bytes (implies --laserfiche):
+                       electronicfile  (default) -> ElectronicFile.aspx?docid=N
+                         (the native file; works when openpdf is export-blocked)
+                       openpdf=true / openfile=true -> that query param on DocView
   In discover mode --wait-until defaults to 'networkidle' and --out defaults to
   crawl-render.discover.json (a full JSON manifest of pages/documents/links).
 
@@ -418,13 +419,31 @@ function looksLikeDocument(pathname) { return DOC_EXT_RE.test(pathname || ""); }
 function isLaserficheDoc(u) {
   return /\/docview\.aspx$/i.test(u.pathname || "") && /[?&]id=/i.test(u.search || "");
 }
-// Rewrite a DocView viewer URL to the file-download URL (default ?openpdf=true)
-// so crawl.js fetches real PDF/file bytes it can scan, instead of the viewer HTML.
+// Rewrite a DocView viewer URL to the URL that returns the document's real bytes,
+// so crawl.js fetches a scannable file instead of the viewer HTML. Two forms:
+//   'electronicfile' (default) — the documented download endpoint, a PATH swap +
+//      param rename:  …/DocView.aspx?id=N&dbid=D&repo=R
+//                  -> …/ElectronicFile.aspx?docid=N&dbid=D&repo=R
+//      (returns the native electronic file — exactly the docs that have links in
+//      them; works where openpdf is blocked by an export-reason requirement).
+//   'openpdf=true' / 'openfile=true' / any key=value — append that query param to
+//      the same DocView URL (for instances where that returns the file).
 function laserficheDownloadUrl(u, dlParam) {
+  const dl = (dlParam || "electronicfile").trim();
   const out = new URL(u.href);
-  const p = dlParam || "openpdf=true";
-  const eq = p.indexOf("=");
-  out.searchParams.set(eq >= 0 ? p.slice(0, eq) : p, eq >= 0 ? p.slice(eq + 1) : "true");
+  if (/electronic/i.test(dl)) {
+    const getCI = (name) => { for (const [k, v] of u.searchParams) if (k.toLowerCase() === name) return v; return null; };
+    out.pathname = out.pathname.replace(/\/[^/]*$/, "/ElectronicFile.aspx");
+    const sp = new URLSearchParams();
+    const id = getCI("id"); if (id != null) sp.set("docid", id);
+    const dbid = getCI("dbid"); if (dbid != null) sp.set("dbid", dbid);
+    const repo = getCI("repo"); if (repo != null) sp.set("repo", repo);
+    out.search = sp.toString();
+    out.hash = "";
+    return out;
+  }
+  const eq = dl.indexOf("=");
+  out.searchParams.set(eq >= 0 ? dl.slice(0, eq) : dl, eq >= 0 ? dl.slice(eq + 1) : "true");
   return out;
 }
 
@@ -987,7 +1006,7 @@ async function runDiscover(cfg) {
   if (cfg.html) fs.writeFileSync(cfg.html, buildDiscoverHtml(report));
 
   console.log(`\nDiscovered ${internal.size} in-scope page(s), ${documents.size} document(s), ${external.size} external link(s).`);
-  if (cfg.laserfiche) console.log(`Laserfiche mode: DocView.aspx documents recorded as ?${cfg.laserficheDl} file URLs for scanning (viewer pages not rendered).`);
+  if (cfg.laserfiche) console.log(`Laserfiche mode (${cfg.laserficheDl}): DocView.aspx documents recorded as file-download URLs for scanning (viewer pages not rendered).`);
   else if (sawDocView) console.log(`Tip: this looks like Laserfiche WebLink — re-run with --laserfiche to scan its DocView.aspx documents (as files) instead of rendering each viewer page.`);
   if (stopped) console.log(`Stopped early on request (Stop flag) — wrote partial results: ${renderedPages.length} page(s) rendered, ${notRendered} discovered page(s) not yet rendered.`);
   else if (rendered >= cfg.maxPages && notRendered) console.log(`Stopped at --max-pages ${cfg.maxPages}: ${notRendered} discovered in-scope page(s) were not rendered (raise --max-pages / --max-depth to go further).`);

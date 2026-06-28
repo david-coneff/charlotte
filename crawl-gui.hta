@@ -132,6 +132,7 @@
       <label class="f" style="vertical-align:top">Options</label>
       <div class="opts">
         <label class="opt" title="Render each page in a real browser (Microsoft Edge) to find links a JavaScript-built site (Laserfiche WebLink, SharePoint, most document portals) loads client-side, which the plain static crawl can't see. The found links are then verified and their documents scanned. Needs Playwright installed (npm install playwright). Uncheck for a plain static crawl."><input type="checkbox" id="discoverJs" checked onclick="updatePreview()"> <b>Discover (JS site)</b> — render with a browser first (for WebLink/SharePoint/SPAs)</label>
+        <label class="opt" title="Laserfiche WebLink only: a document is a DocView.aspx?id=N viewer PAGE, not a file. With this on, discover treats those as documents — recording the file-download URL (?openpdf=true) for scanning instead of rendering each viewer page. On a repository with thousands of documents this is a huge speedup and is what lets crawl.js scan the links inside the documents. Harmless on non-Laserfiche sites (no DocView.aspx → no effect). Only applies when Discover (JS site) is on."><input type="checkbox" id="laserfiche" checked onclick="updatePreview()"> &nbsp;&nbsp;↳ <b>Laserfiche document mode</b> — scan DocView.aspx documents (don't render each viewer)</label>
         <label class="opt"><input type="checkbox" id="includeSub" checked onclick="updatePreview()"> Treat subdomains as internal</label>
         <label class="opt"><input type="checkbox" id="checkExternal" checked onclick="updatePreview()"> Verify external links resolve</label>
         <label class="opt"><input type="checkbox" id="recheck" checked onclick="updatePreview()"> Re-test failed links once at the end</label>
@@ -364,6 +365,7 @@ function buildDiscoverCommand() {
   pushLimitArgs(a);
   a.push("--channel msedge");     // the Edge that ships with Windows (no Chromium download)
   a.push("--ignore-case");        // WebLink/SharePoint/IIS: /Browse.aspx and /browse.aspx are one page
+  if ($("laserfiche") && $("laserfiche").checked) a.push("--laserfiche");  // DocView.aspx docs -> file URLs, not rendered
   a.push("--seeds " + q(DISCOVER_SEEDS));
   a.push("--out " + q(DISCOVER_JSON));
   a.push("--log " + q(val("log") || "crawl-gui-run.log"));
@@ -496,7 +498,7 @@ function seedUrls() {
 // ---- optional crawl-gui-config.txt next to this file: override the form defaults
 //      (any field's saved default) without editing the GUI. One "key = value" per line;
 //      key is a field id (e.g. maxPages, concurrency, delay, rps, timeout, pageSize (off/250/500/1000/2500/5000),
-//      discoverJs, checkExternal, browser, scanDocs, recheck, includeSub, noPages, noDepth, scope,
+//      discoverJs, laserfiche, checkExternal, browser, scanDocs, recheck, includeSub, noPages, noDepth, scope,
 //      pathPrefix, seen, allowlist, allowlistExport, out, json, log, checkpoint, userAgent, workDir).
 //      Checkboxes take true/false (or 1/0, yes/no, on/off). '#' starts a comment; blank
 //      lines ignored. Unknown keys are skipped. (Start URLs come from crawl-gui-domains.txt.)

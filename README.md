@@ -59,6 +59,15 @@ Requirements.) If a `crawl-gui-config.txt` is present (the Windows GUI's options
 file), discover reads the **same** limits from it — max-pages/-depth, scope,
 delay, etc. — so it honors what you set for a GUI crawl; `--no-config` opts out.
 
+**Laserfiche WebLink** serves each document as a `DocView.aspx?id=N` *viewer
+page*, not a file — so without help, discover renders every one (thousands of
+wasted renders) and `crawl.js` only ever sees viewer HTML, never the document.
+Add `--laserfiche`: discover then treats `DocView.aspx?id=N` as a document,
+recording its file-download URL (`…&openpdf=true`, override with
+`--laserfiche-dl openfile=true`) so `crawl.js` fetches the real PDF/Office bytes
+and scans the links **inside** them — and skips rendering the viewer pages
+entirely. (In the GUI it's the on-by-default **Laserfiche document mode** box.)
+
 On Windows, the GUI (`crawl-gui.hta`) has a **Discover (JS site)** checkbox — on
 by default — that runs this whole pipeline (render → harvest → verify + scan)
 from the form's settings, with the live progress feed and Stop/Pause buttons

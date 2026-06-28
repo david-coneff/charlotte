@@ -153,6 +153,8 @@ function parseArgs(argv) {
     log: "",             // append per-page progress lines (GUI-pollable format); "" = off
     stopFile: "",        // if this file appears mid-discover, stop gracefully (GUI Stop)
     pauseFile: "",       // while this file exists, pause discovery (GUI Pause)
+    laserfiche: false,   // treat Laserfiche WebLink DocView.aspx?id=N as a document, not a page
+    laserficheDl: "openpdf=true",  // the query param that makes DocView return the file (openpdf|openfile)
     waitUntilSet: false, // did the user pass --wait-until explicitly?
     outSet: false,       // did the user pass --out explicitly?
   };
@@ -213,6 +215,8 @@ function parseArgs(argv) {
       case "--log": cfg.log = next(); break;
       case "--stop-file": cfg.stopFile = next(); break;
       case "--pause-file": cfg.pauseFile = next(); break;
+      case "--laserfiche": cfg.laserfiche = true; break;
+      case "--laserfiche-dl": cfg.laserficheDl = next(); cfg.laserfiche = true; break;
       case "--channel": cfg.channel = next(); break;
       case "--browser-path": cfg.browserPath = next(); break;
       case "--user-agent": cfg.userAgent = next(); break;
@@ -277,6 +281,13 @@ Discover (--discover) — render a JS site and harvest its real links:
                      /browse.aspx aren't rendered twice. For IIS/ASP.NET sites
                      (Laserfiche WebLink, SharePoint). Off by default (unsafe on
                      case-sensitive servers).
+  --laserfiche       Laserfiche WebLink: treat DocView.aspx?id=N (a document's
+                     viewer page) as a DOCUMENT, not a page — record its file
+                     URL and don't render the viewer. Turns thousands of wasted
+                     viewer renders into scannable file URLs for crawl.js.
+  --laserfiche-dl P  The query param that makes DocView return the file bytes
+                     (default openpdf=true; try openfile=true for native files).
+                     Implies --laserfiche.
   In discover mode --wait-until defaults to 'networkidle' and --out defaults to
   crawl-render.discover.json (a full JSON manifest of pages/documents/links).
 
@@ -399,6 +410,23 @@ const DOC_EXT_RE = /\.(pdf|docx?|xlsx?|pptx?|odt|ods|odp|rtf|csv|tsv|txt|zip|7z|
 
 function isAsset(pathname) { return ASSET_EXT_RE.test(pathname || ""); }
 function looksLikeDocument(pathname) { return DOC_EXT_RE.test(pathname || ""); }
+
+// Laserfiche WebLink serves a document as a `DocView.aspx?id=N` viewer PAGE, not a
+// file URL — so the static classifier sees it as an ordinary HTML page and would
+// render every one. Detect those (case-insensitive path + an id param), so
+// --laserfiche can treat them as documents instead.
+function isLaserficheDoc(u) {
+  return /\/docview\.aspx$/i.test(u.pathname || "") && /[?&]id=/i.test(u.search || "");
+}
+// Rewrite a DocView viewer URL to the file-download URL (default ?openpdf=true)
+// so crawl.js fetches real PDF/file bytes it can scan, instead of the viewer HTML.
+function laserficheDownloadUrl(u, dlParam) {
+  const out = new URL(u.href);
+  const p = dlParam || "openpdf=true";
+  const eq = p.indexOf("=");
+  out.searchParams.set(eq >= 0 ? p.slice(0, eq) : p, eq >= 0 ? p.slice(eq + 1) : "true");
+  return out;
+}
 
 // Keep a URL fragment only when it carries SPA routing state (#/, #!, #?, or a
 // key=value), so e.g. WebLink's `…#?id=42` stays distinct per folder while a
@@ -837,6 +865,7 @@ async function runDiscover(cfg) {
   const errors = [];             // {url, reason, source}
   const MAX_RECORD = 200000;     // memory backstop; reported, never silent
   let recordCapped = false;
+  let sawDocView = false;        // saw a Laserfiche DocView.aspx link (for the --laserfiche hint)
   const recordRef = (map, u, src) => {
     const key = canon(u);
     let e = map.get(key);
@@ -890,6 +919,12 @@ async function runDiscover(cfg) {
             if (isAsset(u.pathname)) continue;
             if (!hostMatches(u.hostname, start.hostname, cfg.includeSubdomains)) { recordRef(external, u, job.url); continue; }
             if (!inScope(u, start, cfg.scope, cfg.pathPrefix)) { recordRef(outOfScope, u, job.url); continue; }
+            if (isLaserficheDoc(u)) {
+              sawDocView = true;
+              // A WebLink document: record the file-download URL (so crawl.js scans
+              // real bytes) and DON'T recurse into the viewer page.
+              if (cfg.laserfiche) { recordRef(documents, laserficheDownloadUrl(u, cfg.laserficheDl), job.url); continue; }
+            }
             if (looksLikeDocument(u.pathname)) { recordRef(documents, u, job.url); continue; }
             // In-scope HTML page: record for the seeds payload; recurse if budget allows.
             recordRef(internal, u, job.url);
@@ -952,6 +987,8 @@ async function runDiscover(cfg) {
   if (cfg.html) fs.writeFileSync(cfg.html, buildDiscoverHtml(report));
 
   console.log(`\nDiscovered ${internal.size} in-scope page(s), ${documents.size} document(s), ${external.size} external link(s).`);
+  if (cfg.laserfiche) console.log(`Laserfiche mode: DocView.aspx documents recorded as ?${cfg.laserficheDl} file URLs for scanning (viewer pages not rendered).`);
+  else if (sawDocView) console.log(`Tip: this looks like Laserfiche WebLink — re-run with --laserfiche to scan its DocView.aspx documents (as files) instead of rendering each viewer page.`);
   if (stopped) console.log(`Stopped early on request (Stop flag) — wrote partial results: ${renderedPages.length} page(s) rendered, ${notRendered} discovered page(s) not yet rendered.`);
   else if (rendered >= cfg.maxPages && notRendered) console.log(`Stopped at --max-pages ${cfg.maxPages}: ${notRendered} discovered in-scope page(s) were not rendered (raise --max-pages / --max-depth to go further).`);
   else if (notRendered) console.log(`${notRendered} discovered in-scope page(s) were beyond --max-depth ${fmtCap(cfg.maxDepth)} and not rendered.`);
@@ -1018,5 +1055,5 @@ if (require.main === module) {
 module.exports = {
   classify, gatherSuspects, gatherSeeds, buildHtml, buildDiscoverHtml, applyToCrawlJson, makeHttpDriver, parseArgs,
   runDiscover, canonicalize, keepFragment, inScope, hostMatches, isAsset, looksLikeDocument, scanUrlish, collectLinks, staticHrefs,
-  parseGuiConfig, applyGuiConfig,
+  parseGuiConfig, applyGuiConfig, isLaserficheDoc, laserficheDownloadUrl,
 };

@@ -111,6 +111,15 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
   const seedUrls = (cfg.seedMode && Array.isArray(cfg.startUrls) && cfg.startUrls.length) ? cfg.startUrls : [cfg.startUrl];
   for (const s of seedUrls) seen.tryAdd(normalize(s));
 
+  // Internal-host set: a --seeds combined crawl is ONE logical crawl over EVERY
+  // seed host (e.g. the main site + a sibling document repo), so all seed hosts
+  // are internal — not just startUrls[0]. Mirrors crawl-render.js discover
+  // (AD-088); without it a sibling seed host's links are misclassified external
+  // and never followed. A non-seed crawl keeps exactly the single start host.
+  const internalHosts = new Set();
+  for (const s of seedUrls) { try { internalHosts.add(new URL(s).hostname); } catch { /* skip a bad seed */ } }
+  const isInternalHost = (host) => { for (const h of internalHosts) { if (sameDomain(host, h, cfg.includeSubdomains)) return true; } return false; };
+
   const state = {
     startHost,
     pathPrefix,
@@ -308,7 +317,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     const inT = [], exT = [], ooT = [];
     for (const link of links) {
       if (link.protocol !== "http:" && link.protocol !== "https:") continue;
-      if (sameDomain(link.hostname, startHost, cfg.includeSubdomains)) {
+      if (isInternalHost(link.hostname)) {
         if (inScope(link.pathname)) {
           // In-scope internal page. Record THIS page as a referrer of it (every
           // distinct referrer is kept — a broken page may need fixing on each),

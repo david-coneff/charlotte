@@ -3056,6 +3056,19 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
   const seen = makeSeenStore(cfg.seen, storeCap, cfg.seenFile);
   const seedUrls = cfg.seedMode && Array.isArray(cfg.startUrls) && cfg.startUrls.length ? cfg.startUrls : [cfg.startUrl];
   for (const s of seedUrls) seen.tryAdd(normalize(s));
+  const internalHosts = /* @__PURE__ */ new Set();
+  for (const s of seedUrls) {
+    try {
+      internalHosts.add(new URL(s).hostname);
+    } catch {
+    }
+  }
+  const isInternalHost = (host) => {
+    for (const h of internalHosts) {
+      if (sameDomain(host, h, cfg.includeSubdomains)) return true;
+    }
+    return false;
+  };
   const state = {
     startHost,
     pathPrefix,
@@ -3264,7 +3277,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     const inT = [], exT = [], ooT = [];
     for (const link of links) {
       if (link.protocol !== "http:" && link.protocol !== "https:") continue;
-      if (sameDomain(link.hostname, startHost, cfg.includeSubdomains)) {
+      if (isInternalHost(link.hostname)) {
         if (inScope(link.pathname)) {
           internalFound++;
           const norm = normalize(link.href);

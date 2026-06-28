@@ -610,20 +610,34 @@ async function makeBrowserDriver(cfg) {
       if (cfg.settle) { try { await page.waitForTimeout(cfg.settle); } catch { /* ignore */ } }
       try { finalUrl = page.url(); } catch { /* ignore */ }
       try { title = await page.title(); } catch { /* ignore */ }
-      try { domLinks = await page.$$eval("a[href]", (as) => as.map((a) => a.href).filter(Boolean)); } catch { /* ignore */ }
-      if (cfg.onclickScan) {
+      // Harvest from EVERY frame, not just the top document. Laserfiche WebLink and
+      // many doc portals embed the folder/document listing in an <iframe>, whose
+      // <a href> are invisible to a top-frame-only query (page.$$eval) — a leading
+      // cause of "rendered the page but found no links, so nothing gets crawled".
+      // page.frames() includes the main frame, so this is a strict superset of the
+      // old top-frame harvest; a detached/navigating sub-frame just gets skipped.
+      let frames; try { frames = page.frames(); } catch { frames = []; }
+      if (!frames.length) { try { frames = [page.mainFrame()]; } catch { frames = []; } }
+      for (const fr of frames) {
         try {
-          rawAttrs = await page.evaluate(() => {
-            const acc = [];
-            for (const el of document.querySelectorAll("[onclick],[data-href],[data-url],[data-link],[data-id]")) {
-              for (const a of ["onclick", "data-href", "data-url", "data-link", "data-id"]) {
-                const v = el.getAttribute && el.getAttribute(a);
-                if (v) acc.push(v);
+          const hrefs = await fr.$$eval("a[href]", (as) => as.map((a) => a.href).filter(Boolean));
+          for (const h of hrefs) domLinks.push(h);
+        } catch { /* cross-document/detached frame — skip */ }
+        if (cfg.onclickScan) {
+          try {
+            const attrs = await fr.evaluate(() => {
+              const acc = [];
+              for (const el of document.querySelectorAll("[onclick],[data-href],[data-url],[data-link],[data-id]")) {
+                for (const a of ["onclick", "data-href", "data-url", "data-link", "data-id"]) {
+                  const v = el.getAttribute && el.getAttribute(a);
+                  if (v) acc.push(v);
+                }
               }
-            }
-            return acc;
-          });
-        } catch { /* ignore */ }
+              return acc;
+            });
+            for (const a of attrs) rawAttrs.push(a);
+          } catch { /* ignore */ }
+        }
       }
       try { await page.close(); } catch { /* ignore */ }
       return { status, err, title, finalUrl, domLinks, rawAttrs };
@@ -1018,6 +1032,21 @@ async function runDiscover(cfg) {
   if (cfg.html) fs.writeFileSync(cfg.html, buildDiscoverHtml(report));
 
   console.log(`\nDiscovered ${internal.size} in-scope page(s), ${documents.size} document(s), ${external.size} external link(s).`);
+  // Loud, actionable diagnostic for the most common live failure: the page(s)
+  // rendered but yielded nothing beyond the seeds themselves, so the seeds handed
+  // to crawl.js have no documents/pages and "nothing gets crawled" downstream.
+  const foundBeyondSeeds = documents.size > 0 || internal.size > seeds.length;
+  if (renderedPages.length && !foundBeyondSeeds) {
+    console.log(`\n!! Rendered ${renderedPages.length} page(s) but found NO in-scope documents or child pages.`);
+    console.log(`   The seeds handed to crawl.js are just the start URL(s), so the verify step has nothing to crawl.`);
+    console.log(`   Likely causes on a Laserfiche/SPA portal, and what to try:`);
+    if (driver.label.startsWith("http-fallback"))
+      console.log(`     - http-fallback runs NO JavaScript: re-run WITHOUT --http-fallback so the browser renders the folder.`);
+    console.log(`     - the listing needs longer to render: raise --settle (e.g. --settle 4000) and/or --timeout.`);
+    console.log(`     - a login / disclaimer / repository-picker loads first: start from the actual folder URL that lists documents.`);
+    console.log(`     - the folder is paginated or virtual-scrolled (only on-screen rows exist in the DOM).`);
+    console.log(`   Open the manifest (${cfg.out}) to see every link the page DID expose.`);
+  }
   if (cfg.laserfiche) console.log(`Laserfiche mode (${cfg.laserficheDl}): DocView.aspx documents recorded as file-download URLs for scanning (viewer pages not rendered).`);
   else if (sawDocView) console.log(`Tip: this looks like Laserfiche WebLink — re-run with --laserfiche to scan its DocView.aspx documents (as files) instead of rendering each viewer page.`);
   if (stopped) console.log(`Stopped early on request (Stop flag) — wrote partial results: ${renderedPages.length} page(s) rendered, ${notRendered} discovered page(s) not yet rendered.`);

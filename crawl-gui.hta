@@ -603,7 +603,7 @@ function startCrawl(resume) {
     deleteIfExists(pausePath);
     deleteIfExists(tunePath);   // start clean so stale tune values can't carry over
     deleteIfExists(errPath);    // clear old error log so the errPath fallback in liveout shows fresh content
-    writeFile(livePath, “”);    // fresh live log — truncate/create-empty (deleteIfExists silently fails on locked files, leaving a stale DONE_ that triggers a false instant-finish on the next run)
+    writeFile(livePath, “”);    // fresh live log: truncate/create-empty (deleteIfExists silently fails on locked files, leaving a stale DONE_ that triggers a false instant-finish on the next run)
     writeFile(batPath, bat);
   } catch (e) {
     setStatus(“Couldn't write helper files to “ + workDir + “ — “ + e.message +

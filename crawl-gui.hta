@@ -200,6 +200,7 @@
     <span class="statchip" id="brokenChip"><span id="lblBroken">Broken (internal)</span>: <b id="statBroken">0</b></span>
     <span class="statchip" id="blockedChip"><span id="lblBlocked">Blocked/uncertain</span>: <b id="statBlocked">0</b></span>
     <span class="statchip" id="extChip">External: <b>0</b> found</span>
+    <span class="statchip" id="docChip" title="Documents scanned (PDF/Office) and the hyperlink instances found inside them. After the crawl finishes it also shows unique destinations and how many are broken/blocked.">Docs: <b id="statDocs">0</b> · <b id="statDocLinks">0</b> links<span id="statDocBad"></span></span>
     <span class="statchip">Elapsed: <b id="statTime">0:00</b></span>
     <span class="statchip">Rate: <b id="statRate">0</b>/min</span>
     <span class="statchip" id="statActivity">starting&hellip;</span>
@@ -239,6 +240,7 @@ var isPaused = false;
 var gPos = 0, gBuf = "", gTail = "";
 var gCrawled = 0, gGood = 0, gBroken = 0, gBlocked = 0;
 var gExtFound = 0, gExtChecked = 0, gExtTotal = 0, gExtBad = 0;
+var gDocs = 0, gDocLinks = 0, gDocUnique = 0, gDocBroken = 0, gDocBlocked = 0, gDocSummary = false;
 var gRecent = [], gBackoffUntil = 0, gSiteI = 0, gSiteN = 0, gDoneCode = null;
 // Re-check progress (runMode === "recheck"): re-uses gCrawled/gGood/gBroken/gBlocked as
 // re-checked / now-OK / still-broken / now-blocked; gReTotal is how many were flagged to
@@ -248,6 +250,7 @@ function resetLiveState() {
   gPos = 0; gBuf = ""; gTail = "";
   gCrawled = 0; gGood = 0; gBroken = 0; gBlocked = 0;
   gExtFound = 0; gExtChecked = 0; gExtTotal = 0; gExtBad = 0;
+  gDocs = 0; gDocLinks = 0; gDocUnique = 0; gDocBroken = 0; gDocBlocked = 0; gDocSummary = false;
   gRecent = []; gBackoffUntil = 0; gSiteI = 0; gSiteN = 0; gDoneCode = null;
   gReTotal = 0; gReStopped = false;
 }
@@ -860,6 +863,12 @@ function processLine(ln) {
   // external is an absolute total (like extTotal=) so it's set.
   var rs = ln.match(/^# resume-stats crawled=(\d+) good=(\d+) broken=(\d+) blocked=(\d+) external=(\d+)/);
   if (rs) { gCrawled += parseInt(rs[1], 10); gGood += parseInt(rs[2], 10); gBroken += parseInt(rs[3], 10); gBlocked += parseInt(rs[4], 10); gExtFound = parseInt(rs[5], 10); return; }
+  // Document scanning: one # docscan per scanned document (live count of docs +
+  // link instances inside them); one final # docsummary with unique/broken/blocked.
+  var dsc = ln.match(/^# docscan links=(\d+)/);
+  if (dsc) { if (!gDocSummary) { gDocs++; gDocLinks += parseInt(dsc[1], 10); } return; }
+  var dsm = ln.match(/^# docsummary docs=(\d+) instances=(\d+) unique=(\d+) broken=(\d+) blocked=(\d+)/);
+  if (dsm) { gDocs = parseInt(dsm[1], 10); gDocLinks = parseInt(dsm[2], 10); gDocUnique = parseInt(dsm[3], 10); gDocBroken = parseInt(dsm[4], 10); gDocBlocked = parseInt(dsm[5], 10); gDocSummary = true; return; }
   // Re-check progress (--recheck-from). Lowercase verdict tokens so these never match the crawl
   // "URL OK/ERR/…" regex above; they re-use the crawl counters with re-check meaning.
   var rst = ln.match(/^# recheck-start total=(\d+)/);
@@ -925,6 +934,13 @@ function poll() {
       $("extChip").innerHTML = "External: <b>" + gExtFound + "</b> found";
       $("extChip").className = "statchip";
     }
+    // Documents badge: "Docs: N · M links" live, gaining "· U dest · K broken · B blocked" at the end.
+    $("statDocs").innerHTML = gDocs;
+    $("statDocLinks").innerHTML = gDocLinks;
+    $("statDocBad").innerHTML = gDocSummary
+      ? (" · <b>" + gDocUnique + "</b> dest" + (gDocBroken ? " · <b>" + gDocBroken + "</b> broken" : "") + (gDocBlocked ? " · <b>" + gDocBlocked + "</b> blocked" : ""))
+      : "";
+    $("docChip").className = (gDocSummary && gDocBroken) ? "statchip warn" : "statchip";
   }
   $("statTime").innerHTML = fmtTime(secs);
   $("recent").innerHTML = escHtml(gRecent.join("\n"));

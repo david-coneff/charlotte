@@ -3067,6 +3067,10 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     // same domain, outside pathPrefix: recorded, never followed
     refs: /* @__PURE__ */ new Map(),
     // target URL -> Set of every distinct referrer page
+    docUrls: /* @__PURE__ */ new Set(),
+    // URLs that were scanned as documents (PDF/Office) — for the doc-link tally
+    docLinkInstances: 0,
+    // running count of http(s) link instances found inside documents
     errors: [],
     blocked: [],
     // links our automated check couldn't confirm (likely OK in a browser)
@@ -3256,7 +3260,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
       logLine(`${(/* @__PURE__ */ new Date()).toISOString()} SKIP ${job.url} :: ${r.contentType || "non-HTML"}`);
       return;
     }
-    let internalFound = 0, externalFound = 0;
+    let internalFound = 0, externalFound = 0, oosFound = 0;
     const inT = [], exT = [], ooT = [];
     for (const link of links) {
       if (link.protocol !== "http:" && link.protocol !== "https:") continue;
@@ -3268,6 +3272,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
           if (journal.on) inT.push(norm);
           if (job.depth < cfg.maxDepth && seen.tryAdd(norm)) state.queue.push({ url: norm, depth: job.depth + 1, parent: job.url });
         } else {
+          oosFound++;
           if (!state.outOfScope.has(link.href)) state.outOfScope.set(link.href, { url: link.href });
           addRef(link.href, job.url);
           if (journal.on) ooT.push(link.href);
@@ -3283,6 +3288,12 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     J({ t: "p", u: job.url, s: r.status, d: job.depth, ti: title, in: inT, ex: exT, oo: ooT });
     logLine(`${(/* @__PURE__ */ new Date()).toISOString()} OK d${job.depth} ${r.status} ${job.url} int=${internalFound} ext=${externalFound} extTotal=${state.external.size}`);
     console.log(`  ok [d${job.depth}] ${job.url}  (${internalFound} int, ${externalFound} ext)`);
+    if (r.doc) {
+      const inside = internalFound + externalFound + oosFound;
+      state.docUrls.add(job.url);
+      state.docLinkInstances += inside;
+      logLine(`# docscan links=${inside} int=${internalFound} ext=${externalFound}`);
+    }
   }
   const isPaused = () => cfg.pauseFile && fs.existsSync(cfg.pauseFile);
   let inFlight = 0;
@@ -3564,6 +3575,25 @@ Re-checking ${toRecheck.length} failed link${toRecheck.length === 1 ? "" : "s"} 
     const rf = state.refs.get(e.url);
     const list = rf && rf.size ? [...rf] : e.source ? [e.source] : [];
     for (const ref of list) logLine(`# brokenref ${e.kind || "internal"} ${e.url} <- ${ref}`);
+  }
+  if (state.docUrls.size) {
+    const errSet = new Set(state.errors.map((e) => e.url));
+    const blkSet = new Set(state.blocked.map((b) => b.url));
+    let uniq = 0, brk = 0, blk = 0;
+    for (const [target, refs] of state.refs) {
+      let inDoc = false;
+      for (const ref of refs) {
+        if (state.docUrls.has(ref)) {
+          inDoc = true;
+          break;
+        }
+      }
+      if (!inDoc) continue;
+      uniq++;
+      if (errSet.has(target)) brk++;
+      else if (blkSet.has(target)) blk++;
+    }
+    logLine(`# docsummary docs=${state.docUrls.size} instances=${state.docLinkInstances} unique=${uniq} broken=${brk} blocked=${blk}`);
   }
   logLine(`# crawl done ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} pages=${state.pages.length} external=${state.external.size} errors=${state.errors.length}`);
   logger.finalize(!sharedLogger);

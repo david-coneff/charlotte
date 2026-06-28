@@ -369,6 +369,7 @@ function buildDiscoverCommand() {
   pushLimitArgs(a);
   a.push("--channel msedge");     // the Edge that ships with Windows (no Chromium download)
   a.push("--ignore-case");        // WebLink/SharePoint/IIS: /Browse.aspx and /browse.aspx are one page
+  a.push("--settle 2500");        // JS portals often finish rendering the folder AFTER networkidle; give late XHR a cushion so the listing exists before we harvest (discover is only used for JS sites, so the per-page cost is fine)
   if ($("laserfiche") && $("laserfiche").checked) a.push("--laserfiche");  // DocView.aspx docs -> file URLs, not rendered
   a.push("--seeds " + q(DISCOVER_SEEDS));
   a.push("--out " + q(DISCOVER_JSON));

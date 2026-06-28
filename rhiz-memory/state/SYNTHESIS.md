@@ -279,7 +279,7 @@ These are the traps. Re-reading this section before touching the relevant area s
 - *Cross-`<script>`/cross-window scope & helpers:* #2, #3, #25.
 - *CSS layout, resize grips & column widths:* #13, #17, #22, #29.
 - *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27, #31.
-- *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20, #31.
+- *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20, #31, #32.
 
 1. **Native `<summary>` eats clicks on interactive children.** Real clicks on a checkbox
    inside a `<summary>` are consumed by the disclosure toggle, so the box never fires
@@ -503,6 +503,25 @@ These are the traps. Re-reading this section before touching the relevant area s
     #   only one in code position is the bug. result must be the empty set.
     ```
 
+32. **Playwright `page.$$eval` / `page.evaluate` see ONLY the top document — a portal that renders its listing
+    in an `<iframe>` harvests as ZERO links.** Laserfiche WebLink (and many doc portals) embed the
+    folder/document listing in a frame; discover's harvest queried just the main frame, so it rendered the page
+    fine yet found no `<a href>`, wrote empty seeds, and crawl.js then "crawled nothing." Reproduced with the
+    bundled Chromium against an iframe fixture: 0 docs before, 5 after. **Fix:** iterate `page.frames()` (it
+    includes the main frame, so it is a strict superset) and collect `a[href]` + onclick/data-* from each,
+    skipping a detached/cross-document frame. **Corollary:** when a render yields nothing beyond the seeds, SAY
+    SO loudly with likely causes (settle/timeout · login/disclaimer/repo-picker · pagination/virtual-scroll)
+    instead of failing silently — the GUI surfaces discover's stdout in its live-monitor fallback. (AD-090.)
+    ```js
+    // broke: top frame only -> 0 links when the listing is inside an <iframe>
+    domLinks = await page.$$eval("a[href]", as => as.map(a => a.href));
+    // worked: every frame (page.frames() already includes the main frame)
+    for (const fr of page.frames()) {
+      try { for (const h of await fr.$$eval("a[href]", as => as.map(a => a.href))) domLinks.push(h); }
+      catch { /* detached/navigating frame */ }
+    }
+    ```
+
 ---
 
 ## 6. Testing approach
@@ -535,12 +554,15 @@ crashes — NOT in the maintained set; §5 #12/#19.)
 
 ## 7. Open threads / not yet done
 
-- **Laserfiche WebLink discover still crawls 0 pages (OPEN, 2026-06-28).** AD-089 removed the *false* instant
-  "Done — 0 crawled in 0:00" (a stale-`DONE_` poll artifact) and its delivery hit the smart-quote trap
-  (§5 #31), but neither touched the underlying symptom: pointing the crawler at a Laserfiche WebLink start URL
-  yields nothing crawled. Root cause not yet found — do NOT read AD-089's `writeFile(livePath, "")` as the
-  resolution. Next: confirm whether discover (`crawl-render.js --laserfiche`) emits any `# discover start` /
-  per-page lines to the log at all, vs. crawl.js consuming an empty seed set.
+- **Laserfiche WebLink discover crawls 0 pages — one cause found & fixed (AD-090), live-site confirmation
+  PENDING (2026-06-28).** AD-089 removed the *false* instant "Done — 0 crawled in 0:00" (a stale-`DONE_` poll
+  artifact; its delivery hit the smart-quote trap §5 #31) but did not touch the real symptom. AD-090 found a
+  concrete, reproduced cause: the browser harvest read only the top frame, so a listing embedded in an `<iframe>`
+  (a common WebLink layout) yielded 0 links —> empty seeds —> nothing crawled. Fixed by harvesting all
+  `page.frames()` (§5 #32) and added a loud "rendered N pages but found nothing" diagnostic. NOT yet confirmed
+  this is DHW's specific cause — the dev environment can't reach `publicdocuments.dhw.idaho.gov` (network policy).
+  Next: re-run against the live site; if still empty, read the new diagnostic + the discover manifest to tell
+  whether it's settle/timeout, an auth/landing page, virtual-scroll, or a non-iframe JS-nav pattern.
 
 - The browser toolchain (`web-crawler.html`) has not received the triage/fix-tracker UX the
   Node report has; it remains the lightweight in-tab variant.

@@ -1,4 +1,5 @@
 "use strict";
+const fs = require("fs");
 const { URL } = require("url");
 const { BROWSER_UA } = require("./fetch.js");
 
@@ -48,6 +49,7 @@ function parseArgs(argv) {
     resume: "",                      // replay this journal, then continue ("" = fresh crawl)
     recheckFrom: "",                 // re-check the broken links in this JSON report, then rewrite --out/--json
     rebuildFrom: "",                 // rebuild the HTML report from this JSON (no crawl, no re-probe)
+    seedMode: false,                 // --seeds: treat all start URLs as ONE crawl's frontier (shared report), not N sites
   };
   const num = (v, name) => { const n = Number(v); if (!Number.isFinite(n)) die("Invalid number for " + name + ": " + v); return n; };
   const a = argv.slice(2);
@@ -121,6 +123,17 @@ function parseArgs(argv) {
       case "--resume": cfg.resume = next(); if (!cfg.state) cfg.state = cfg.resume; break;
       case "--recheck-from": cfg.recheckFrom = next(); break;
       case "--rebuild-from": cfg.rebuildFrom = next(); break;
+      case "--seeds": {
+        // Newline-delimited start URLs from a file ('#' comments / blanks ignored).
+        // The clean hand-off from `crawl-render.js --discover`, which writes this
+        // file — robust where a `$(cat …)` arg list would overflow or split.
+        const f = next();
+        let txt;
+        try { txt = fs.readFileSync(f, "utf8"); } catch { die("Can't read --seeds file: " + f); }
+        for (const raw of txt.split(/\r?\n/)) { const line = raw.replace(/#.*$/, "").trim(); if (line) cfg.startUrls.push(line); }
+        cfg.seedMode = true;   // one combined crawl seeded from every URL, not a per-URL multi-site index
+        break;
+      }
       default:
         if (arg.startsWith("-")) die("Unknown option: " + arg);
         else cfg.startUrls.push(arg);
@@ -140,9 +153,13 @@ function printHelp() {
 crawl.js — standalone domain crawler
 
   node crawl.js <start-url> [more-urls...] [options]
+  node crawl.js --seeds FILE [options]
 
   Multiple start URLs are crawled sequentially with the same settings; the
   report at --out becomes an index linking to a per-site report for each.
+  --seeds FILE adds start URLs from a file (one per line) — the hand-off from
+  'crawl-render.js --discover', which maps a JavaScript-built site that this
+  static crawler can't navigate on its own and writes the URLs it found there.
 
 Options:
   --max-pages N           Max pages to crawl, 'none' (or -1) = unlimited
@@ -172,6 +189,9 @@ Options:
                           version's report features — no crawl, no network. Use it to
                           regenerate an old report with new report features. Also
                           rebuilds a multi-site index from its per-site JSONs.
+  --seeds FILE            Add start URLs from a newline-delimited file ('#' comments
+                          and blank lines ignored). The hand-off from
+                          'crawl-render.js --discover' (JS-rendered sites).
   --log FILE              Live append-only progress log  (default crawl-progress.log)
   --log-max-bytes N       Roll to a new log part at this size, 0 = single file
                                                         (default 5242880 = 5 MB)

@@ -2115,6 +2115,7 @@ var require_fetch = __commonJS({
 var require_cli = __commonJS({
   "src/cli.js"(exports2, module2) {
     "use strict";
+    var fs2 = require("fs");
     var { URL: URL2 } = require("url");
     var { BROWSER_UA } = require_fetch();
     function parseArgs2(argv) {
@@ -2189,8 +2190,10 @@ var require_cli = __commonJS({
         // replay this journal, then continue ("" = fresh crawl)
         recheckFrom: "",
         // re-check the broken links in this JSON report, then rewrite --out/--json
-        rebuildFrom: ""
+        rebuildFrom: "",
         // rebuild the HTML report from this JSON (no crawl, no re-probe)
+        seedMode: false
+        // --seeds: treat all start URLs as ONE crawl's frontier (shared report), not N sites
       };
       const num = (v, name) => {
         const n = Number(v);
@@ -2362,6 +2365,21 @@ var require_cli = __commonJS({
           case "--rebuild-from":
             cfg.rebuildFrom = next();
             break;
+          case "--seeds": {
+            const f = next();
+            let txt;
+            try {
+              txt = fs2.readFileSync(f, "utf8");
+            } catch {
+              die2("Can't read --seeds file: " + f);
+            }
+            for (const raw of txt.split(/\r?\n/)) {
+              const line = raw.replace(/#.*$/, "").trim();
+              if (line) cfg.startUrls.push(line);
+            }
+            cfg.seedMode = true;
+            break;
+          }
           default:
             if (arg.startsWith("-")) die2("Unknown option: " + arg);
             else cfg.startUrls.push(arg);
@@ -2389,9 +2407,13 @@ var require_cli = __commonJS({
 crawl.js \u2014 standalone domain crawler
 
   node crawl.js <start-url> [more-urls...] [options]
+  node crawl.js --seeds FILE [options]
 
   Multiple start URLs are crawled sequentially with the same settings; the
   report at --out becomes an index linking to a per-site report for each.
+  --seeds FILE adds start URLs from a file (one per line) \u2014 the hand-off from
+  'crawl-render.js --discover', which maps a JavaScript-built site that this
+  static crawler can't navigate on its own and writes the URLs it found there.
 
 Options:
   --max-pages N           Max pages to crawl, 'none' (or -1) = unlimited
@@ -2421,6 +2443,9 @@ Options:
                           version's report features \u2014 no crawl, no network. Use it to
                           regenerate an old report with new report features. Also
                           rebuilds a multi-site index from its per-site JSONs.
+  --seeds FILE            Add start URLs from a newline-delimited file ('#' comments
+                          and blank lines ignored). The hand-off from
+                          'crawl-render.js --discover' (JS-rendered sites).
   --log FILE              Live append-only progress log  (default crawl-progress.log)
   --log-max-bytes N       Roll to a new log part at this size, 0 = single file
                                                         (default 5242880 = 5 MB)
@@ -3029,11 +3054,12 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     console.log(`Note: --seen ${cfg.seen} needs a bounded URL count; using ${storeCap.toLocaleString()}. Override with --max-urls.`);
   }
   const seen = makeSeenStore(cfg.seen, storeCap, cfg.seenFile);
-  seen.tryAdd(normalize(cfg.startUrl));
+  const seedUrls = cfg.seedMode && Array.isArray(cfg.startUrls) && cfg.startUrls.length ? cfg.startUrls : [cfg.startUrl];
+  for (const s of seedUrls) seen.tryAdd(normalize(s));
   const state = {
     startHost,
     pathPrefix,
-    queue: [{ url: cfg.startUrl, depth: 0, parent: "(start)" }],
+    queue: seedUrls.map((u) => ({ url: u, depth: 0, parent: "(start)" })),
     seen,
     pages: [],
     external: /* @__PURE__ */ new Map(),
@@ -3598,7 +3624,7 @@ function sitePath(out, i, host) {
     await runRecheck(cfg, allow);
     return;
   }
-  if (cfg.startUrls.length === 1) {
+  if (cfg.startUrls.length === 1 || cfg.seedMode) {
     const state = await crawl(cfg, allow);
     const suppressed = [], active = [];
     for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);

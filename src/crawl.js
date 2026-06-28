@@ -106,12 +106,15 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     console.log(`Note: --seen ${cfg.seen} needs a bounded URL count; using ${storeCap.toLocaleString()}. Override with --max-urls.`);
   }
   const seen = makeSeenStore(cfg.seen, storeCap, cfg.seenFile);
-  seen.tryAdd(normalize(cfg.startUrl));
+  // --seeds (seedMode): start the frontier from every seed URL at depth 0 in one
+  // crawl (shared seen-set + one report). Otherwise it's the single start URL.
+  const seedUrls = (cfg.seedMode && Array.isArray(cfg.startUrls) && cfg.startUrls.length) ? cfg.startUrls : [cfg.startUrl];
+  for (const s of seedUrls) seen.tryAdd(normalize(s));
 
   const state = {
     startHost,
     pathPrefix,
-    queue: [{ url: cfg.startUrl, depth: 0, parent: "(start)" }],
+    queue: seedUrls.map((u) => ({ url: u, depth: 0, parent: "(start)" })),
     seen,
     pages: [],
     external: new Map(),
@@ -606,8 +609,8 @@ function sitePath(out, i, host) {
   // ---- re-check mode: re-probe only the flagged links from a prior report ----
   if (cfg.recheckFrom) { await runRecheck(cfg, allow); return; }
 
-  // ---- single site: report goes straight to --out (unchanged behavior) ----
-  if (cfg.startUrls.length === 1) {
+  // ---- single site (or a --seeds list = one combined crawl): report -> --out ----
+  if (cfg.startUrls.length === 1 || cfg.seedMode) {
     const state = await crawl(cfg, allow);
     const suppressed = [], active = [];
     for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);

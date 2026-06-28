@@ -26,3 +26,7 @@ crawl-gui-config.txt
 crawl-render.json
 render-report.html
 crawl-report.json.bak
+
+# Generated full-doc roll-ups (doc-graph render of CRAWLER/ etc.) — human
+# readability only; the section files + _index.json are the source of truth.
+*.full.md

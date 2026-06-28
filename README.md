@@ -51,9 +51,11 @@ node crawl-render.js --discover https://site/folder/ --seeds seeds.txt
 node crawl.js --seeds seeds.txt --max-depth 0 --check-external
 ```
 
-Confine it with `--scope path` / `--max-depth` / `--max-pages`; `node
-crawl-render.js --help` lists every option. (Needs Playwright — see
-`crawl-render.js` under Requirements.)
+Confine it with `--scope path` / `--max-depth` / `--max-pages`, and on an
+IIS/ASP.NET site (WebLink, SharePoint) add `--ignore-case` so `/Browse.aspx`
+and `/browse.aspx` aren't crawled as two pages; `node crawl-render.js --help`
+lists every option. (Needs Playwright — see `crawl-render.js` under
+Requirements.)
 
 See the **[CRAWLER reference index](CRAWLER/CRAWLER_index.md)** for the complete
 reference: every option, common workflows, the Windows GUI, the headless-render

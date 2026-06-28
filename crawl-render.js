@@ -81,6 +81,7 @@ function parseArgs(argv) {
     maxDepth: 8,         // cap on folder-tree link depth from the seed (Infinity = unlimited)
     settle: 0,           // extra ms to wait after load, for late XHR-driven rendering
     onclickScan: true,   // also harvest URL-ish onclick/data-* attributes (browser mode)
+    ignoreCase: false,   // dedup URLs case-insensitively + sort query params (IIS/ASP.NET sites)
     waitUntilSet: false, // did the user pass --wait-until explicitly?
     outSet: false,       // did the user pass --out explicitly?
   };
@@ -123,6 +124,7 @@ function parseArgs(argv) {
       case "--max-depth": cfg.maxDepth = cap(next(), arg); break;
       case "--settle": cfg.settle = Math.max(0, num(next(), arg)); break;
       case "--no-onclick-scan": cfg.onclickScan = false; break;
+      case "--ignore-case": cfg.ignoreCase = true; break;
       case "--channel": cfg.channel = next(); break;
       case "--browser-path": cfg.browserPath = next(); break;
       case "--user-agent": cfg.userAgent = next(); break;
@@ -181,6 +183,12 @@ Discover (--discover) — render a JS site and harvest its real links:
                                                               (default 0)
   --no-onclick-scan  Don't harvest URL-ish onclick/data-* attributes (on by
                      default; helps SPAs whose entries navigate via JS handlers)
+  --ignore-case      De-dupe URLs case-insensitively: treat paths differing only
+                     in capitalization, or query strings differing only in
+                     parameter order, as one page — so /Browse.aspx and
+                     /browse.aspx aren't rendered twice. For IIS/ASP.NET sites
+                     (Laserfiche WebLink, SharePoint). Off by default (unsafe on
+                     case-sensitive servers).
   In discover mode --wait-until defaults to 'networkidle' and --out defaults to
   crawl-render.discover.json (a full JSON manifest of pages/documents/links).
 
@@ -302,13 +310,17 @@ function keepFragment(hash) {
 
 // Canonical dedup key for a URL object: lowercased host, no default port, and a
 // fragment kept only if it routes (keepFragment). Used so the same page seen via
-// different casings/ports/anchors isn't rendered twice.
-function canonicalize(u) {
+// different casings/ports/anchors isn't rendered twice. With opts.ignoreCase, the
+// path is also lowercased and query params sorted, so an IIS/ASP.NET site's
+// /Browse.aspx?b=2&a=1 and /browse.aspx?a=1&b=2 collapse to one render. This only
+// shapes the dedup KEY — the original-cased URL is still what gets fetched/recorded.
+function canonicalize(u, opts) {
   let url;
   try { url = new URL(u.href || u); } catch { return String(u); }
   url.hostname = url.hostname.toLowerCase();
   if ((url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443")) url.port = "";
   if (!keepFragment(url.hash)) url.hash = "";
+  if (opts && opts.ignoreCase) { url.pathname = url.pathname.toLowerCase(); url.searchParams.sort(); }
   return url.href;
 }
 
@@ -701,6 +713,7 @@ async function runDiscover(cfg) {
   if (cfg.fromJson) console.warn("Note: --from-json is ignored in --discover mode (it expects seed URLs).\n");
   const start = new URL(seeds[0]);
   const driver = cfg.httpFallback ? makeHttpDriver(cfg) : await makeBrowserDriver(cfg);
+  const canon = (u) => canonicalize(u, { ignoreCase: cfg.ignoreCase });  // dedup key honoring --ignore-case
 
   const seen = new Set();        // canonical keys already queued for rendering
   const renderedPages = [];      // {url,status,disposition,title,depth,links}
@@ -712,7 +725,7 @@ async function runDiscover(cfg) {
   const MAX_RECORD = 200000;     // memory backstop; reported, never silent
   let recordCapped = false;
   const recordRef = (map, u, src) => {
-    const key = canonicalize(u);
+    const key = canon(u);
     let e = map.get(key);
     if (!e) { if (map.size >= MAX_RECORD) { recordCapped = true; return; } e = { url: u.href, sources: new Set() }; map.set(key, e); }
     if (src) e.sources.add(src);
@@ -721,7 +734,7 @@ async function runDiscover(cfg) {
   // Seed frontier at depth 0; seeds are themselves in-scope pages.
   let frontier = [];
   for (const s of seeds) {
-    const su = new URL(s), key = canonicalize(su);
+    const su = new URL(s), key = canon(su);
     if (!seen.has(key)) { seen.add(key); frontier.push({ url: su.href, depth: 0, key }); recordRef(internal, su, ""); }
   }
 
@@ -755,7 +768,7 @@ async function runDiscover(cfg) {
           if (looksLikeDocument(u.pathname)) { recordRef(documents, u, job.url); continue; }
           // In-scope HTML page: record for the seeds payload; recurse if budget allows.
           recordRef(internal, u, job.url);
-          const key = canonicalize(u);
+          const key = canon(u);
           if (!seen.has(key)) { seen.add(key); if (job.depth < cfg.maxDepth) frontier.push({ url: u.href, depth: job.depth + 1, key }); }
         }
         const mark = c.disp === "ok" ? "✓" : c.disp === "broken" ? "✗" : "?";

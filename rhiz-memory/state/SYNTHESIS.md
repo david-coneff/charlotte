@@ -293,7 +293,7 @@ These are the traps. Re-reading this section before touching the relevant area s
 - *Test-harness traps (stubs, slicing, stale fixtures, shared infra):* #6, #12, #14, #16, #19, #23, #24, #28, #30.
 - *Cross-`<script>`/cross-window scope & helpers:* #2, #3, #25.
 - *CSS layout, resize grips & column widths:* #13, #17, #22, #29.
-- *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27, #31.
+- *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27, #31, #33.
 - *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20, #31, #32.
 
 1. **Native `<summary>` eats clicks on interactive children.** Real clicks on a checkbox
@@ -536,6 +536,16 @@ These are the traps. Re-reading this section before touching the relevant area s
       catch { /* detached/navigating frame */ }
     }
     ```
+
+33. **A classification rule reimplemented in TWO engines must be fixed in BOTH — AD-088 taught *discover* that
+    all `--seeds` hosts are internal, but `crawl.js` (verify) kept anchoring internal/external to a single
+    `startHost`.** The two programs each independently decide internal-vs-external by host; after AD-088 only
+    `crawl-render.js` knew a sibling seed host (`publicdocuments.dhw.idaho.gov`) was internal, so discover
+    harvested it correctly while the crawl *report* relabeled it **External** — the sibling surfaces silently
+    drifted, and the operator caught the contradiction (a seed showing up as external). **Fix:** port the
+    seed-hosts Set into `crawl.js` too (AD-091, `isInternalHost`). **Lesson:** when the same decision lives in
+    sibling programs, a fix to one is HALF a fix — grep the other for the identical rule and port it proactively;
+    a divergence here is invisible until a report contradicts itself. (Rhizome "Sibling Surface Drift" #46.)
 
 ---
 

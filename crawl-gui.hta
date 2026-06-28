@@ -246,7 +246,7 @@ var gRecent = [], gBackoffUntil = 0, gSiteI = 0, gSiteN = 0, gDoneCode = null;
 // re-checked / now-OK / still-broken / now-blocked; gReTotal is how many were flagged to
 // re-check (for the "K / N" readout) and gReStopped flags a re-check that was Stopped early.
 var gReTotal = 0, gReStopped = false;
-var gDiscoverPhase = false;  // true while discover is running; triggers stat reset when crawl.js begins
+var gDiscoverPhase = false;  // set when discover emits "# discover start"; cleared on crawl start
 function resetLiveState() {
   gPos = 0; gBuf = ""; gTail = "";
   gCrawled = 0; gGood = 0; gBroken = 0; gBlocked = 0;
@@ -861,18 +861,7 @@ function processLine(ln) {
   if (ln === "") return;
   var dm = ln.match(/^DONE_(\-?\d+)/);
   if (dm) { gDoneCode = parseInt(dm[1], 10); return; }
-  // Discover+verify pipeline phase markers: discover emits "# discover start", crawl.js
-  // emits "# crawl start". Reset live stats at the transition so the GUI's counters
-  // match what crawl.js reports (not a mix of discover-phase blocks + crawl-phase links).
   if (ln.indexOf("# discover start ") === 0) { gDiscoverPhase = true; return; }
-  if (ln.indexOf("# crawl start ") === 0 && gDiscoverPhase) {
-    gDiscoverPhase = false;
-    gCrawled = 0; gGood = 0; gBroken = 0; gBlocked = 0;
-    gExtFound = 0; gExtChecked = 0; gExtTotal = 0; gExtBad = 0;
-    gDocs = 0; gDocLinks = 0; gDocUnique = 0; gDocBroken = 0; gDocBlocked = 0; gDocSummary = false;
-    lastChangeMs = (new Date()).getTime();
-    return;
-  }
   var m = ln.match(/^\S+\s+(OK|ERR|SKIP|BLOCKED)\s+(.*)$/);
   if (m) {
     gCrawled++;

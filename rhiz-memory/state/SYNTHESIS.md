@@ -9,7 +9,7 @@ too much to re-read. `RESUME_BLOCK.md` is the "where am I right now" pointer;
 `_instance.md` is the governance charter; this is the retrospective map.
 
 _Last synthesized: 2026-06-27, through AD-078 (capability inventory and §5 lessons cover
-the full report/tracker arc AD-053–077; AD-078 consolidated the memory)._
+the full report/tracker arc AD-053–077; AD-078 consolidated the memory). §5 #31 added 2026-06-28 from the AD-089 delivery trap)._
 
 ---
 
@@ -278,8 +278,8 @@ These are the traps. Re-reading this section before touching the relevant area s
 - *Test-harness traps (stubs, slicing, stale fixtures, shared infra):* #6, #12, #14, #16, #19, #23, #24, #28, #30.
 - *Cross-`<script>`/cross-window scope & helpers:* #2, #3, #25.
 - *CSS layout, resize grips & column widths:* #13, #17, #22, #29.
-- *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27.
-- *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20.
+- *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27, #31.
+- *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20, #31.
 
 1. **Native `<summary>` eats clicks on interactive children.** Real clicks on a checkbox
    inside a `<summary>` are consumed by the disclosure toggle, so the box never fires
@@ -489,6 +489,20 @@ These are the traps. Re-reading this section before touching the relevant area s
     the new stat cards "missing." **Fix:** `node synthstate.js synth.html` is the first step of every test run
     after touching `report*.js` — baked-in fixtures lie. (Bit repeatedly; AD-074/075.)
 
+31. **A smart-quote-substituting editor silently turns ASCII `"` (0x22) into a curly `“`/`”` (U+201C/U+201D), and JScript's "Invalid character" names the corruption site, not the edit that caused it.** Editing a JScript line, its straight string-delimiter quotes came back as curly quotes. JScript cannot use curly quotes as string delimiters, so the *entire* `<script>` block fails to compile — `Invalid character` at the first curly byte, which sits several lines below the real edit and disables everything downstream (tab navigation, and `fitWindowWidth()` so the HTA window stops clamping its own width). **The misdirection bit twice:** the reported line also carried an em-dash comment and a `writeFile(x, "")`, so two successive "fixes" each removed *one* visible non-ASCII char and the error persisted — because the same edit had curlied EVERY delimiter across three `setStatus(...)` catch blocks, not just that line. **Comment non-ASCII is a red herring:** em dash / `…` / `·` inside `//` comments parse fine (the 32 such chars were byte-identical to the last known-good revision that ran at runtime); only non-ASCII in CODE position is fatal. **Technique:** don't trust the reported char — tokenize the whole script (track `"`/`'`/`//`/`/* */`/code state) and assert ZERO bytes >= 0x80 in code position; repair with a binary `replace` (re-editing re-introduces the curlies), and KEEP curly quotes that legitimately live inside string *content* (`“Copy command”` reads better than escaping). Cross-ref #8 (it's JScript) and #7/#21 (silent corruption that a module-load / `require()` never catches). **Caveat:** this only un-blocked the parse error introduced by the fix's *delivery* — it did NOT resolve the Laserfiche zero-crawl symptom, which is still open (§7). (AD-089 delivery; commits f0db8d0, 868ac64.)
+    ```js
+    // broke: the editor replaced every straight delimiter " with a curly “ (U+201C)
+    setStatus(“Couldn't write helper files to “ + workDir + “ — “ + e.message + “.…”, “bad”);
+    // worked: ASCII " DELIMITERS; the curly quotes around "Copy command" are real string CONTENT — keep them
+    setStatus("Couldn't write helper files to " + workDir + " — " + e.message +
+              ". …click “Copy command” and run it in a terminal.", "bad");
+    ```
+    ```
+    # the check that would have caught it on pass 1 (walk the <script>; in CODE state any ord>=0x80 is fatal):
+    #   string-aware (" '), comment-aware (// and /* */); a curly quote / em dash INSIDE a string or comment is fine,
+    #   only one in code position is the bug. result must be the empty set.
+    ```
+
 ---
 
 ## 6. Testing approach
@@ -520,6 +534,13 @@ crashes — NOT in the maintained set; §5 #12/#19.)
 ---
 
 ## 7. Open threads / not yet done
+
+- **Laserfiche WebLink discover still crawls 0 pages (OPEN, 2026-06-28).** AD-089 removed the *false* instant
+  "Done — 0 crawled in 0:00" (a stale-`DONE_` poll artifact) and its delivery hit the smart-quote trap
+  (§5 #31), but neither touched the underlying symptom: pointing the crawler at a Laserfiche WebLink start URL
+  yields nothing crawled. Root cause not yet found — do NOT read AD-089's `writeFile(livePath, "")` as the
+  resolution. Next: confirm whether discover (`crawl-render.js --laserfiche`) emits any `# discover start` /
+  per-page lines to the log at all, vs. crawl.js consuming an empty seed set.
 
 - The browser toolchain (`web-crawler.html`) has not received the triage/fix-tracker UX the
   Node report has; it remains the lightweight in-tab variant.

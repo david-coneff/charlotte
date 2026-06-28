@@ -1,25 +1,32 @@
 #!/usr/bin/env python3
 """rhiz — run rhizome's pinned tooling against THIS repository.
 
-The executable tooling (rhiz-lint, rhiz-search, doc-graph) lives in
-`david-coneff/rhizome` and ONLY there. This thin bootstrap resolves a rhizome
-checkout at the shared **`tools-stable`** channel and forwards a subcommand to
-the matching tool with this repo as its target — so every repo runs the ONE
-canonical version of the tools, never a copy that can drift apart. The channel
-moves only when rhizome blesses a tool revision (a single fast-forward), so the
-whole ecosystem advances together. See `rhiz-child-repo-convention.md`.
+The executable tooling (rhiz-lint, rhiz-search, doc-graph) lives in the rhizome
+repository and ONLY there. This thin bootstrap resolves a rhizome checkout at the
+shared **`tools-stable`** channel and forwards a subcommand to the matching tool
+with this repo as its target — so every repo runs the ONE canonical version of
+the tools, never a copy that can drift apart. The channel moves only when rhizome
+blesses a tool revision (a single fast-forward), so the whole ecosystem advances
+together. See `rhiz-child-repo-convention.md` §1.1.
 
 This file is itself a stable bootstrap (like `gradlew`/`mvnw`): copy it into a
 child repo's `tools/`. It rarely changes; the tools it dispatches to are never
-copied.
+copied. Keep it current with `rhiz self-update` (pulls the canonical bootstrap
+from the channel).
+
+Forge-agnostic. Nothing here hardcodes a host beyond a *default* URL:
+  $RHIZ_TOOLS_URL  — where rhizome lives (default: the GitHub origin). Point it at
+                     a Forgejo/Gitea/self-hosted instance to switch forges; git,
+                     the channel branch, and the tools are otherwise identical.
+  $RHIZ_TOOLS_REF  — channel/ref to track (default: tools-stable). A SHA here is
+                     the escape-hatch for temporarily pinning during a risky bump.
+  $RHIZ_TOOLS_PATH — an existing local rhizome checkout (e.g. a sibling clone);
+                     used as-is for dev speed. CI's source of truth is the channel.
 
 Resolution order for the rhizome checkout:
-  1. $RHIZ_TOOLS_PATH  — an existing local rhizome checkout (dev convenience,
-     e.g. a sibling clone). Handy locally; CI's source of truth is the channel.
-  2. a cached clone at  <repo>/.rhiz-tools/rhizome , fetched to the channel.
-     $RHIZ_TOOLS_REF overrides the channel name — an escape hatch for temporarily
-     pinning a SHA during a risky tool change; normally UNSET so you track the
-     channel. A committed non-default ref is what the drift-guard flags.
+  1. $RHIZ_TOOLS_PATH if it points at a real checkout;
+  2. a cached clone at <repo>/.rhiz-tools/rhizome, fetched to the channel from
+     $RHIZ_TOOLS_URL.
 
 Subcommands (extra args are forwarded to the underlying tool):
   lint [..]        rhiz-lint.py    --root <repo> [..]
@@ -28,15 +35,18 @@ Subcommands (extra args are forwarded to the underlying tool):
   verify <index>   doc-graph.py verify <index>
   maintain         lint + search index + docs   (the mechanical loop, no LLM)
   update           refresh the cached rhizome checkout only
+  self-update      overwrite this bootstrap with the channel's canonical copy
   channel          print the channel/ref this repo tracks (drift-guard reads this)
+  where            print the resolved rhizome checkout path + forge URL
 """
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 CHANNEL_DEFAULT = "tools-stable"
-RHIZOME_URL = "https://github.com/david-coneff/rhizome.git"
+RHIZOME_URL_DEFAULT = "https://github.com/david-coneff/rhizome.git"
 
 
 def repo_root() -> Path:
@@ -54,6 +64,10 @@ def channel() -> str:
     return os.environ.get("RHIZ_TOOLS_REF", CHANNEL_DEFAULT)
 
 
+def tools_url() -> str:
+    return os.environ.get("RHIZ_TOOLS_URL", RHIZOME_URL_DEFAULT)
+
+
 def resolve_rhizome(root: Path) -> Path:
     local = os.environ.get("RHIZ_TOOLS_PATH")
     if local and (Path(local) / "tools" / "rhiz-lint.py").exists():
@@ -63,7 +77,7 @@ def resolve_rhizome(root: Path) -> Path:
     if not (cache / ".git").exists():
         cache.parent.mkdir(parents=True, exist_ok=True)
         subprocess.run(
-            ["git", "clone", "--depth", "1", "--branch", ref, RHIZOME_URL, str(cache)],
+            ["git", "clone", "--depth", "1", "--branch", ref, tools_url(), str(cache)],
             check=True,
         )
     else:
@@ -94,8 +108,19 @@ def main() -> int:
     search = str(R / "tools" / "rhiz-search.py")
     dg = str(R / "protocol" / "modules" / "rhiz-merkle" / "tools" / "doc-graph.py")
 
+    if sub == "where":
+        print(f"rhizome: {R}\nforge:   {tools_url()}\nchannel: {channel()}")
+        return 0
     if sub == "update":
         return 0  # resolve_rhizome already refreshed the cache
+    if sub == "self-update":
+        src, dst = R / "tools" / "rhiz.py", root / "tools" / "rhiz.py"
+        if src.resolve() == dst.resolve():
+            print("self-update skipped: this IS the canonical bootstrap")
+            return 0
+        shutil.copyfile(src, dst)
+        print(f"updated {dst} from {R} @ {channel()}")
+        return 0
     if sub == "lint":
         return _run([py, lint, "--root", str(root), *rest])
     if sub == "search":

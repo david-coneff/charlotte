@@ -9,7 +9,7 @@ too much to re-read. `RESUME_BLOCK.md` is the "where am I right now" pointer;
 `_instance.md` is the governance charter; this is the retrospective map.
 
 _Last synthesized: 2026-06-27, through AD-078 (capability inventory and §5 lessons cover
-the full report/tracker arc AD-053–077; AD-078 consolidated the memory). §5 #31 added 2026-06-28 from the AD-089 delivery trap)._
+the full report/tracker arc AD-053–077; AD-078 consolidated the memory). §5 #31 added 2026-06-28 from the AD-089 delivery trap; §4 repro-by-proxy lesson + §5 #32 + the resolved §7 Laserfiche thread added through AD-090)._
 
 ---
 
@@ -266,6 +266,21 @@ contain **no backtick, no `${}`, no backslash**. Double-quotes in emitted markup
   right-aligned row; the tracker's grouped key is a long URL, so its header deliberately STACKS (title row
   / left-aligned controls row / notes row). Copying the convention would have wrapped badly — diverging on
   purpose read far better (AD-064).
+- **Can't reach the real target? Reproduce a faithful PROXY and run a DIFFERENTIAL diagnosis.** The Laserfiche
+  zero-crawl bug was misdiagnosed several times while guessing at a site the dev environment can't reach (network
+  policy) — the same failure mode as the smart-quote arc (§5 #31), where two "fixes" landed on the wrong
+  non-ASCII char. What cracked it: stand up a LOCAL fixture driven by the *real* components — the bundled
+  Chromium and the actual discover—>seeds—>crawl.js pipeline — with THREE variants spanning the plausible
+  failure modes at once: JS-injected anchors (worked), click-handler rows with no href, and an `<iframe>`-embedded
+  listing (0 links). Run side-by-side, that converts "which of my guesses is right?" into a measurement — the
+  iframe variant reproduced the exact symptom while the anchor variant proved the rest of the pipeline was fine,
+  so the fix was aimed, not guessed. Then ship it WITH (a) a diagnostic that makes the residual unknown
+  self-reporting ("rendered N pages but found nothing" + likely causes, surfaced in the GUI's live monitor), and
+  (b) an honest, FALSIFIABLE caveat ("not confirmed against the live site") that you CLOSE when reality answers —
+  here the operator's live re-run crawled, so AD-090 moved from *pending* to *confirmed*. Repro-by-proxy +
+  parallel hypothesis variants + a self-reporting diagnostic + a caveat you later close beats one-guess-iterated
+  on a target you can't touch. Cross-project working-method (extends DS-003 reproduce-before-fixing / DS-005
+  feedback-loop-as-tool to the *unreachable-target* case); the constructive inverse of the §5 #31 trap. (AD-090.)
 
 ---
 

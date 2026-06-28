@@ -30,3 +30,7 @@ crawl-report.json.bak
 # Generated full-doc roll-ups (doc-graph render of CRAWLER/ etc.) — human
 # readability only; the section files + _index.json are the source of truth.
 *.full.md
+
+# rhiz tooling channel — gitignored: resolved tools cache + generated search index
+.rhiz-tools/
+.rhiz-search/

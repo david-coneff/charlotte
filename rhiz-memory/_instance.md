@@ -145,6 +145,7 @@ CRAWLER.md / README.md ──document──▶ all of the above
 | Contracts | `package.json` (bin entries, optional deps); crawl.js JSON report shape |
 | Documentation | `README.md`; the full reference is partitioned under `CRAWLER/` (rhiz-Merkle DAG — start at `CRAWLER/CRAWLER_index.md`; `CRAWLER.md` is a pointer stub) |
 | Dependencies | `package.json` (`playwright` — optional, lazy-loaded) |
+| Tooling | rhiz tooling (rhiz-lint, rhiz-search, doc-graph) run via `tools/rhiz` against the rhizome `tools-stable` channel — the tools live in rhizome, not copied here |
 
 ### Knowledge map (reachable index of this instance's memory)
 

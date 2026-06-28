@@ -860,6 +860,16 @@ async function runDiscover(cfg) {
   if (!seeds.length) die("discover: no seed URLs. Give a URL or --list FILE.");
   if (cfg.fromJson) console.warn("Note: --from-json is ignored in --discover mode (it expects seed URLs).\n");
   const start = new URL(seeds[0]);
+  // All seed hosts are "internal" — so a multi-URL input (e.g. main site + doc repo)
+  // doesn't mis-classify sibling hosts as external and skip them entirely.
+  const seedHosts = new Set(seeds.map(s => new URL(s).hostname.toLowerCase()));
+  const isInternalHost = (hostname) => {
+    const h = (hostname || "").toLowerCase();
+    if (seedHosts.has(h)) return true;
+    if (!cfg.includeSubdomains) return false;
+    for (const sh of seedHosts) { if (h.endsWith("." + sh)) return true; }
+    return false;
+  };
   const driver = cfg.httpFallback ? makeHttpDriver(cfg) : await makeBrowserDriver(cfg);
   const canon = (u) => canonicalize(u, { ignoreCase: cfg.ignoreCase });  // dedup key honoring --ignore-case
 
@@ -903,6 +913,8 @@ async function runDiscover(cfg) {
     if (cfg._configNote.missing) console.log(`Note: --config ${cfg._configNote.path} not found — using built-in defaults + CLI flags.`);
     else if (cfg._configNote.applied && cfg._configNote.applied.length) console.log(`Limits from ${cfg._configNote.path}: ${cfg._configNote.applied.join(", ")}  (CLI flags override)`);
   }
+  if (seedHosts.size > 1) console.log(`Note: seeds span ${seedHosts.size} hosts — all treated as internal: ${[...seedHosts].join(", ")}`);
+  logLine(`# discover start ${new Date().toISOString()} seeds=${seeds.length}`);
   console.log(`Discovering from ${seeds.length} seed${seeds.length === 1 ? "" : "s"} via ${driver.label}…`);
   console.log(`  scope=${cfg.scope}${cfg.scope === "path" ? " (" + (cfg.pathPrefix || start.pathname) + ")" : ""}  max-depth=${fmtCap(cfg.maxDepth)}  max-pages=${fmtCap(cfg.maxPages)}  wait=${cfg.waitUntil}\n`);
 
@@ -936,7 +948,7 @@ async function runDiscover(cfg) {
           for (const href of links) {
             let u; try { u = new URL(href); } catch { continue; }
             if (isAsset(u.pathname)) continue;
-            if (!hostMatches(u.hostname, start.hostname, cfg.includeSubdomains)) { recordRef(external, u, job.url); continue; }
+            if (!isInternalHost(u.hostname)) { recordRef(external, u, job.url); continue; }
             if (!inScope(u, start, cfg.scope, cfg.pathPrefix)) { recordRef(outOfScope, u, job.url); continue; }
             if (isLaserficheDoc(u)) {
               sawDocView = true;

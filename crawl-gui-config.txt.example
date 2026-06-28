@@ -33,6 +33,9 @@
 # seen        = memory                       # memory | compact | disk
 #
 # ---- checkboxes (true / false) ----
+# discoverJs   = true                        # "Discover (JS site)": render JS-built sites
+#                                            #   (WebLink/SharePoint/SPAs) in a browser first.
+#                                            #   On by default; set false for a plain static crawl.
 # noPages      = true                        # crawl every page (no page limit)
 # noDepth      = true                        # follow links to any depth (no depth limit)
 # includeSub   = true                        # treat subdomains as internal

@@ -150,6 +150,9 @@ function parseArgs(argv) {
     ignoreCase: false,   // dedup URLs case-insensitively + sort query params (IIS/ASP.NET sites)
     config: "",          // explicit GUI-config path (default: auto-find crawl-gui-config.txt)
     noConfig: false,     // ignore crawl-gui-config.txt entirely
+    log: "",             // append per-page progress lines (GUI-pollable format); "" = off
+    stopFile: "",        // if this file appears mid-discover, stop gracefully (GUI Stop)
+    pauseFile: "",       // while this file exists, pause discovery (GUI Pause)
     waitUntilSet: false, // did the user pass --wait-until explicitly?
     outSet: false,       // did the user pass --out explicitly?
   };
@@ -207,6 +210,9 @@ function parseArgs(argv) {
       case "--ignore-case": cfg.ignoreCase = true; break;
       case "--config": cfg.config = next(); break;   // value also read in the pre-scan above
       case "--no-config": cfg.noConfig = true; break;
+      case "--log": cfg.log = next(); break;
+      case "--stop-file": cfg.stopFile = next(); break;
+      case "--pause-file": cfg.pauseFile = next(); break;
       case "--channel": cfg.channel = next(); break;
       case "--browser-path": cfg.browserPath = next(); break;
       case "--user-agent": cfg.userAgent = next(); break;
@@ -281,6 +287,11 @@ Discover (--discover) — render a JS site and harvest its real links:
   crawl. Explicit flags above still override it.
   --config FILE      Read GUI limits from FILE instead of the default location
   --no-config        Ignore crawl-gui-config.txt; use built-in defaults + flags
+  --log FILE         Append per-page progress in the GUI's live-log format (so
+                     the Windows GUI can monitor the discover phase)
+  --stop-file FILE   If this file appears, stop gracefully and write partial
+                     results (the GUI Stop button)
+  --pause-file FILE  While this file exists, pause discovery (the GUI Pause button)
 
 Browser:
   --channel NAME     Use an installed browser channel instead of Playwright's
@@ -805,6 +816,18 @@ async function runDiscover(cfg) {
   const driver = cfg.httpFallback ? makeHttpDriver(cfg) : await makeBrowserDriver(cfg);
   const canon = (u) => canonicalize(u, { ignoreCase: cfg.ignoreCase });  // dedup key honoring --ignore-case
 
+  // Optional per-page progress log in the crawl.js/GUI live-log format, so the
+  // Windows GUI can tail the discover phase: "<ISO> OK|ERR|BLOCKED d<depth> <status> <url> int=N ext=0".
+  const logLine = cfg.log ? (s) => { try { fs.appendFileSync(cfg.log, s + "\n"); } catch { /* best-effort */ } } : () => {};
+  // Stop/Pause via control files (the GUI's Stop/Pause buttons): stop = halt and
+  // still write what we have; pause = idle while the flag exists.
+  const fileThere = (p) => { try { return !!p && fs.existsSync(p); } catch { return false; } };
+  let stopped = false;
+  const control = async () => {
+    while (fileThere(cfg.pauseFile)) { if (fileThere(cfg.stopFile)) break; await sleep(500); }
+    if (fileThere(cfg.stopFile)) stopped = true;
+  };
+
   const seen = new Set();        // canonical keys already queued for rendering
   const renderedPages = [];      // {url,status,disposition,title,depth,links}
   const internal = new Map();    // canon -> {url, sources:Set, rendered, depth}  (in-scope HTML pages)
@@ -836,12 +859,14 @@ async function runDiscover(cfg) {
   console.log(`  scope=${cfg.scope}${cfg.scope === "path" ? " (" + (cfg.pathPrefix || start.pathname) + ")" : ""}  max-depth=${fmtCap(cfg.maxDepth)}  max-pages=${fmtCap(cfg.maxPages)}  wait=${cfg.waitUntil}\n`);
 
   let rendered = 0;
-  while (frontier.length && rendered < cfg.maxPages) {
+  while (frontier.length && rendered < cfg.maxPages && !stopped) {
     const level = frontier;
     frontier = [];
     let idx = 0;
     const worker = async () => {
-      while (idx < level.length && rendered < cfg.maxPages) {
+      while (idx < level.length && rendered < cfg.maxPages && !stopped) {
+        await control();
+        if (stopped) break;
         const job = level[idx++];
         let obs;
         try { obs = await driver.harvest(job.url); }
@@ -867,6 +892,7 @@ async function runDiscover(cfg) {
         }
         const mark = c.disp === "ok" ? "✓" : c.disp === "broken" ? "✗" : "?";
         console.log(`  [${rendered}${cfg.maxPages === Infinity ? "" : "/" + cfg.maxPages}] ${mark} d${job.depth}  ${job.url}  — ${links.length} link${links.length === 1 ? "" : "s"}${obs.status ? ", HTTP " + obs.status : obs.err ? ", " + obs.err.slice(0, 40) : ""}`);
+        logLine(`${new Date().toISOString()} ${c.disp === "ok" ? "OK" : c.disp === "broken" ? "ERR" : "BLOCKED"} d${job.depth} ${obs.status || 0} ${job.url} int=${links.length} ext=0`);
         if (cfg.delay) await sleep(cfg.delay);
       }
     };
@@ -914,7 +940,8 @@ async function runDiscover(cfg) {
   if (cfg.html) fs.writeFileSync(cfg.html, buildDiscoverHtml(report));
 
   console.log(`\nDiscovered ${internal.size} in-scope page(s), ${documents.size} document(s), ${external.size} external link(s).`);
-  if (rendered >= cfg.maxPages && notRendered) console.log(`Stopped at --max-pages ${cfg.maxPages}: ${notRendered} discovered in-scope page(s) were not rendered (raise --max-pages / --max-depth to go further).`);
+  if (stopped) console.log(`Stopped early on request (Stop flag) — wrote partial results: ${renderedPages.length} page(s) rendered, ${notRendered} discovered page(s) not yet rendered.`);
+  else if (rendered >= cfg.maxPages && notRendered) console.log(`Stopped at --max-pages ${cfg.maxPages}: ${notRendered} discovered in-scope page(s) were not rendered (raise --max-pages / --max-depth to go further).`);
   else if (notRendered) console.log(`${notRendered} discovered in-scope page(s) were beyond --max-depth ${fmtCap(cfg.maxDepth)} and not rendered.`);
   if (recordCapped) console.log(`Note: hit the ${MAX_RECORD.toLocaleString()} URL record cap — some links beyond it were not recorded.`);
   if (driver.label.startsWith("http-fallback")) console.log(`(Static fallback: no JavaScript ran, so a true SPA's JS-built links were NOT seen — same blind spot as crawl.js.)`);

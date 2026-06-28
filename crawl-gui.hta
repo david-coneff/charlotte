@@ -131,6 +131,7 @@
     <div class="row">
       <label class="f" style="vertical-align:top">Options</label>
       <div class="opts">
+        <label class="opt" title="Render each page in a real browser (Microsoft Edge) to find links a JavaScript-built site (Laserfiche WebLink, SharePoint, most document portals) loads client-side, which the plain static crawl can't see. The found links are then verified and their documents scanned. Needs Playwright installed (npm install playwright). Uncheck for a plain static crawl."><input type="checkbox" id="discoverJs" checked onclick="updatePreview()"> <b>Discover (JS site)</b> — render with a browser first (for WebLink/SharePoint/SPAs)</label>
         <label class="opt"><input type="checkbox" id="includeSub" checked onclick="updatePreview()"> Treat subdomains as internal</label>
         <label class="opt"><input type="checkbox" id="checkExternal" checked onclick="updatePreview()"> Verify external links resolve</label>
         <label class="opt"><input type="checkbox" id="recheck" checked onclick="updatePreview()"> Re-test failed links once at the end</label>
@@ -217,6 +218,7 @@ var shell = new ActiveXObject("WScript.Shell");
 var fso   = new ActiveXObject("Scripting.FileSystemObject");
 var scriptDir = "";   // folder this .hta lives in
 var jsPath = "";      // absolute path to crawl.js
+var renderPath = "";  // absolute path to crawl-render.js (for the Discover/JS-site option)
 var logPath = "";     // temp log file for the current run
 var batPath = "";     // temp batch file for the current run
 var timer = null;
@@ -260,6 +262,7 @@ function initPaths() {
   var slash = p.lastIndexOf("\\");
   scriptDir = (slash >= 0) ? p.substring(0, slash) : ".";
   jsPath = scriptDir + "\\crawl.js";
+  renderPath = scriptDir + "\\crawl-render.js";
   $("workDir").value = scriptDir;
   if (!fso.FileExists(jsPath)) {
     setStatus("Could not find crawl.js next to this file (" + jsPath + "). Set it up first.", "bad");
@@ -325,6 +328,70 @@ function buildCommand() {
   return "node " + q(jsPath) + " " + buildArgs();
 }
 
+// ---- Discover (JS site): a two-step pipeline for JavaScript-built sites -------
+// 1) crawl-render.js --discover renders each page in a real browser (Edge) and
+//    harvests the links a client-side site (Laserfiche WebLink, SharePoint, most
+//    document portals) builds with JavaScript — which the static crawl.js can't
+//    see — writing them to a seeds file. 2) crawl.js --seeds then verifies those
+//    links and scans the documents, in one report. Both steps use the live FORM
+//    values (hence --no-config: the form is authoritative) and write to the same
+//    progress log, so the GUI's live stats + Stop/Pause cover both phases.
+var DISCOVER_SEEDS = "crawl-gui-discover.seeds.txt";
+var DISCOVER_JSON  = "crawl-gui-discover.json";
+
+function discoverOn() { return $("discoverJs") && $("discoverJs").checked; }
+
+// Crawl-scope + pacing flags shared by the static crawl and the discover step.
+function pushLimitArgs(a) {
+  if ($("noPages").checked)        a.push("--max-pages none");
+  else if (val("maxPages") !== "") a.push("--max-pages " + q(val("maxPages")));
+  if ($("noDepth").checked)        a.push("--max-depth none");
+  else if (val("maxDepth") !== "") a.push("--max-depth " + q(val("maxDepth")));
+  var sc = $("scope").value;
+  if (sc === "path") a.push("--scope path");
+  else if (sc === "custom" && val("pathPrefix") !== "") a.push("--path-prefix " + q(val("pathPrefix")));
+  if (val("concurrency") !== "") a.push("--concurrency " + q(val("concurrency")));
+  if (val("delay") !== "")       a.push("--delay " + q(val("delay")));
+  if (val("timeout") !== "")     a.push("--timeout " + q(val("timeout")));
+  if ($("includeSub").checked)   a.push("--include-subdomains");
+}
+
+function buildDiscoverCommand() {
+  var a = [], urls = getUrls();
+  for (var u = 0; u < urls.length; u++) a.push(q(urls[u]));
+  a.push("--discover");
+  a.push("--no-config");          // the live form is authoritative — ignore crawl-gui-config.txt here
+  pushLimitArgs(a);
+  a.push("--channel msedge");     // the Edge that ships with Windows (no Chromium download)
+  a.push("--ignore-case");        // WebLink/SharePoint/IIS: /Browse.aspx and /browse.aspx are one page
+  a.push("--seeds " + q(DISCOVER_SEEDS));
+  a.push("--out " + q(DISCOVER_JSON));
+  a.push("--log " + q(val("log") || "crawl-gui-run.log"));
+  return "node " + q(renderPath) + " " + a.join(" ");
+}
+
+function buildVerifyCommand() {
+  // crawl.js over the discovered seeds: verify links + scan documents, don't
+  // re-crawl (depth 0) — the discover step already walked the tree.
+  var a = ["--seeds " + q(DISCOVER_SEEDS), "--max-depth 0"];
+  if (val("concurrency") !== "") a.push("--concurrency " + q(val("concurrency")));
+  if (val("delay") !== "")       a.push("--delay " + q(val("delay")));
+  if (val("rps") !== "" && val("rps") !== "0") a.push("--rps " + q(val("rps")));
+  if (val("timeout") !== "")     a.push("--timeout " + q(val("timeout")));
+  if ($("checkExternal").checked) a.push("--check-external");
+  if (!$("recheck").checked)      a.push("--no-recheck");
+  if (!$("scanDocs").checked)     a.push("--no-scan-docs");
+  if ($("browser").checked)       a.push("--browser");
+  pushPageArgs(a);
+  if ($("allowlistExport").checked) a.push("--allowlist-export");
+  if (val("allowlist") !== "")   a.push("--allowlist " + q(val("allowlist")));
+  if (val("out") !== "")         a.push("--out " + q(val("out")));
+  a.push("--json " + q(val("json") || "crawl-gui-report.json"));
+  a.push("--log " + q(val("log") || "crawl-gui-run.log"));
+  a.push("--log-max-bytes 0");
+  return "node " + q(jsPath) + " " + a.join(" ");
+}
+
 // Command for "Re-check broken links": re-probe ONLY the flagged links from the last
 // crawl's JSON, using the form's current network settings (rate, timeout, browser…).
 // Not the crawl-scope settings — this re-checks links, it doesn't re-crawl.
@@ -363,7 +430,11 @@ function buildRebuildCommand() {
 }
 
 function updatePreview() {
-  $("preview").innerHTML = escHtml(buildCommand());
+  if (discoverOn()) {
+    $("preview").innerHTML = escHtml(buildDiscoverCommand()) + "<br>&amp;&amp; " + escHtml(buildVerifyCommand());
+  } else {
+    $("preview").innerHTML = escHtml(buildCommand());
+  }
 }
 
 // Browser-mode toggle. Note the User-Agent box: when browser mode is on and the
@@ -425,7 +496,7 @@ function seedUrls() {
 // ---- optional crawl-gui-config.txt next to this file: override the form defaults
 //      (any field's saved default) without editing the GUI. One "key = value" per line;
 //      key is a field id (e.g. maxPages, concurrency, delay, rps, timeout, pageSize (off/250/500/1000/2500/5000),
-//      checkExternal, browser, scanDocs, recheck, includeSub, noPages, noDepth, scope,
+//      discoverJs, checkExternal, browser, scanDocs, recheck, includeSub, noPages, noDepth, scope,
 //      pathPrefix, seen, allowlist, allowlistExport, out, json, log, checkpoint, userAgent, workDir).
 //      Checkboxes take true/false (or 1/0, yes/no, on/off). '#' starts a comment; blank
 //      lines ignored. Unknown keys are skipped. (Start URLs come from crawl-gui-domains.txt.)
@@ -494,14 +565,32 @@ function startCrawl(resume) {
 
   // The batch runs node (with control files), sends node's own console to the
   // err log, and appends a DONE_<exitcode> marker to the live log we poll.
-  var runCmd = buildCommand() +
-    " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath) + " --tune-file " + q(tunePath) +
-    (resume ? " --resume crawl-gui-state.jsonl" : "");
   var bat = "";
   bat += "@echo off\r\n";
   bat += "cd /d " + q(workDir) + "\r\n";
-  bat += runCmd + " > " + q(errPath) + " 2>&1\r\n";
-  bat += "echo DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
+  if (discoverOn()) {
+    // Two steps: render-and-harvest (crawl-render.js), then verify+scan the seeds
+    // (crawl.js). If the discover step fails, mark DONE and stop before verify.
+    if (!fso.FileExists(renderPath)) {
+      setStatus("“Discover (JS site)” is on but crawl-render.js wasn't found next to this file (" + renderPath +
+        "). Uncheck it for a plain static crawl, or add crawl-render.js.", "bad");
+      return;
+    }
+    var discCmd = buildDiscoverCommand() + " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath);
+    var verCmd  = buildVerifyCommand()  + " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath) + " --tune-file " + q(tunePath);
+    bat += discCmd + " > " + q(errPath) + " 2>&1\r\n";
+    bat += "if errorlevel 1 echo DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
+    bat += "if errorlevel 1 goto :CWDONE\r\n";
+    bat += verCmd + " >> " + q(errPath) + " 2>&1\r\n";
+    bat += "echo DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
+    bat += ":CWDONE\r\n";
+  } else {
+    var runCmd = buildCommand() +
+      " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath) + " --tune-file " + q(tunePath) +
+      (resume ? " --resume crawl-gui-state.jsonl" : "");
+    bat += runCmd + " > " + q(errPath) + " 2>&1\r\n";
+    bat += "echo DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
+  }
 
   try {
     deleteIfExists(stopPath);

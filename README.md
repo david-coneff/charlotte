@@ -59,6 +59,11 @@ Requirements.) If a `crawl-gui-config.txt` is present (the Windows GUI's options
 file), discover reads the **same** limits from it — max-pages/-depth, scope,
 delay, etc. — so it honors what you set for a GUI crawl; `--no-config` opts out.
 
+On Windows, the GUI (`crawl-gui.hta`) has a **Discover (JS site)** checkbox — on
+by default — that runs this whole pipeline (render → harvest → verify + scan)
+from the form's settings, with the live progress feed and Stop/Pause buttons
+covering the render phase. Uncheck it for a plain static crawl.
+
 See the **[CRAWLER reference index](CRAWLER/CRAWLER_index.md)** for the complete
 reference: every option, common workflows, the Windows GUI, the headless-render
 verifier, and the in-browser variant. (It was partitioned into a section graph

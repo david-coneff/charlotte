@@ -49,8 +49,74 @@
 const fs = require("fs");
 const http = require("http");
 const https = require("https");
+const path = require("path");
 
 const NAV_TIMEOUT = 30000;
+
+// ----------------------------- GUI config parity -----------------------------
+// Discover honors the SAME limits a GUI crawl uses, by reading the GUI's options
+// file (crawl-gui-config.txt) when present. Parsed byte-for-byte like the HTA's
+// loadGuiConfig (key = value; '#' comments; inline " #"; checkbox truthiness),
+// and mapped to discover's cfg with the HTA's own field→flag semantics
+// (noPages/noDepth → unlimited; scope custom+pathPrefix → path). Applied as
+// DEFAULTS — explicit CLI flags, parsed afterwards, still win.
+
+function readGuiConfigFile(explicitPath) {
+  const candidates = explicitPath ? [explicitPath]
+    : [path.join(process.cwd(), "crawl-gui-config.txt"), path.join(__dirname, "crawl-gui-config.txt")];
+  const tried = [];
+  for (const p of candidates) {
+    if (tried.includes(p)) continue;
+    tried.push(p);
+    try { return { path: p, txt: fs.readFileSync(p, "utf8") }; } catch { /* try next */ }
+  }
+  return null;
+}
+
+function parseGuiConfig(txt) {
+  const map = {};
+  for (const raw of String(txt).split(/\r\n|\r|\n/)) {
+    const line = raw.trim();
+    if (line === "" || line.charAt(0) === "#") continue;
+    const eq = line.indexOf("=");
+    if (eq < 0) continue;
+    const key = line.slice(0, eq).trim();
+    let v = line.slice(eq + 1).trim();
+    const c = v.indexOf(" #");              // strip an inline " # comment"
+    if (c >= 0) v = v.slice(0, c).trim();
+    map[key] = v;
+  }
+  return map;
+}
+
+function applyGuiConfig(cfg, explicitPath) {
+  const found = readGuiConfigFile(explicitPath);
+  if (!found) { if (explicitPath) cfg._configNote = { path: explicitPath, missing: true }; return; }
+  const m = parseGuiConfig(found.txt);
+  const has = (k) => Object.prototype.hasOwnProperty.call(m, k) && m[k] !== "";
+  const boolOf = (v) => /^(1|true|yes|on)$/i.test(v);
+  const numOf = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
+  const applied = [];
+  // pages: the "no limit" checkbox wins over a number, as in the GUI.
+  if (has("noPages") && boolOf(m.noPages)) { cfg.maxPages = Infinity; applied.push("max-pages=none"); }
+  else if (has("maxPages")) { const n = numOf(m.maxPages); if (n !== null) { cfg.maxPages = Math.max(1, n); applied.push("max-pages=" + cfg.maxPages); } }
+  // depth
+  if (has("noDepth") && boolOf(m.noDepth)) { cfg.maxDepth = Infinity; applied.push("max-depth=none"); }
+  else if (has("maxDepth")) { const n = numOf(m.maxDepth); if (n !== null) { cfg.maxDepth = Math.max(0, n); applied.push("max-depth=" + cfg.maxDepth); } }
+  // scope / path (GUI: 'custom' uses pathPrefix, which implies path scope)
+  if (has("scope")) {
+    const sc = m.scope.toLowerCase();
+    if (sc === "domain") { cfg.scope = "domain"; applied.push("scope=domain"); }
+    else if (sc === "path") { cfg.scope = "path"; applied.push("scope=path"); }
+    else if (sc === "custom" && has("pathPrefix")) { cfg.scope = "path"; cfg.pathPrefix = m.pathPrefix; applied.push("path-prefix=" + m.pathPrefix); }
+  }
+  // pacing (concurrency clamped to discover's 1–8, like its CLI parser)
+  if (has("concurrency")) { const n = numOf(m.concurrency); if (n !== null) { cfg.concurrency = Math.max(1, Math.min(8, n)); applied.push("concurrency=" + cfg.concurrency); } }
+  if (has("delay")) { const n = numOf(m.delay); if (n !== null) { cfg.delay = Math.max(0, n); applied.push("delay=" + cfg.delay); } }
+  if (has("timeout")) { const n = numOf(m.timeout); if (n !== null) { cfg.timeout = Math.max(1000, n); applied.push("timeout=" + cfg.timeout); } }
+  if (has("includeSub") && boolOf(m.includeSub)) { cfg.includeSubdomains = true; applied.push("include-subdomains"); }
+  cfg._configNote = { path: found.path, applied };
+}
 
 // ----------------------------- args -----------------------------
 function parseArgs(argv) {
@@ -82,6 +148,8 @@ function parseArgs(argv) {
     settle: 0,           // extra ms to wait after load, for late XHR-driven rendering
     onclickScan: true,   // also harvest URL-ish onclick/data-* attributes (browser mode)
     ignoreCase: false,   // dedup URLs case-insensitively + sort query params (IIS/ASP.NET sites)
+    config: "",          // explicit GUI-config path (default: auto-find crawl-gui-config.txt)
+    noConfig: false,     // ignore crawl-gui-config.txt entirely
     waitUntilSet: false, // did the user pass --wait-until explicitly?
     outSet: false,       // did the user pass --out explicitly?
   };
@@ -89,6 +157,18 @@ function parseArgs(argv) {
   // Caps that accept 'none'/'unlimited'/'-1' = Infinity, mirroring crawl.js.
   const cap = (v, n) => { if (/^(none|unlimited|all|inf|infinity)$/i.test(v) || Number(v) < 0) return Infinity; return Math.max(0, num(v, n)); };
   const a = argv.slice(2);
+  // Pre-scan: in discover mode, seed cfg defaults from crawl-gui-config.txt BEFORE
+  // the CLI loop below (so explicit flags override the GUI's limits, not vice
+  // versa). Only the mode + config-control flags are needed this early.
+  {
+    let discover = false, noConfig = false, configPath = null;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] === "--discover") discover = true;
+      else if (a[i] === "--no-config") noConfig = true;
+      else if (a[i] === "--config") configPath = a[i + 1] || null;
+    }
+    if (discover && !noConfig) applyGuiConfig(cfg, configPath);
+  }
   for (let i = 0; i < a.length; i++) {
     const arg = a[i];
     const next = () => { const v = a[++i]; if (v === undefined) die("Missing value for " + arg); return v; };
@@ -125,6 +205,8 @@ function parseArgs(argv) {
       case "--settle": cfg.settle = Math.max(0, num(next(), arg)); break;
       case "--no-onclick-scan": cfg.onclickScan = false; break;
       case "--ignore-case": cfg.ignoreCase = true; break;
+      case "--config": cfg.config = next(); break;   // value also read in the pre-scan above
+      case "--no-config": cfg.noConfig = true; break;
       case "--channel": cfg.channel = next(); break;
       case "--browser-path": cfg.browserPath = next(); break;
       case "--user-agent": cfg.userAgent = next(); break;
@@ -191,6 +273,14 @@ Discover (--discover) — render a JS site and harvest its real links:
                      case-sensitive servers).
   In discover mode --wait-until defaults to 'networkidle' and --out defaults to
   crawl-render.discover.json (a full JSON manifest of pages/documents/links).
+
+  Limit parity with the GUI: if crawl-gui-config.txt (the GUI's options file)
+  sits next to this script or in the working dir, discover reads the SAME limits
+  from it — max-pages/noPages, max-depth/noDepth, scope/pathPrefix, concurrency,
+  delay, timeout, includeSub — so a discover run honors what you set for a GUI
+  crawl. Explicit flags above still override it.
+  --config FILE      Read GUI limits from FILE instead of the default location
+  --no-config        Ignore crawl-gui-config.txt; use built-in defaults + flags
 
 Browser:
   --channel NAME     Use an installed browser channel instead of Playwright's
@@ -738,6 +828,10 @@ async function runDiscover(cfg) {
     if (!seen.has(key)) { seen.add(key); frontier.push({ url: su.href, depth: 0, key }); recordRef(internal, su, ""); }
   }
 
+  if (cfg._configNote) {
+    if (cfg._configNote.missing) console.log(`Note: --config ${cfg._configNote.path} not found — using built-in defaults + CLI flags.`);
+    else if (cfg._configNote.applied && cfg._configNote.applied.length) console.log(`Limits from ${cfg._configNote.path}: ${cfg._configNote.applied.join(", ")}  (CLI flags override)`);
+  }
   console.log(`Discovering from ${seeds.length} seed${seeds.length === 1 ? "" : "s"} via ${driver.label}…`);
   console.log(`  scope=${cfg.scope}${cfg.scope === "path" ? " (" + (cfg.pathPrefix || start.pathname) + ")" : ""}  max-depth=${fmtCap(cfg.maxDepth)}  max-pages=${fmtCap(cfg.maxPages)}  wait=${cfg.waitUntil}\n`);
 
@@ -885,4 +979,5 @@ if (require.main === module) {
 module.exports = {
   classify, gatherSuspects, gatherSeeds, buildHtml, buildDiscoverHtml, applyToCrawlJson, makeHttpDriver, parseArgs,
   runDiscover, canonicalize, keepFragment, inScope, hostMatches, isAsset, looksLikeDocument, scanUrlish, collectLinks, staticHrefs,
+  parseGuiConfig, applyGuiConfig,
 };

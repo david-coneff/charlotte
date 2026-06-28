@@ -55,7 +55,9 @@ Confine it with `--scope path` / `--max-depth` / `--max-pages`, and on an
 IIS/ASP.NET site (WebLink, SharePoint) add `--ignore-case` so `/Browse.aspx`
 and `/browse.aspx` aren't crawled as two pages; `node crawl-render.js --help`
 lists every option. (Needs Playwright — see `crawl-render.js` under
-Requirements.)
+Requirements.) If a `crawl-gui-config.txt` is present (the Windows GUI's options
+file), discover reads the **same** limits from it — max-pages/-depth, scope,
+delay, etc. — so it honors what you set for a GUI crawl; `--no-config` opts out.
 
 See the **[CRAWLER reference index](CRAWLER/CRAWLER_index.md)** for the complete
 reference: every option, common workflows, the Windows GUI, the headless-render

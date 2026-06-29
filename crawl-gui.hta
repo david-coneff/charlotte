@@ -248,7 +248,15 @@ var gRecent = [], gBackoffUntil = 0, gSiteI = 0, gSiteN = 0, gDoneCode = null;
 var gReTotal = 0, gReStopped = false;
 var gDiscoverPhase = false;  // set when discover emits "# discover start"; cleared on crawl start
 function resetLiveState() {
-  gPos = 0; gBuf = ""; gTail = "";
+  // Begin reading AFTER whatever is already in the live log, so a stale DONE_ marker
+  // (or stale progress lines) left by a previous run can't make this run misread a
+  // premature finish and stop at 0. writeFile(livePath, empty) truncates in the
+  // normal case, but if that didn't take -- the file locked by OneDrive, antivirus,
+  // or a still-running crawl (the AD-089 silent-failure class) -- seeking to the
+  // current end keeps us correct anyway. Length is in CHARS to match readNew's Skip.
+  gPos = 0;
+  try { if (livePath && fso.FileExists(livePath)) { var f0 = fso.OpenTextFile(livePath, 1, false); var pre0 = f0.AtEndOfStream ? "" : f0.ReadAll(); f0.Close(); gPos = pre0.length; } } catch (e0) { gPos = 0; }
+  gBuf = ""; gTail = "";
   gCrawled = 0; gGood = 0; gBroken = 0; gBlocked = 0;
   gExtFound = 0; gExtChecked = 0; gExtTotal = 0; gExtBad = 0;
   gDocs = 0; gDocLinks = 0; gDocUnique = 0; gDocBroken = 0; gDocBlocked = 0; gDocSummary = false;

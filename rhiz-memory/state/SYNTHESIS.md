@@ -293,7 +293,7 @@ These are the traps. Re-reading this section before touching the relevant area s
 - *Test-harness traps (stubs, slicing, stale fixtures, shared infra):* #6, #12, #14, #16, #19, #23, #24, #28, #30.
 - *Cross-`<script>`/cross-window scope & helpers:* #2, #3, #25.
 - *CSS layout, resize grips & column widths:* #13, #17, #22, #29.
-- *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27, #31, #33.
+- *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27, #31, #33, #34.
 - *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20, #31, #32.
 
 1. **Native `<summary>` eats clicks on interactive children.** Real clicks on a checkbox
@@ -546,6 +546,19 @@ These are the traps. Re-reading this section before touching the relevant area s
     seed-hosts Set into `crawl.js` too (AD-091, `isInternalHost`). **Lesson:** when the same decision lives in
     sibling programs, a fix to one is HALF a fix — grep the other for the identical rule and port it proactively;
     a divergence here is invisible until a report contradicts itself. (Rhizome "Sibling Surface Drift" #46.)
+
+34. **A control file whose mere EXISTENCE is the signal, cleared by a silent `deleteIfExists`, leaves a stale
+    flag that halts the NEXT run at 0.** The GUI signals Stop/Pause by creating `crawl-gui-stop.flag`; the
+    crawler halts while it exists. The pre-run clear uses `deleteIfExists`, whose `catch(e){}` swallows a
+    locked-file failure (OneDrive sync, antivirus, or a still-running crawl), so a flag left by a prior Stop
+    silently survives — and the new run's discover renders 0 pages —> empty seeds —> "crawls nothing." This is
+    the SAME silent-`deleteIfExists` class as AD-089 (which hardened only the live log), reached through a
+    different file. **Fix (AD-092):** clear the flag before embedding its path, and if it survives, switch the
+    run to a uniquely-named flag the stale one can't shadow. **Lesson:** when you fix a silent-failure cleanup
+    for ONE state file, grep for the same helper on EVERY other control/state file — the bug lives wherever the
+    pattern was reused (the state-file cousin of the sibling-classifier drift #33). And a signal encoded as
+    file-existence is fragile precisely because its "clear" can silently fail; a content- or run-id-scoped
+    signal degrades better. (AD-092; generalizes AD-089.)
 
 ---
 

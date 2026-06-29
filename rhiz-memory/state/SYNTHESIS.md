@@ -607,7 +607,7 @@ crashes — NOT in the maintained set; §5 #12/#19.)
   log, read because `resetLiveState()` started `gPos` at 0; the first poll hit it before the new run wrote
   anything and declared done at 0 while the crawl ran fine. AD-089's truncate wasn't taking (OneDrive/AV lock).
   Fixed by seeking `gPos` to the END of the log at launch (§5 #35). Found only after reading the operator's
-  actual `crawl-progress.log` — two prior guesses (smart-quote recurrence; AD-092 stale flag) were wrong.
+  actual `crawl-progress.log` — two prior guesses (smart-quote recurrence; AD-092 stale flag) were wrong. CONFIRMED on the live site 2026-06-29.
 
 - **Laserfiche WebLink zero-crawl — RESOLVED 2026-06-28 (AD-090).** The browser harvest read only the
   top frame, so a folder listing embedded in an `<iframe>` (a common WebLink layout) yielded 0 links —> empty

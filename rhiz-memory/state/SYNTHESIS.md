@@ -592,6 +592,15 @@ crashes — NOT in the maintained set; §5 #12/#19.)
 
 ## 7. Open threads / not yet done
 
+- **"Stops at 0" regression — OPEN (2026-06-29).** Appeared after AD-091 (the only functional change since the
+  crawl last worked), but AD-091's crawl.js change crawls fine in every local repro incl. the exact GUI flags, and
+  the HTA parses clean. AD-092 (stale-flag) was DISPROVEN — no `.flag` file present. Do NOT guess a 4th time:
+  the next step is the operator's real artifacts — `crawl-gui-err.log` (did discover/verify error, get blocked, or
+  print the AD-090 "found nothing" diagnostic?), `crawl-gui-run.log` (instant DONE_ vs pages-then-stop?), and
+  `crawl-gui-discover.seeds.txt` (empty vs full?). Candidate causes still on the table: site-side blocking/rate-
+  limit from repeated test crawls; discover `--max-depth none` now walking the whole main site (AD-088) before
+  writing seeds; or a real-site edge in AD-091. The artifacts decide it.
+
 - **Laserfiche WebLink zero-crawl — RESOLVED 2026-06-28 (AD-090).** The browser harvest read only the
   top frame, so a folder listing embedded in an `<iframe>` (a common WebLink layout) yielded 0 links —> empty
   seeds —> nothing crawled. Fixed by harvesting all `page.frames()` (§5 #32) plus a `--settle 2500` render

@@ -569,6 +569,11 @@ function startCrawl(resume) {
   stopPath = workDir + "\\crawl-gui-stop.flag";
   pausePath = workDir + "\\crawl-gui-pause.flag";
   tunePath = workDir + "\\crawl-gui-tune.json";
+  // Neutralize a stale Stop/Pause flag BEFORE the bat embeds these paths, so a
+  // leftover flag (e.g. from a prior Stop click that deleteIfExists couldn't
+  // clear) can't make this run stop at 0. See freshFlag.
+  stopPath = freshFlag(stopPath, "stop");
+  pausePath = freshFlag(pausePath, "pause");
 
   // The batch runs node (with control files), sends node's own console to the
   // err log, and appends a DONE_<exitcode> marker to the live log we poll.
@@ -600,8 +605,6 @@ function startCrawl(resume) {
   }
 
   try {
-    deleteIfExists(stopPath);
-    deleteIfExists(pausePath);
     deleteIfExists(tunePath);   // start clean so stale tune values can't carry over
     deleteIfExists(errPath);    // clear old error log so the errPath fallback in liveout shows fresh content
     writeFile(livePath, "");    // fresh live log: truncate/create-empty (deleteIfExists silently fails on locked files, leaving a stale DONE_ that triggers a false instant-finish on the next run)
@@ -673,11 +676,13 @@ function recheckLinks() {
   stopPath = workDir + "\\crawl-gui-stop.flag";
   pausePath = workDir + "\\crawl-gui-pause.flag";
   tunePath = "";   // live re-tuning isn't supported during re-check — keep togglePause's writeTune a no-op
+  stopPath = freshFlag(stopPath, "stop");     // neutralize a stale, locked flag before it's embedded in the bat (would halt at 0)
+  pausePath = freshFlag(pausePath, "pause");
 
   // Re-check honors the same Stop/Pause control files as a crawl, so those buttons work here too.
   var runCmd = buildRecheckCommand() + " --stop-file " + q(stopPath) + " --pause-file " + q(pausePath);
   var bat = "@echo off\r\ncd /d " + q(workDir) + "\r\n" + runCmd + " > " + q(errPath) + " 2>&1\r\necho DONE_%ERRORLEVEL%>> " + q(livePath) + "\r\n";
-  try { deleteIfExists(stopPath); deleteIfExists(pausePath); deleteIfExists(errPath); writeFile(livePath, ""); writeFile(batPath, bat); }
+  try { deleteIfExists(errPath); writeFile(livePath, ""); writeFile(batPath, bat); }
   catch (e) { setStatus("Couldn't write helper files to " + workDir + " — " + e.message + ". Click “Copy command” and run it in a terminal.", "bad"); return; }
 
   runMode = "recheck";
@@ -734,6 +739,17 @@ function rebuildReport() {
 
 function isAbsolute(p) { return /^[A-Za-z]:\\/.test(p) || p.indexOf("\\\\") === 0; }
 function deleteIfExists(p) { try { if (fso.FileExists(p)) fso.DeleteFile(p); } catch (e) {} }
+// Clear a stale Stop/Pause flag before a run. If it can't be removed -- OneDrive
+// sync, antivirus, or a still-running crawl can lock the file, and deleteIfExists
+// swallows the failure (the AD-089 silent-deleteIfExists class) -- a leftover flag
+// makes the next run halt at 0 immediately. So if the flag survives deletion,
+// switch THIS run to a uniquely-named flag the stale one can't shadow. tag keeps
+// the stop vs pause names distinct within one run.
+function freshFlag(p, tag) {
+  deleteIfExists(p);
+  if (fso.FileExists(p)) return workDir + "\\crawl-gui-" + tag + "." + (new Date()).getTime() + ".flag";
+  return p;
+}
 // True when a resume journal (crawl-gui-state*.jsonl) from a continuable crawl exists.
 function journalExists() {
   try {

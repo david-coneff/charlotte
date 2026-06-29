@@ -550,7 +550,7 @@ These are the traps. Re-reading this section before touching the relevant area s
 34. **A control file whose mere EXISTENCE is the signal, cleared by a silent `deleteIfExists`, leaves a stale
     flag that halts the NEXT run at 0.** The GUI signals Stop/Pause by creating `crawl-gui-stop.flag`; the
     crawler halts while it exists. The pre-run clear uses `deleteIfExists`, whose `catch(e){}` swallows a
-    locked-file failure (OneDrive sync, antivirus, or a still-running crawl), so a flag left by a prior Stop
+    locked-file failure (a still-running crawl or other process holding the file), so a flag left by a prior Stop
     silently survives — and the new run's discover renders 0 pages —> empty seeds —> "crawls nothing." This is
     the SAME silent-`deleteIfExists` class as AD-089 (which hardened only the live log), reached through a
     different file. **Fix (AD-092):** clear the flag before embedding its path, and if it survives, switch the
@@ -561,9 +561,10 @@ These are the traps. Re-reading this section before touching the relevant area s
     signal degrades better. (AD-092; generalizes AD-089.)
 
 35. **A "clear it before the run" cleanup that can SILENTLY fail must be backstopped at the READER, not trusted.**
-    AD-089 fixed a stale `DONE_` by truncating the live log before each run (`writeFile(livePath, "")`); but on a
-    OneDrive/antivirus-locked file the truncate silently no-ops, the stale `DONE_` survives, and the poll —
-    reading from `gPos=0` — hits it before the new run writes anything and stops at 0. The tell was in the
+    AD-089 fixed a stale `DONE_` by truncating the live log before each run (`writeFile(livePath, "")`); but the
+    truncate didn't reliably take (exact cause UNCONFIRMED — the OneDrive guess was retracted, it wasn't running),
+    so a stale `DONE_` survived and the poll — reading from `gPos=0` — hit it before the new run wrote anything and
+    stopped at 0. The tell was in the
     operator's log: `DONE_0` sitting ABOVE live `# extcheck` lines, impossible in a clean run. **Fix (AD-093):**
     seek `gPos` to the current END of the log at launch, so the consumer reads only post-launch content — correct
     whether or not the producer-side truncate took. **Lesson:** when correctness depends on a cleanup succeeding
@@ -605,7 +606,7 @@ crashes — NOT in the maintained set; §5 #12/#19.)
 
 - **"Stops at 0" regression — RESOLVED 2026-06-29 (AD-093).** Cause: a STALE `DONE_0` in the un-truncated live
   log, read because `resetLiveState()` started `gPos` at 0; the first poll hit it before the new run wrote
-  anything and declared done at 0 while the crawl ran fine. AD-089's truncate wasn't taking (OneDrive/AV lock).
+  anything and declared done at 0 while the crawl ran fine. AD-089's truncate wasn't reliably clearing it (root cause unconfirmed; OneDrive retracted).
   Fixed by seeking `gPos` to the END of the log at launch (§5 #35). Found only after reading the operator's
   actual `crawl-progress.log` — two prior guesses (smart-quote recurrence; AD-092 stale flag) were wrong. CONFIRMED on the live site 2026-06-29.
 

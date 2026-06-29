@@ -294,7 +294,7 @@ These are the traps. Re-reading this section before touching the relevant area s
 - *Cross-`<script>`/cross-window scope & helpers:* #2, #3, #25.
 - *CSS layout, resize grips & column widths:* #13, #17, #22, #29.
 - *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27, #31, #33, #34.
-- *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20, #31, #32.
+- *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20, #31, #32, #35.
 
 1. **Native `<summary>` eats clicks on interactive children.** Real clicks on a checkbox
    inside a `<summary>` are consumed by the disclosure toggle, so the box never fires
@@ -560,6 +560,17 @@ These are the traps. Re-reading this section before touching the relevant area s
     file-existence is fragile precisely because its "clear" can silently fail; a content- or run-id-scoped
     signal degrades better. (AD-092; generalizes AD-089.)
 
+35. **A "clear it before the run" cleanup that can SILENTLY fail must be backstopped at the READER, not trusted.**
+    AD-089 fixed a stale `DONE_` by truncating the live log before each run (`writeFile(livePath, "")`); but on a
+    OneDrive/antivirus-locked file the truncate silently no-ops, the stale `DONE_` survives, and the poll —
+    reading from `gPos=0` — hits it before the new run writes anything and stops at 0. The tell was in the
+    operator's log: `DONE_0` sitting ABOVE live `# extcheck` lines, impossible in a clean run. **Fix (AD-093):**
+    seek `gPos` to the current END of the log at launch, so the consumer reads only post-launch content — correct
+    whether or not the producer-side truncate took. **Lesson:** when correctness depends on a cleanup succeeding
+    and that cleanup CAN silently fail (locked file, AD-089/§5 #34 class), make the CONSUMER robust to stale
+    state rather than trusting the cleanup. And it took THREE tries because I kept guessing instead of reading the
+    artifact — when a "stops at 0" resists hypotheses, get the actual log FIRST (§4). (AD-093.)
+
 ---
 
 ## 6. Testing approach
@@ -592,14 +603,11 @@ crashes — NOT in the maintained set; §5 #12/#19.)
 
 ## 7. Open threads / not yet done
 
-- **"Stops at 0" regression — OPEN (2026-06-29).** Appeared after AD-091 (the only functional change since the
-  crawl last worked), but AD-091's crawl.js change crawls fine in every local repro incl. the exact GUI flags, and
-  the HTA parses clean. AD-092 (stale-flag) was DISPROVEN — no `.flag` file present. Do NOT guess a 4th time:
-  the next step is the operator's real artifacts — `crawl-gui-err.log` (did discover/verify error, get blocked, or
-  print the AD-090 "found nothing" diagnostic?), `crawl-gui-run.log` (instant DONE_ vs pages-then-stop?), and
-  `crawl-gui-discover.seeds.txt` (empty vs full?). Candidate causes still on the table: site-side blocking/rate-
-  limit from repeated test crawls; discover `--max-depth none` now walking the whole main site (AD-088) before
-  writing seeds; or a real-site edge in AD-091. The artifacts decide it.
+- **"Stops at 0" regression — RESOLVED 2026-06-29 (AD-093).** Cause: a STALE `DONE_0` in the un-truncated live
+  log, read because `resetLiveState()` started `gPos` at 0; the first poll hit it before the new run wrote
+  anything and declared done at 0 while the crawl ran fine. AD-089's truncate wasn't taking (OneDrive/AV lock).
+  Fixed by seeking `gPos` to the END of the log at launch (§5 #35). Found only after reading the operator's
+  actual `crawl-progress.log` — two prior guesses (smart-quote recurrence; AD-092 stale flag) were wrong.
 
 - **Laserfiche WebLink zero-crawl — RESOLVED 2026-06-28 (AD-090).** The browser harvest read only the
   top frame, so a folder listing embedded in an `<iframe>` (a common WebLink layout) yielded 0 links —> empty

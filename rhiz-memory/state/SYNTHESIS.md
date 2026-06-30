@@ -293,7 +293,7 @@ These are the traps. Re-reading this section before touching the relevant area s
 - *Test-harness traps (stubs, slicing, stale fixtures, shared infra):* #6, #12, #14, #16, #19, #23, #24, #28, #30.
 - *Cross-`<script>`/cross-window scope & helpers:* #2, #3, #25.
 - *CSS layout, resize grips & column widths:* #13, #17, #22, #29.
-- *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27, #31, #33, #34.
+- *Process & correctness (reproduce-first, single-source numbers, reset layers, reversals):* #4, #5, #8, #10, #18, #26, #27, #31, #33, #34, #36.
 - *Environment quirks (`file://`, `pkill`, HTA/JScript, screenshot timing):* #1, #4, #8, #9, #10, #11, #20, #31, #32, #35.
 
 1. **Native `<summary>` eats clicks on interactive children.** Real clicks on a checkbox
@@ -571,6 +571,19 @@ These are the traps. Re-reading this section before touching the relevant area s
     and that cleanup CAN silently fail (locked file, AD-089/§5 #34 class), make the CONSUMER robust to stale
     state rather than trusting the cleanup. And it took THREE tries because I kept guessing instead of reading the
     artifact — when a "stops at 0" resists hypotheses, get the actual log FIRST (§4). (AD-093.)
+
+36. **A persistent IDENTITY must be STORED at creation, never re-derived from data that can drift.** The report's
+    `startHost` is the triage localStorage namespace (`cw*:<host>:<url>`) AND the verdict-import gate — the
+    report's identity. But the JSON never recorded the original start URL, so `--rebuild-from`/`--recheck-from`
+    re-derived the host from `pages[0].url`, the first CRAWLED page. Under an apex—>www redirect that page is
+    `www.…`, so a rebuild silently re-namespaced the report apex—>www, orphaning every saved verdict and bouncing
+    the verdicts file (the host gate from the import path). The operator lost hundreds of triaged verdicts to one
+    rebuild. **Fix (AD-094):** persist `startUrl` in the JSON and derive the host from it; honor an explicit
+    `--start-url` to recover older JSONs; the GUI passes its Start URL. **Lesson:** if a value keys persistent
+    state or gates an import/merge, it is an IDENTITY — capture it once at creation and carry it forward; never
+    recompute it from mutable/derivable data (the first crawled URL drifts under redirects, load balancers,
+    www/apex, http/https). Recompute-on-rewrite is how you silently fork a namespace. (Cousin of §5 #33/#34/#35:
+    state continuity across a rewrite/rerun.)
 
 ---
 

@@ -247,22 +247,28 @@ var gRecent = [], gBackoffUntil = 0, gSiteI = 0, gSiteN = 0, gDoneCode = null;
 // re-check (for the "K / N" readout) and gReStopped flags a re-check that was Stopped early.
 var gReTotal = 0, gReStopped = false;
 var gDiscoverPhase = false;  // set when discover emits "# discover start"; cleared on crawl start
-function resetLiveState() {
-  // Begin reading AFTER whatever is already in the live log, so a stale DONE_ marker
-  // (or stale progress lines) left by a previous run can't make this run misread a
-  // premature finish and stop at 0. writeFile(livePath, empty) truncates in the
-  // normal case, but if that didn't take -- the file locked by OneDrive, antivirus,
-  // or a still-running crawl (the AD-089 silent-failure class) -- seeking to the
-  // current end keeps us correct anyway. Length is in CHARS to match readNew's Skip.
+// Reset only the live-log READ position + per-run control flags (NOT the tallies). Begin
+// reading AFTER whatever is already in the live log, so a stale DONE_ marker (or stale
+// progress lines) left by a previous run can't make this run misread a premature finish and
+// stop at 0 (the AD-089 silent-failure class; writeFile(livePath, empty) truncates in the
+// normal case, this is the backstop). Length is in CHARS to match readNew's Skip.
+function resetReadState() {
   gPos = 0;
   try { if (livePath && fso.FileExists(livePath)) { var f0 = fso.OpenTextFile(livePath, 1, false); var pre0 = f0.AtEndOfStream ? "" : f0.ReadAll(); f0.Close(); gPos = pre0.length; } } catch (e0) { gPos = 0; }
   gBuf = ""; gTail = "";
+  gRecent = []; gBackoffUntil = 0; gSiteI = 0; gSiteN = 0; gDoneCode = null;
+  gReStopped = false; gDiscoverPhase = false;
+}
+// Zero the live tallies. Separate from resetReadState so a Rebuild (which regenerates the HTML
+// from saved JSON and crawls nothing) can reset the read state to detect its DONE WITHOUT
+// wiping the counters from the crawl/re-check the operator was just looking at.
+function resetCounters() {
   gCrawled = 0; gGood = 0; gBroken = 0; gBlocked = 0;
   gExtFound = 0; gExtChecked = 0; gExtTotal = 0; gExtBad = 0;
   gDocs = 0; gDocLinks = 0; gDocUnique = 0; gDocBroken = 0; gDocBlocked = 0; gDocSummary = false;
-  gRecent = []; gBackoffUntil = 0; gSiteI = 0; gSiteN = 0; gDoneCode = null;
-  gReTotal = 0; gReStopped = false; gDiscoverPhase = false;
+  gReTotal = 0;
 }
+function resetLiveState() { resetReadState(); resetCounters(); }
 
 function $(id) { return document.getElementById(id); }
 
@@ -741,7 +747,7 @@ function rebuildReport() {
   $("startBtn").disabled = true; $("recheckBtn").disabled = true; $("resumeBtn").disabled = true; $("rebuildBtn").disabled = true;
   $("pauseBtn").disabled = true; $("stopBtn").disabled = true;
   running = true; isPaused = false; startMs = new Date().getTime(); lastCount = 0; lastChangeMs = startMs;
-  resetLiveState();
+  resetReadState();   // reset only the log-read state to catch this rebuild's DONE; a rebuild crawls nothing, so the live counters are left exactly as they were
   setActivity("rebuilding report&hellip;", false);
   setStatus("Rebuilding the report from existing data — no re-crawl…", "muted");
   try { shell.Run('cmd /c ""' + batPath + '""', 0, false); }
@@ -951,6 +957,9 @@ function poll() {
 
   var now = (new Date()).getTime();
   var secs = Math.floor((now - startMs) / 1000);
+  // A rebuild crawls nothing and regenerates HTML from the saved JSON — leave the stat chips,
+  // timer and recent box exactly as the prior crawl/re-check left them (don't reset to 0).
+  if (runMode !== "rebuild") {
   if (runMode === "recheck") {
     // Same chips, re-check meaning: re-checked K/N · now OK · still broken · now blocked.
     $("lblCount").innerHTML = "Re-checked";  $("statCount").innerHTML = gReTotal ? (gCrawled + " / " + gReTotal) : gCrawled;
@@ -989,6 +998,7 @@ function poll() {
   $("statTime").innerHTML = fmtTime(secs);
   $("recent").innerHTML = escHtml(gRecent.join("\n"));
   $("recent").scrollTop = $("recent").scrollHeight;
+  }
 
   var done = (gDoneCode !== null);
   if (!done && runMode === "rebuild") {

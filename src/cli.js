@@ -123,6 +123,7 @@ function parseArgs(argv) {
       case "--resume": cfg.resume = next(); if (!cfg.state) cfg.state = cfg.resume; break;
       case "--recheck-from": cfg.recheckFrom = next(); break;
       case "--rebuild-from": cfg.rebuildFrom = next(); break;
+      case "--start-url": cfg.startUrl = next(); break;   // explicit host for a rebuild/re-check of an older JSON (no recorded startUrl)
       case "--seeds": {
         // Newline-delimited start URLs from a file ('#' comments / blanks ignored).
         // The clean hand-off from `crawl-render.js --discover`, which writes this
@@ -141,7 +142,7 @@ function parseArgs(argv) {
   }
   if (!cfg.startUrls.length && !cfg.recheckFrom && !cfg.rebuildFrom) die("Missing start URL.\n");
   for (const u of cfg.startUrls) { try { new URL(u); } catch { die("Invalid start URL: " + u); } }
-  cfg.startUrl = cfg.startUrls[0];
+  if (cfg.startUrls.length) cfg.startUrl = cfg.startUrls[0];   // keep an explicit --start-url when there are no positional URLs (rebuild/re-check)
   // --browser implies the desktop-Chrome UA unless the user set one explicitly.
   if (cfg.browser && !cfg.userAgentSet) cfg.userAgent = BROWSER_UA;
   return cfg;

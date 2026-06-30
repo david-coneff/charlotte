@@ -122,6 +122,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
 
   const state = {
     startHost,
+    startUrl: cfg.startUrl,   // recorded in the JSON so a rebuild/re-check keeps this report's host
     pathPrefix,
     queue: seedUrls.map((u) => ({ url: u, depth: 0, parent: "(start)" })),
     seen,

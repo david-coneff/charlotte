@@ -1449,6 +1449,11 @@ ${pagerScript}${NEWWIN}${THEME_JS}</body></html>`;
         crawledAt: state.startedAt,
         partial: !!partial,
         scope: state.pathPrefix || "(whole domain)",
+        // The ORIGINAL start URL, so a later --rebuild-from / --recheck-from keeps the report's
+        // identity (triage-namespace host + verdict-import gate) instead of re-deriving it from
+        // pages[0] — which an apex->www redirect would flip, orphaning every saved verdict.
+        startUrl: state.startUrl || cfg.startUrl || "",
+        startHost: state.startHost,
         // The crawl's settings (only when genuinely known), so a later --rebuild-from / --recheck-from
         // rewrite shows the ORIGINAL run's config line instead of CLI defaults (Infinity -> null). OMITTED
         // when this write is itself a rewrite of a JSON that never recorded them — so the rewrite process's
@@ -2365,6 +2370,10 @@ var require_cli = __commonJS({
           case "--rebuild-from":
             cfg.rebuildFrom = next();
             break;
+          case "--start-url":
+            cfg.startUrl = next();
+            break;
+          // explicit host for a rebuild/re-check of an older JSON (no recorded startUrl)
           case "--seeds": {
             const f = next();
             let txt;
@@ -2393,7 +2402,7 @@ var require_cli = __commonJS({
           die2("Invalid start URL: " + u);
         }
       }
-      cfg.startUrl = cfg.startUrls[0];
+      if (cfg.startUrls.length) cfg.startUrl = cfg.startUrls[0];
       if (cfg.browser && !cfg.userAgentSet) cfg.userAgent = BROWSER_UA;
       return cfg;
     }
@@ -2690,12 +2699,13 @@ var require_recheck = __commonJS({
       const pages = j.internalPages || [];
       let startHost = "";
       try {
-        startHost = new URL2(pages[0] && pages[0].url || errors[0] && errors[0].url || "http://localhost/").hostname;
+        startHost = new URL2(j.startUrl || pages[0] && pages[0].url || errors[0] && errors[0].url || "http://localhost/").hostname;
       } catch {
       }
       const runtimeMs = j.summary && Number.isFinite(j.summary.runtimeMs) ? j.summary.runtimeMs : null;
       return {
         startHost,
+        startUrl: j.startUrl || "",
         pathPrefix: j.scope && j.scope !== "(whole domain)" ? j.scope : "",
         pages,
         external,
@@ -2826,6 +2836,13 @@ var require_recheck = __commonJS({
         return;
       }
       const state = loadStateFromJson(cfg.recheckFrom);
+      if (!j.startUrl && cfg.startUrl) {
+        try {
+          state.startHost = new URL2(cfg.startUrl).hostname;
+          state.startUrl = cfg.startUrl;
+        } catch {
+        }
+      }
       if (!cfg.startUrl) cfg.startUrl = "http://" + state.startHost + "/ (re-check)";
       const r = await reprobe(cfg, allow, state, ` from ${cfg.recheckFrom}`, logger);
       const sidecar = recheckSidecarPath(cfg.json || cfg.out);
@@ -2933,6 +2950,13 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
       }
       const state = loadStateFromJson(cfg.rebuildFrom);
       state.finishedMs = Date.now();
+      if (!j.startUrl && cfg.startUrl) {
+        try {
+          state.startHost = new URL2(cfg.startUrl).hostname;
+          state.startUrl = cfg.startUrl;
+        } catch {
+        }
+      }
       if (!cfg.startUrl) cfg.startUrl = "http://" + state.startHost + "/ (rebuild)";
       writeOutputs2(state, cfg, allow, false);
       console.log(`Rebuilt report from ${cfg.rebuildFrom}: ${state.pages.length} pages, ${state.external.size} external, ${state.errors.length} errors.`);
@@ -3071,6 +3095,8 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
   };
   const state = {
     startHost,
+    startUrl: cfg.startUrl,
+    // recorded in the JSON so a rebuild/re-check keeps this report's host
     pathPrefix,
     queue: seedUrls.map((u) => ({ url: u, depth: 0, parent: "(start)" })),
     seen,

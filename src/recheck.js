@@ -39,10 +39,15 @@ function loadStateFromJson(file) {
   const blocked = (j.blocked || []).map((e) => { addRefs(e.url, e.foundOn); return toErr(e); });
   const pages = j.internalPages || [];
   let startHost = "";
-  try { startHost = new URL((pages[0] && pages[0].url) || (errors[0] && errors[0].url) || "http://localhost/").hostname; } catch { /* ignore */ }
+  // Prefer the ORIGINAL start URL recorded in the JSON so a rewrite keeps the report's
+  // identity (the triage-namespace host + the verdict-import gate). Falling back to
+  // pages[0].url silently flips the host when the seed redirects (e.g. apex -> www),
+  // orphaning every saved verdict and rejecting the verdicts file. (Older JSONs have no
+  // startUrl -> the pages[0] fallback still applies; recover those with an explicit --start-url.)
+  try { startHost = new URL(j.startUrl || (pages[0] && pages[0].url) || (errors[0] && errors[0].url) || "http://localhost/").hostname; } catch { /* ignore */ }
   const runtimeMs = j.summary && Number.isFinite(j.summary.runtimeMs) ? j.summary.runtimeMs : null;
   return {
-    startHost, pathPrefix: (j.scope && j.scope !== "(whole domain)") ? j.scope : "",
+    startHost, startUrl: j.startUrl || "", pathPrefix: (j.scope && j.scope !== "(whole domain)") ? j.scope : "",
     pages, external, outOfScope, refs, errors, blocked,
     retries: (j.summary && j.summary.retries) || 0, crawlDelay: 0, crawled: pages.length, queue: [],
     startedAt: j.crawledAt || new Date().toISOString(), startedMs: Date.now(), runtimeMs,
@@ -138,6 +143,9 @@ async function runRecheck(cfg, allow) {
 
   // ---- single-site report ----
   const state = loadStateFromJson(cfg.recheckFrom);
+  // Older JSONs recorded no startUrl: honor an explicit --start-url (the GUI passes its Start
+  // URL) so the report's host isn't flipped by an apex->www redirect, which would orphan triage.
+  if (!j.startUrl && cfg.startUrl) { try { state.startHost = new URL(cfg.startUrl).hostname; state.startUrl = cfg.startUrl; } catch { /* ignore */ } }
   if (!cfg.startUrl) cfg.startUrl = "http://" + state.startHost + "/ (re-check)";
   const r = await reprobe(cfg, allow, state, ` from ${cfg.recheckFrom}`, logger);
   // SAFETY (operator's request): write the corrected data to a SEPARATE re-check JSON first,
@@ -217,6 +225,9 @@ async function runRebuild(cfg, allow) {
 
   const state = loadStateFromJson(cfg.rebuildFrom);
   state.finishedMs = Date.now();
+  // Older JSONs recorded no startUrl: honor an explicit --start-url (the GUI passes its Start
+  // URL) so the report's host isn't flipped by an apex->www redirect, which would orphan triage.
+  if (!j.startUrl && cfg.startUrl) { try { state.startHost = new URL(cfg.startUrl).hostname; state.startUrl = cfg.startUrl; } catch { /* ignore */ } }
   if (!cfg.startUrl) cfg.startUrl = "http://" + state.startHost + "/ (rebuild)";
   writeOutputs(state, cfg, allow, false);
   console.log(`Rebuilt report from ${cfg.rebuildFrom}: ${state.pages.length} pages, ${state.external.size} external, ${state.errors.length} errors.`);

@@ -413,6 +413,8 @@ function buildVerifyCommand() {
 function buildRecheckCommand() {
   var jsonName = val("json") || "crawl-gui-report.json";
   var a = ["--recheck-from " + q(jsonName)];
+  var u0 = getUrls()[0];   // pass the Start URL so an OLD report (no recorded startUrl) keeps its host (apex vs www) instead of re-deriving it from the first crawled page
+  if (u0) a.push("--start-url " + q(u0));
   if (val("concurrency") !== "") a.push("--concurrency " + q(val("concurrency")));
   if (val("delay") !== "")       a.push("--delay " + q(val("delay")));
   if (val("rps") !== "" && val("rps") !== "0") a.push("--rps " + q(val("rps")));
@@ -436,6 +438,8 @@ function buildRecheckCommand() {
 function buildRebuildCommand() {
   var jsonName = val("json") || "crawl-gui-report.json";
   var a = ["--rebuild-from " + q(jsonName)];
+  var u0 = getUrls()[0];   // pass the Start URL so an OLD report (no recorded startUrl) keeps its host (apex vs www) instead of re-deriving it from the first crawled page
+  if (u0) a.push("--start-url " + q(u0));
   if (val("allowlist") !== "") a.push("--allowlist " + q(val("allowlist")));
   if (val("out") !== "")       a.push("--out " + q(val("out")));
   pushPageArgs(a);

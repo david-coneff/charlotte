@@ -7,5 +7,14 @@
     "README.md",
     "CRAWLER.md",
     "SHAREPOINT-MERGE.md"
+  ],
+  "entry_catalogs": [
+    {
+      "name": "AD decision log (rhiz-memory/state/decisions/)",
+      "paths": ["rhiz-memory/state/decisions/AD-*.md"],
+      "id": "AD-\\d+",
+      "level": 2,
+      "sidecar": "rhiz-memory/state/decisions/AD.entry-hashes.md"
+    }
   ]
 }

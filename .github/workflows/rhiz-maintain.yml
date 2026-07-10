@@ -2,7 +2,10 @@ name: rhiz-maintain
 
 on:
   push:
-    branches: [main]
+    # claude/** included so working branches carry per-push CI verdicts — the
+    # same mechanism that gates rhizome's tools-stable blessings
+    # (rhiz-child-repo-convention §1.1); a branch with no trigger has no verdict.
+    branches: [main, "claude/**"]
   pull_request:
   schedule:
     - cron: "0 6 * * 1"
@@ -19,14 +22,17 @@ jobs:
           python-version: "3.11"
 
       # Resolve the shared tooling channel — the ONE version of the tools.
-      # If rhizome is a private repo, add a token with read access:
-      #   token: ${{ secrets.RHIZOME_TOOLS_TOKEN }}
+      # rhizome is PRIVATE, so this checkout needs a read credential: store a
+      # fine-grained PAT with read access to rhizome as the RHIZOME_TOOLS_TOKEN
+      # secret (runbook: rhizome protocol/docs/tooling-access.md). Falls back
+      # to the repo's own token, which suffices only if rhizome is public.
       - name: Check out rhizome tooling @ tools-stable
         uses: actions/checkout@v4
         with:
           repository: david-coneff/rhizome
           ref: tools-stable
           path: .rhiz-tools/rhizome
+          token: ${{ secrets.RHIZOME_TOOLS_TOKEN || github.token }}
 
       # Drift-guard: this repo must track the channel, not a hard SHA.
       - name: Drift-guard (must track tools-stable)

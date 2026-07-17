@@ -1,8 +1,6 @@
 # Architecture Decisions — Charlotte (index)
 
-Architecture Decision Records for Charlotte. The full text is partitioned into the files under
-[`decisions/`](decisions/) to keep this log scannable; this page is the index. **Add a new decision**
-by appending its body to the latest range file in `decisions/` and adding a one-line row here.
+Architecture Decision Records for Charlotte. The full text is partitioned into the files under [`decisions/`](decisions/) to keep this log scannable; this page is the index. **Add a new decision** by appending its body to the latest range file in `decisions/` and adding a one-line row here.
 
 ### [AD-001 – AD-016 · Migration, engine partitioning & resume](decisions/AD-001-016.md)
 

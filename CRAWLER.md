@@ -1,7 +1,6 @@
 # CRAWLER — suite reference (partitioned)
 
-This reference grew past the Rhizome rhiz-Merkle threshold (971 lines / 56 KB) and
-was partitioned into a navigable section graph on 2026-06-27 (AD-080).
+This reference grew past the Rhizome rhiz-Merkle threshold (971 lines / 56 KB) and was partitioned into a navigable section graph on 2026-06-27 (AD-080).
 
 **→ Start at the index: [`CRAWLER/CRAWLER_index.md`](CRAWLER/CRAWLER_index.md)**
 
@@ -14,6 +13,4 @@ was partitioned into a navigable section graph on 2026-06-27 (AD-080).
 | `local-cors-proxy.js` — CORS proxy | [`local-cors-proxy.js`](CRAWLER/CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md) |
 | Be a responsible crawler | [responsible crawling](CRAWLER/CRAWLER_part_06_be-a-responsible-crawler.md) |
 
-The machine-readable manifest with integrity hashes is
-[`CRAWLER/CRAWLER_index.json`](CRAWLER/CRAWLER_index.json). To read the reference as
-one document again: `doc-graph.py merge CRAWLER/CRAWLER_index.json --out CRAWLER.md`.
+The machine-readable manifest with integrity hashes is [`CRAWLER/CRAWLER_index.json`](CRAWLER/CRAWLER_index.json). To read the reference as one document again: `doc-graph.py merge CRAWLER/CRAWLER_index.json --out CRAWLER.md`.

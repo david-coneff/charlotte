@@ -1,14 +1,8 @@
 # Rhizome review — report & tracker ergonomics arc (AD-053–065)
 
-**Date:** 2026-06-27 · **Scope:** `report.js` + `report-templates.js`, the AD-061–065 changes
-(non-triage folder grouping, fix-tracker collapsible sections / All:Fixed / pager / resolved-amber /
-pagination, resizable viewports + columns, no-min-width, collapsible help). **Goal:** coherence issues
-and undiscovered bugs.
+**Date:** 2026-06-27 · **Scope:** `report.js` + `report-templates.js`, the AD-061–065 changes (non-triage folder grouping, fix-tracker collapsible sections / All:Fixed / pager / resolved-amber / pagination, resizable viewports + columns, no-min-width, collapsible help). **Goal:** coherence issues and undiscovered bugs.
 
-**Method:** self-review + memory↔code coherence grep pass + two independent adversarial reviewers (one
-per file) that read the source, ran `node --check`, and exercised the rendered HTML under the DOM-stub
-harness and real headless Chromium across final / partial / empty / scoped fixtures. All confirmed
-behaviours below were measured, not assumed.
+**Method:** self-review + memory↔code coherence grep pass + two independent adversarial reviewers (one per file) that read the source, ran `node --check`, and exercised the rendered HTML under the DOM-stub harness and real headless Chromium across final / partial / empty / scoped fixtures. All confirmed behaviours below were measured, not assumed.
 
 ## Findings & disposition
 
@@ -22,30 +16,13 @@ behaviours below were measured, not assumed.
 
 ## Clean — verified, nothing wrong
 
-- **Tracker (report-templates.js)**: constraint compliance (0 backticks/`${}`/backslashes; literal ▼/▶;
-  clean JSON round-trip through the `__CW_TPL__` island), `refreshGroup`/`rowWorking` amber in BOTH views,
-  `bulkFix` + All:Fixed checked/indeterminate transitions, pagination (50/page, reset on grouping switch,
-  per-tab page retained on tab switch, pager outside `#view-*`, absent at exactly 50), no
-  `classList`/`closest`/`dataset`, `.trkview` height/scroll. Existing `tracker3-test` (18) passes.
-- **Report (report.js)**: the two resize IIFEs don't collide (disjoint selectors `haspick/blkpick` vs
-  `grptbl`, separate `cwcol:host:scope` namespaces, separate IIFE scopes so the duplicate `HOST`/`L()` are
-  fine); `.colreset` vs `.grpcolreset` are disjoint and not cross-wired; nested found-on / `.dombody`
-  resolve to `height:auto;resize:none` (no grip, no forced height); per-tab `th`/`td` counts match;
-  pagination coexists with `.grptbl`; partial/empty/scoped reports don't throw and the triage IIFE still
-  bails on `tr[data-url]`.
-- **Memory↔code coherence**: every claim in SYNTHESIS lessons #13–20, ADRs AD-061–065, and CRAWLER.md
-  matches the shipped code (definite `height` w/ no stray `max-height`, the triage-bail + selector split,
-  blanket `min-width:0` + `16px` grip floor in both IIFEs, all three reset buttons, the tracker
-  pager-outside-scroll wrappers).
+- **Tracker (report-templates.js)**: constraint compliance (0 backticks/`${}`/backslashes; literal ▼/▶; clean JSON round-trip through the `__CW_TPL__` island), `refreshGroup`/`rowWorking` amber in BOTH views, `bulkFix` + All:Fixed checked/indeterminate transitions, pagination (50/page, reset on grouping switch, per-tab page retained on tab switch, pager outside `#view-*`, absent at exactly 50), no `classList`/`closest`/`dataset`, `.trkview` height/scroll. Existing `tracker3-test` (18) passes.
+- **Report (report.js)**: the two resize IIFEs don't collide (disjoint selectors `haspick/blkpick` vs `grptbl`, separate `cwcol:host:scope` namespaces, separate IIFE scopes so the duplicate `HOST`/`L()` are fine); `.colreset` vs `.grpcolreset` are disjoint and not cross-wired; nested found-on / `.dombody` resolve to `height:auto;resize:none` (no grip, no forced height); per-tab `th`/`td` counts match; pagination coexists with `.grptbl`; partial/empty/scoped reports don't throw and the triage IIFE still bails on `tr[data-url]`.
+- **Memory↔code coherence**: every claim in SYNTHESIS lessons #13–20, ADRs AD-061–065, and CRAWLER.md matches the shipped code (definite `height` w/ no stray `max-height`, the triage-bail + selector split, blanket `min-width:0` + `16px` grip floor in both IIFEs, all three reset buttons, the tracker pager-outside-scroll wrappers).
 
 ## Residual / notes
 
-- Stale SCRATCHPAD probes (`trk-build.js`) still look for the removed green `alldone` class and an
-  in-panel pager — they're obsolete test scaffold, NOT product regressions (the product replaced green
-  with "amber disappears" and moved the pager to `.pagerbar`).
-- No persistent regression test covers the non-triage column resize / helpBox; they're verified by ad-hoc
-  headless probes. (Acceptable given the zero-dep, no-framework testing ethos; flagged for awareness.)
+- Stale SCRATCHPAD probes (`trk-build.js`) still look for the removed green `alldone` class and an in-panel pager — they're obsolete test scaffold, NOT product regressions (the product replaced green with "amber disappears" and moved the pager to `.pagerbar`).
+- No persistent regression test covers the non-triage column resize / helpBox; they're verified by ad-hoc headless probes. (Acceptable given the zero-dep, no-framework testing ethos; flagged for awareness.)
 
-**Net:** 4 real defects (1 user-visible, 1 latent-correctness, 2 coherence) + 1 nit found and fixed; the
-tracker logic and the cross-feature interactions are otherwise coherent and bug-free. Full suite 170/0
-after fixes.
+**Net:** 4 real defects (1 user-visible, 1 latent-correctness, 2 coherence) + 1 nit found and fixed; the tracker logic and the cross-feature interactions are otherwise coherent and bug-free. Full suite 170/0 after fixes.

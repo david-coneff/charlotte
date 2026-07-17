@@ -1,15 +1,8 @@
 # Candidate universal principles — PROMOTED 2026-06-27
 
-**Status: promoted into `david-coneff/rhizome` on 2026-06-27 and retired.** This file
-staged 12 transferable principles extracted from Charlotte (AD-078) for promotion into the
-Rhizome protocol repo. A session with both repos in scope reviewed them, generalized each,
-and folded them into rhizome's **existing** memory structures (merge, don't duplicate) — see
-AD-079. This page is kept as the one-line-per-candidate promotion record so the provenance is
-traceable from Charlotte; the full, living text now lives in rhizome.
+**Status: promoted into `david-coneff/rhizome` on 2026-06-27 and retired.** This file staged 12 transferable principles extracted from Charlotte (AD-078) for promotion into the Rhizome protocol repo. A session with both repos in scope reviewed them, generalized each, and folded them into rhizome's **existing** memory structures (merge, don't duplicate) — see AD-079. This page is kept as the one-line-per-candidate promotion record so the provenance is traceable from Charlotte; the full, living text now lives in rhizome.
 
-The split principle: a **review lens** (a flaw an auditor looks *for* in a finished artifact)
-became a rhiz-Audit pattern; a **working-method discipline** (how to debug / change / iterate /
-record while building) became a cross-project design standard.
+The split principle: a **review lens** (a flaw an auditor looks *for* in a finished artifact) became a rhiz-Audit pattern; a **working-method discipline** (how to debug / change / iterate / record while building) became a cross-project design standard.
 
 ## Destination map
 
@@ -28,19 +21,12 @@ record while building) became a cross-project design standard.
 | 11 | Record the trap with its code, not just the conclusion | **DS-006** |
 | 12 | Test infra ages — confirm a "new" failure is actually new | folded into **DS-003** (a corollary of reproduce-before-fixing) |
 
-The rhiz-Audit catalog count was synced 40→46 (`rhiz-audit.md` §7) in the same revision;
-`cross-project-design-standards.md` now lists charlotte alongside broodforge and tessel.
+The rhiz-Audit catalog count was synced 40→46 (`rhiz-audit.md` §7) in the same revision; `cross-project-design-standards.md` now lists charlotte alongside broodforge and tessel.
 
 ## What was deliberately NOT promoted
 
-Charlotte-specific mechanics — the no-backtick / `${}` / backslash / inner-IIFE template
-constraint, the satellite `blob:` interstitial, `file://` localStorage fallbacks, HTA/JScript
-ES3 limits — are real lessons but not universal. They stay in
-[`state/SYNTHESIS.md`](state/SYNTHESIS.md) §5 and the cited ADRs.
+Charlotte-specific mechanics — the no-backtick / `${}` / backslash / inner-IIFE template constraint, the satellite `blob:` interstitial, `file://` localStorage fallbacks, HTA/JScript ES3 limits — are real lessons but not universal. They stay in [`state/SYNTHESIS.md`](state/SYNTHESIS.md) §5 and the cited ADRs.
 
 ## Provenance
 
-Extracted 2026-06-27 from Charlotte after the report/tracker workflow arc (AD-053–077; staged
-in AD-078). Promoted into `david-coneff/rhizome` and retired the same day (AD-079). This record
-is retained — rather than deleting the file — so a future Charlotte reader can trace where each
-earned principle went without opening the rhizome repo.
+Extracted 2026-06-27 from Charlotte after the report/tracker workflow arc (AD-053–077; staged in AD-078). Promoted into `david-coneff/rhizome` and retired the same day (AD-079). This record is retained — rather than deleting the file — so a future Charlotte reader can trace where each earned principle went without opening the rhizome repo.

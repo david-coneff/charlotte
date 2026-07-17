@@ -4,52 +4,52 @@
   "source-file": "CRAWLER.md",
   "split-heading-level": 2,
   "created": "2026-06-27T16:07:48Z",
-  "updated": "2026-06-27T23:06:41Z",
+  "updated": "2026-07-17T22:57:49Z",
   "parent-index": null,
   "sections": [
     {
       "section-order": 1,
       "section-id": "preamble",
       "filename": "CRAWLER_part_01_preamble.md",
-      "content-hash": "sha256:c1fcbc2326ead69a9bf0f223eaf17200863800b3500d1ddf0317775614ea5c38",
-      "line-count": 27,
-      "byte-count": 1658,
+      "content-hash": "sha256:3d4e1378489f48e3001786bd5f2f8d56a35d6648cbac4ec3c15a3a1d0935eb13",
+      "line-count": 18,
+      "byte-count": 1644,
       "description": "Suite orientation: what Charlotte is (a single-domain crawler that maps a site, records but never follows first-tier external links, verifies links \u2014 including inside PDF/Office docs \u2014 and writes a self-contained HTML report) plus the pick-your-tool table linking each entry point."
     },
     {
       "section-order": 2,
       "section-id": "crawljs-node-crawler-recommended",
       "filename": "CRAWLER_part_02_crawljs-node-crawler-recommended.md",
-      "content-hash": "sha256:996cac50a28aecf0f7b2d9d621719af2fa8c59e76b3aeaca05ebf41a65b5a72c",
-      "line-count": 770,
-      "byte-count": 46659,
+      "content-hash": "sha256:6b0ca906bb153eb04fae45dc110921b5ebc9d2e495a72c7b5c537324faf46132",
+      "line-count": 417,
+      "byte-count": 46480,
       "description": "The flagship Node crawler \u2014 the primary, recommended tool, kept whole as one coherent reference with its own internal ### TOC (~770 lines). Covers requirements, quick start, common runs, the full option list, multi-site runs, scope/depth, rate limiting + robots/adaptive-backoff/auto-resume, document-link scanning, the --recheck-from / --rebuild-from modes, the headless Playwright second opinion (crawl-render.js), large-crawl checkpoints + resume (--state/--resume), mid-crawl re-tuning (--tune-file), memory tuning, the self-contained HTML report, and the allowlist."
     },
     {
       "section-order": 3,
       "section-id": "crawl-guihta-windows-gui",
       "filename": "CRAWLER_part_03_crawl-guihta-windows-gui.md",
-      "content-hash": "sha256:624a5b306d46e12ac13452cc8906c9f5bbaa04c1c1064e7934fa2f1da2a1375d",
-      "line-count": 108,
-      "byte-count": 5529,
+      "content-hash": "sha256:24b9ef0d9cfbe47e8900bdcabad63a49b0abc68b4251aaceba28bcfa9356e892",
+      "line-count": 58,
+      "byte-count": 5486,
       "description": "The Windows GUI front-end (crawl-gui.hta) that builds the crawl.js command line and launches it: requirements, the optional crawl-gui-domains.txt (default start URLs) and crawl-gui-config.txt (default option values) files, and how to run it."
     },
     {
       "section-order": 4,
       "section-id": "web-crawlerhtml-in-browser-crawler",
       "filename": "CRAWLER_part_04_web-crawlerhtml-in-browser-crawler.md",
-      "content-hash": "sha256:203e4f864b190b86bee2bc4c858ba3d8e662c29a5ecc2839ee4449c4d2d11f3d",
-      "line-count": 26,
-      "byte-count": 1124,
+      "content-hash": "sha256:e8396773c58bd24fa1eb6bc8d7c2c24e7af08ebef1959e473ff1dfc9edbf873a",
+      "line-count": 16,
+      "byte-count": 1116,
       "description": "The in-browser crawler variant (web-crawler.html) that runs entirely in a tab \u2014 for a live, interactive report with no Node install."
     },
     {
       "section-order": 5,
       "section-id": "local-cors-proxyjs-proxy-for-the-html-ve",
       "filename": "CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md",
-      "content-hash": "sha256:77c2fea2bcabb15f4126490b0f158ce99686240a8e392a03b6c67d75bc1442dc",
-      "line-count": 30,
-      "byte-count": 1041,
+      "content-hash": "sha256:4ccb2202063dc555e3409e2a2102c53dd993a707ef7117b806e8a6af442a155f",
+      "line-count": 24,
+      "byte-count": 1033,
       "description": "The zero-dependency CORS proxy (local-cors-proxy.js) that lets web-crawler.html cross origins from a file:// page."
     },
     {
@@ -62,5 +62,5 @@
       "description": "Politeness guidance: honest User-Agent/headers, rate limits, and respecting robots.txt \u2014 how to crawl responsibly."
     }
   ],
-  "index-hash": "sha256:2d06db26973367680afb976e373cc13b681a43de5bc0ba86f033a41e363d9bac"
+  "index-hash": "sha256:6f165c7395d22df56e4de64af57715799b75577ab0aadbb34d3264b4ccb5d32d"
 }

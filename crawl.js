@@ -10,6 +10,729 @@ var __commonJS = (cb, mod) => function __require() {
   }
 };
 
+// src/report/branding.js
+var require_branding = __commonJS({
+  "src/report/branding.js"(exports2, module2) {
+    "use strict";
+    var REF_PREVIEW = 3;
+    var RENDER_CAP = Infinity;
+    var PAGE_SIZE = 1e3;
+    var BRAND = "Charlotte";
+    var BRAND_ICON = "\u{1F578}\uFE0F";
+    var THEME_LIGHT_CSS = ` html[data-theme="light"]{--bg:#f4f6f9;--panel:#ffffff;--panel2:#eaeef3;--fg:#1c2230;--muted:#5b6675;--accent:#0969da;--link:#0a66c2;--good:#1a7f37;--warn:#9a6700;--bad:#cf222e;--border:#d0d7de;--accent-fg:#ffffff}
+ .themebtn{position:fixed;top:12px;right:16px;z-index:30;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;font-size:15px;line-height:1}.themebtn:hover{border-color:var(--accent);color:var(--accent)}`;
+    var THEME_HEAD = `<script>try{if(localStorage.getItem('charlotteTheme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>`;
+    var THEME_BTN = `<button id="themeToggle" class="themebtn" type="button" title="Toggle light / dark theme">\u{1F319}</button>`;
+    var LEGEND_HINT = `<div class="leghint" title="What the dashed outline around each broken / blocked card means"><span class="leglbl">Outline:</span><span class="legbox lg-g"></span>all triaged<span class="legbox lg-a"></span>some untriaged</div>`;
+    var THEME_JS = `<script>(function(){var b=document.getElementById('themeToggle');if(!b)return;function cur(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}function paint(){b.textContent=cur()==='light'?'\u2600\uFE0F':'\u{1F319}';b.title='Switch to '+(cur()==='light'?'dark':'light')+' theme';}paint();b.addEventListener('click',function(){if(cur()==='light'){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','light');}try{localStorage.setItem('charlotteTheme',cur());}catch(e){}paint();});})();</script>`;
+    var esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    module2.exports = { REF_PREVIEW, RENDER_CAP, PAGE_SIZE, BRAND, BRAND_ICON, THEME_LIGHT_CSS, THEME_HEAD, THEME_BTN, LEGEND_HINT, THEME_JS, esc };
+  }
+});
+
+// src/report/settings.js
+var require_settings = __commonJS({
+  "src/report/settings.js"(exports2, module2) {
+    "use strict";
+    function effSettings(state, cfg) {
+      const s = state && state.settings || null;
+      const num = (v, d) => typeof v === "number" ? v : d;
+      const bool = (v, d) => typeof v === "boolean" ? v : d;
+      if (!s) return { concurrency: cfg.concurrency, delay: cfg.delay, rps: cfg.rps, maxPages: cfg.maxPages, maxDepth: cfg.maxDepth, includeSubdomains: cfg.includeSubdomains, checkExternal: cfg.checkExternal };
+      return {
+        concurrency: num(s.concurrency, cfg.concurrency),
+        delay: num(s.delay, cfg.delay),
+        rps: num(s.rps, cfg.rps),
+        maxPages: s.maxPages === null ? Infinity : num(s.maxPages, cfg.maxPages),
+        maxDepth: s.maxDepth === null ? Infinity : num(s.maxDepth, cfg.maxDepth),
+        includeSubdomains: bool(s.includeSubdomains, cfg.includeSubdomains),
+        checkExternal: bool(s.checkExternal, cfg.checkExternal)
+      };
+    }
+    function settingsAreKnown(state, cfg) {
+      return !!(state && state.settings) || !(cfg && (cfg.rebuildFrom || cfg.recheckFrom));
+    }
+    module2.exports = { effSettings, settingsAreKnown };
+  }
+});
+
+// src/report/page-css.js
+var require_page_css = __commonJS({
+  "src/report/page-css.js"(exports2, module2) {
+    "use strict";
+    var { THEME_LIGHT_CSS } = require_branding();
+    var REPORT_CSS = ` :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340;--accent-fg:#06121f}
+${THEME_LIGHT_CSS}
+ *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
+ header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
+ main{max-width:1500px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px}
+ /* Two rows of broken-over-total pairs (col 1\u20134) + Blocked in col 5. Fixed 5 columns so each broken
+    stat sits directly above its total; collapses to 2 columns on narrow screens. */
+ .stats{display:grid;gap:12px;grid-template-columns:repeat(5,minmax(0,1fr))}
+ @media (max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+ .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}.stat .n{font-size:26px;font-weight:700}.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+ .stat .n .pct{font-size:14px;font-weight:600;color:var(--muted)}
+ .stat.good .n{color:var(--good)}.stat.bad .n{color:var(--bad)}.stat.warn .n{color:var(--warn)}
+ /* Test-completeness outline on the three "broken" stats: green = every link in that category has a
+    verdict (count is final); amber = some still untriaged (count may change). Inset outline -> no shift. */
+ .stat.tested-all{outline:2px dashed var(--good);outline-offset:-1px}
+ .stat.tested-partial{outline:2px dashed var(--warn);outline-offset:-1px}
+ /* Outline-key legend, relocated to a compact fixed strip in the upper-right beside the theme toggle. */
+ .leghint{position:fixed;top:13px;right:62px;z-index:30;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+ .leghint .leglbl{text-transform:uppercase;letter-spacing:.05em;font-size:10px}
+ .leghint .legbox{flex:none;width:16px;height:11px;border:2px dashed var(--border);border-radius:3px;margin-left:5px}
+ .leghint .legbox.lg-g{border-color:var(--good)}.leghint .legbox.lg-a{border-color:var(--warn)}
+ @media (max-width:720px){.leghint{display:none}}
+ table{width:100%;border-collapse:collapse;font-size:13px;min-width:820px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
+ /* URL and Found-on columns get real width; long URLs wrap at sensible points, not every character */
+ td{overflow-wrap:anywhere;word-break:normal}
+ th:first-child,td:first-child{min-width:360px}
+ td:last-child{min-width:300px}
+ /* Internal-pages table: a 1\u20132 digit Depth and the small Status/Int/Ext cells shouldn't
+    hog width \u2014 narrow them and give the space to URL + Title so those wrap far less. */
+ td a,a{color:var(--link);text-decoration:none}td a:hover,a:hover{text-decoration:underline}
+ /* Fixed-height scroll viewport. resize:vertical adds a bottom-right grip so the operator can drag the
+    pane taller/shorter to taste (min-height keeps it from collapsing). Applies to flat tables here and to
+    the grouped .groupview below. The triage groups' own .dombody is overflow:visible (no grip there). */
+ /* Flat tables (Suppressed, log, read-only/partial fallback) size to content up to a cap, so a short list
+    isn't a tall empty box; still drag-resizable. The big grouped lists use .groupview (definite height). */
+ .tablewrap{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:8px;resize:vertical}
+ /* Every tab's list lives in a FIXED-HEIGHT viewport that scrolls internally (consistent with the flat
+    .tablewrap tables) \u2014 so a long grouped list scrolls in place instead of stretching the whole page. */
+ .groupview{height:460px;min-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;resize:vertical}
+ .groupview .domgrp:last-child{margin-bottom:0}
+ .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}.pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.err{background:rgba(248,113,113,.15);color:var(--bad)}.pill.skip{background:rgba(251,191,36,.15);color:var(--warn)}
+ .muted{color:var(--muted)}h2{font-size:15px;margin:0 0 12px}details summary{cursor:pointer;font-weight:600;padding:6px 0}
+ .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+ .hidden{display:none}code{background:var(--panel2);padding:1px 5px;border-radius:4px}
+ .exptools{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+ /* Collapsible per-tab explanatory text \u2014 a muted, small disclosure so the (lengthy) help can be folded away. */
+ .helpbox{margin:0 0 10px}
+ .helpbox>summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;padding:4px 0}
+ .helpbox>summary:hover{color:var(--accent)}
+ .helpbox .helpbody{margin-top:4px}
+ /* Triage tables \u2014 columns sized by CLASS so the layout holds with or without the (opt-in)
+    allowlist pick column: .pickcol pick box \xB7 .tscell timestamp \xB7 .tcol Broken/Working \xB7 .urlcol URL. */
+ .pickcol{width:34px;text-align:center}
+ .tcol{width:80px;text-align:center}
+ .tscell{width:140px;white-space:nowrap}
+ td.tscell{font-size:13px;color:var(--muted)}
+ th.tscell{white-space:nowrap}
+ .urlcol{width:380px}
+ .reasoncol{width:180px}
+ /* Triage AND non-triage grouped tables (.grptbl) use a FIXED layout (predictable widths) and size to the
+    SUM of their column widths (width:max-content) rather than stretching to 100% \u2014 so no column is starved
+    and a very wide window no longer leaves a giant mid-table gap. Every column is RESIZABLE: drag the grip
+    on a header's right edge. There is NO enforced minimum width \u2014 drag a column as narrow as you like.
+    Widths persist per browser and broadcast across a tab's groups so they stay aligned; a "Reset column
+    widths" button restores the defaults. */
+ table.haspick,table.blkpick,table.grptbl{table-layout:fixed;width:max-content;min-width:0;max-width:none}
+ table.haspick th,table.haspick td,table.blkpick th,table.blkpick td,table.grptbl th,table.grptbl td{min-width:0}
+ /* Non-triage default column widths live in CSS (not inline) so "Reset column widths" \u2014 which clears the
+    inline width the drag writes \u2014 reverts to these, exactly as the triage tables revert to .urlcol/etc. */
+ #panel-internal .grptbl th:nth-child(1){width:64px}#panel-internal .grptbl th:nth-child(2){width:380px}#panel-internal .grptbl th:nth-child(3){width:320px}#panel-internal .grptbl th:nth-child(4){width:96px}#panel-internal .grptbl th:nth-child(5){width:64px}#panel-internal .grptbl th:nth-child(6){width:64px}
+ #panel-external .grptbl th:nth-child(1){width:460px}#panel-external .grptbl th:nth-child(2){width:120px}#panel-external .grptbl th:nth-child(3){width:420px}
+ #panel-outscope .grptbl th:nth-child(1){width:520px}#panel-outscope .grptbl th:nth-child(2){width:420px}
+ .haspick th,.blkpick th,.grptbl th{position:relative}
+ .colgrip{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
+ .colgrip:hover,.colgrip.drag{box-shadow:inset -2px 0 0 var(--accent)}
+ table.haspick .foundcol,table.blkpick .foundcol{width:236px}
+ .blkpick .kindcol{width:92px}
+ /* Errors\xB7external is grouped into collapsible per-domain sections. A custom collapsible (not
+    <details>): a .domtoggle button + the domain Broken/Working pair as siblings, so the checkbox
+    clicks aren't eaten by a <summary> and the script can collapse via a .collapsed class. */
+ .domgrp{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
+ .domhead{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--panel2);flex-wrap:wrap}
+ /* Domains with untested links get a dashed-amber header (inset outline: no clip from the group's
+    overflow:hidden, no layout shift); it clears once every link in the domain has a verdict. */
+ .domgrp.untested .domhead{outline:2px dashed var(--warn);outline-offset:-2px}
+ .domtoggle{flex:1;min-width:200px;background:none;border:none;color:var(--fg);font:inherit;font-weight:600;cursor:pointer;padding:4px 2px;text-align:left;overflow-wrap:anywhere}
+ .domtoggle:hover{color:var(--accent)}
+ .caret::before{content:"\u25BC";display:inline-block;width:1em;font-size:11px;color:var(--muted);font-weight:400}
+ .domgrp.collapsed .caret::before{content:"\u25B6"}
+ .domname{overflow-wrap:anywhere}
+ .domverdict{font-weight:400;font-size:12px;color:var(--muted);display:inline-flex;flex-wrap:wrap;align-items:center}
+ .domall{margin-right:2px}
+ .domprog{font-size:12px}
+ .domlbl{cursor:pointer;margin-left:14px;white-space:nowrap}
+ .domlbl input{cursor:pointer;vertical-align:middle;margin:0 4px 0 0}
+ /* Mixture + all-tested are read-only indicators (disabled); they go green when on. */
+ .domlbl.ind{cursor:default}.domlbl.ind input{cursor:default}.domlbl.ind.on{color:var(--good)}
+ .domgrp.collapsed .dombody{display:none}
+ /* The domain's OWN table wrapper shows in full (no inner scrollbar); scope this to .dombody so it does
+    NOT also hit the nested "Found on" <details> wrapper, whose inline max-height + scroll must stay. */
+ .domgrp .dombody{height:auto;max-height:none;min-height:0;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0;resize:none}
+ /* The drag-to-resize grip + min-height belong only to TOP-LEVEL viewports. Nested .tablewrap (the
+    "Found on" referrer sublists, error subtables) must size to content and never sprout their own grip. */
+ .tablewrap .tablewrap{height:auto;min-height:0;resize:none}
+ .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
+ .testbar{margin:0 0 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.tcount{color:var(--muted);font-size:12px}
+ .colreset,.grpcolreset{margin-left:auto;font-size:12px;padding:4px 10px}
+ tr.notbroken td:not(.tcol):not(.tscell):not(.pickcol){opacity:.45;text-decoration:line-through}
+ tr.confirmed td:not(.tcol):not(.tscell):not(.pickcol){color:var(--bad)}
+ .exportbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}.exportbar .grow{flex:1}
+ .sharebar{border-left:3px solid var(--accent);padding-top:12px;padding-bottom:12px}.sharebar .exportbar{margin:0}
+ .selcount{color:var(--muted);font-size:12px}
+ .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
+ .btn.exportbtn:not(:disabled){background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+ /* The fix-tracker export is the primary triage output \u2014 make the one share-bar button stand out. */
+ .sharebar .trackbtn{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}.sharebar .trackbtn:hover{color:var(--accent-fg);filter:brightness(1.08)}
+ .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}.toast.show{opacity:1}
+ .vsep{display:inline-block;width:1px;height:20px;background:var(--border);margin:0 2px;vertical-align:middle}
+ /* No-flash tab restore: a head script sets html.tab-NAME before first paint so
+    the correct tab/panel renders immediately, not the default then a swap. */
+ html[class*="tab-"] .panel{display:none}
+ html.tab-internal #panel-internal,html.tab-external #panel-external,html.tab-outscope #panel-outscope,html.tab-errint #panel-errint,html.tab-errext #panel-errext,html.tab-blockd #panel-blockd,html.tab-suppressed #panel-suppressed{display:block}
+ html[class*="tab-"] .tab{background:var(--panel2);color:var(--fg);border-color:var(--border)}
+ html.tab-internal .tab[data-tab="internal"],html.tab-external .tab[data-tab="external"],html.tab-outscope .tab[data-tab="outscope"],html.tab-errint .tab[data-tab="errint"],html.tab-errext .tab[data-tab="errext"],html.tab-blockd .tab[data-tab="blockd"],html.tab-suppressed .tab[data-tab="suppressed"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+ .subtable{width:100%;border-collapse:collapse}.subtable td{padding:4px 8px;border-bottom:1px solid var(--border)}
+ details summary{color:var(--accent)}
+ /* Client-side pagination bar (only present with --paginate, above any table over a page in size, incl. nested referrer lists). */
+ .pager{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}.pager .grow{flex:1}.pager .pglabel{font-size:12px}
+ .pager .pgjump{width:64px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font:inherit;font-size:12px}
+`;
+    module2.exports = { REPORT_CSS };
+  }
+});
+
+// src/report/page-scripts.js
+var require_page_scripts = __commonJS({
+  "src/report/page-scripts.js"(exports2, module2) {
+    "use strict";
+    var { PAGE_SIZE, BRAND } = require_branding();
+    var pagerScriptFor = (cfg) => cfg.paginate ? `<script>(function(){
+  var PAGE_SIZE=${Number(cfg.pageSize) > 0 ? Math.floor(Number(cfg.pageSize)) : PAGE_SIZE};
+  function rows(tb){ var o=[],c=tb.children,i; for(i=0;i<c.length;i++){ if(c[i].tagName==='TR') o.push(c[i]); } return o; }
+  function el(t,c,x){ var e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e; }
+  function setup(table){
+    var tb=table.tBodies[0]; if(!tb) return;
+    var rw=rows(tb); if(rw.length<=PAGE_SIZE) return;
+    var pages=Math.ceil(rw.length/PAGE_SIZE), cur=-1, tw=table.parentNode;
+    var bar=el('div','pager'), prev=el('button','btn','\\u2039 Prev'), next=el('button','btn','Next \\u203a');
+    prev.type='button'; next.type='button';
+    var label=el('span','muted pglabel'), grow=el('span','grow'), jl=el('span','muted','Go to'), jump=el('input','pgjump');
+    jump.type='number'; jump.min='1'; jump.max=String(pages);
+    bar.appendChild(prev); bar.appendChild(next); bar.appendChild(label); bar.appendChild(grow); bar.appendChild(jl); bar.appendChild(jump);
+    function show(p){
+      p=Math.max(0,Math.min(pages-1,p)); if(p===cur) return; cur=p;
+      var start=cur*PAGE_SIZE, end=Math.min(rw.length,start+PAGE_SIZE), i;
+      for(i=0;i<rw.length;i++){ rw[i].style.display=(i>=start&&i<end)?'':'none'; }
+      label.textContent='Page '+(cur+1)+' of '+pages+' \\u00b7 rows '+(start+1).toLocaleString()+'\\u2013'+end.toLocaleString()+' of '+rw.length.toLocaleString();
+      prev.disabled=(cur===0); next.disabled=(cur===pages-1); jump.value=String(cur+1);
+      if(tw) tw.scrollTop=0;
+    }
+    prev.addEventListener('click',function(){ show(cur-1); });
+    next.addEventListener('click',function(){ show(cur+1); });
+    jump.addEventListener('change',function(){ var v=parseInt(jump.value,10); if(!isNaN(v)) show(v-1); });
+    tw.parentNode.insertBefore(bar,tw);
+    show(0);
+  }
+  var t=document.querySelectorAll('.tablewrap > table'),i;
+  for(i=0;i<t.length;i++){ setup(t[i]); }
+})();</script>
+` : "";
+    var stateScript = (partial) => `<script>
+(function(){
+  var PARTIAL = ${partial ? "true" : "false"};
+  var TKEY='charlotteTab';
+  var tabs=document.querySelectorAll('.tab');
+  function L(){ try{ return window.localStorage; }catch(e){ return null; } }
+
+  // Active tab is driven by a class on <html> (html.tab-NAME) so the same CSS
+  // that prevents the first-paint flash also handles live switching.
+  function activate(name){
+    var first=tabs.length?tabs[0].getAttribute('data-tab'):'', found=false, i;
+    for(i=0;i<tabs.length;i++){ if(tabs[i].getAttribute('data-tab')===name) found=true; }
+    if(!found) name=first;
+    document.documentElement.className='tab-'+name;
+    var s=L(); if(s){ try{ s.setItem(TKEY,name); }catch(e){} }
+    try{ history.replaceState(null,'','#'+name); }catch(e){}
+    return name;
+  }
+  for(var i=0;i<tabs.length;i++){ tabs[i].addEventListener('click', function(){ activate(this.getAttribute('data-tab')); }); }
+
+  // ---- save/restore ALL in-tab state: every table's scroll, the page scroll,
+  //      and which collapsible sections are open ----
+  function allTW(){ return document.querySelectorAll('.tablewrap'); }
+  function panelOf(el){ while(el && el!==document){ if(el.className && (' '+el.className+' ').indexOf(' panel ')>=0) return el; el=el.parentNode; } return null; }
+  function twKey(tw){
+    var panel=panelOf(tw), pid=panel?panel.id:'p', idx=0;
+    var sibs=panel?panel.querySelectorAll('.tablewrap'):[tw];
+    for(var k=0;k<sibs.length;k++){ if(sibs[k]===tw){ idx=k; break; } }
+    return 'charlotteTW_'+pid+'_'+idx;
+  }
+  function saveState(){
+    var s=L(); if(!s) return;
+    try{
+      s.setItem('charlotteWinY', String(window.pageYOffset||document.documentElement.scrollTop||0));
+      var tw=allTW(); for(var i=0;i<tw.length;i++) s.setItem(twKey(tw[i]), String(tw[i].scrollTop));
+      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++) s.setItem('charlotteD_'+j, d[j].open?'1':'0');
+    }catch(e){}
+  }
+  function restoreState(){
+    var s=L(); if(!s) return;
+    try{
+      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++){ var dv=s.getItem('charlotteD_'+j); if(dv!==null) d[j].open=(dv==='1'); }
+      var tw=allTW(); for(var i=0;i<tw.length;i++){ var v=s.getItem(twKey(tw[i])); if(v!==null) tw[i].scrollTop=parseInt(v,10)||0; }
+      var wy=s.getItem('charlotteWinY'); if(wy!==null) window.scrollTo(0, parseInt(wy,10)||0);
+    }catch(e){}
+  }
+
+  // restore tab (hash, then storage) then state
+  var want=(location.hash||'').substring(1), s=L();
+  if(!want && s){ try{ want=s.getItem(TKEY)||''; }catch(e){} }
+  activate(want);
+  try{ if('scrollRestoration' in history) history.scrollRestoration='manual'; }catch(e){}
+  restoreState();
+
+  var tws=allTW(); for(var t=0;t<tws.length;t++) tws[t].addEventListener('scroll', saveState);
+  window.addEventListener('scroll', saveState);
+  var dets=document.querySelectorAll('details'); for(var dd=0;dd<dets.length;dd++) dets[dd].addEventListener('toggle', saveState);
+  window.addEventListener('beforeunload', saveState);
+
+  // ---- non-disruptive live refresh (partial reports only) ----
+  // Reload to pull new data, but NEVER while you're interacting: defer until
+  // there's been ~2.5s with no mouse/scroll/key activity and no text selected,
+  // then save state and reload (which restores it). So a refresh can't interrupt
+  // you mid-scroll, mid-read, or mid-selection.
+  if(PARTIAL){
+    var IDLE_MS=2500, lastAct=(new Date()).getTime();
+    function bump(){ lastAct=(new Date()).getTime(); }
+    var evs=['mousemove','mousedown','keydown','wheel','touchstart','scroll'];
+    for(var e=0;e<evs.length;e++) document.addEventListener(evs[e], bump, true);
+    function tick(){
+      var idle=(new Date()).getTime()-lastAct, sel='';
+      try{ sel=window.getSelection?String(window.getSelection()):''; }catch(_){}
+      if(idle<IDLE_MS || sel!==''){ setTimeout(tick, 600); return; }
+      saveState();
+      location.reload();
+    }
+    setTimeout(tick, 5000);
+  }
+})();
+</script>
+`;
+    var pickExportScript = (cfg, state) => `<script>
+/* Broken-link selection \u2192 allowlist appendage (final report only). Each ticked
+   row on the two Errors tabs becomes an allowlist line; Export downloads them as
+   a file to append to the allowlist, Copy puts them on the clipboard. */
+(function(){
+  var ALLOWLIST = ${JSON.stringify(cfg.allowlist)};
+  var HOST = ${JSON.stringify(state.startHost)};
+  var BRAND = ${JSON.stringify(BRAND)};
+  var SCOPES = ['errint','errext'];
+  function panel(scope){ return document.getElementById('panel-'+scope); }
+  function boxes(scope){ var p=panel(scope); return p? p.querySelectorAll('.pickbox') : []; }
+  function picked(scope){ var b=boxes(scope), o=[]; for(var i=0;i<b.length;i++){ if(b[i].checked) o.push(b[i]); } return o; }
+  function bar(scope){ var p=panel(scope); return p? p.querySelector('.exportbar') : null; }
+  function dlName(){ var b=ALLOWLIST.split('/').pop().replace(/\\.[^.]*$/,''); return (b||'crawl-allowlist')+'.append.txt'; }
+  function refresh(scope){
+    var all=boxes(scope), n=picked(scope).length, b=bar(scope); if(!b) return;
+    var c=b.querySelector('.selcount'); if(c){ c.textContent=n+' selected'; }
+    // Only the allowlist actions depend on a selection; the fix-tracker export always
+    // works (it exports every referrer -> broken-link pair, ticked or not).
+    var btns=b.querySelectorAll('.copybtn,.exportbtn'); for(var i=0;i<btns.length;i++){ btns[i].disabled=(n===0); }
+    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
+    if(pa){ pa.checked=(n>0&&n===all.length); pa.indeterminate=(n>0&&n<all.length); }
+  }
+  function text(scope){
+    var sel=picked(scope), out=[];
+    out.push('# '+BRAND+' \u2014 allowlist appendage from crawl of '+HOST);
+    out.push('# generated '+new Date().toISOString()+' \u2014 '+sel.length+' link(s)');
+    out.push('# append to '+ALLOWLIST+' to suppress these in future scans, e.g.:');
+    out.push('#   cat '+dlName()+' >> '+ALLOWLIST);
+    out.push('#   ( *=wildcard   #=comment   blank lines ignored )');
+    out.push('#');
+    for(var i=0;i<sel.length;i++){
+      out.push(sel[i].getAttribute('data-url')+'   # '+sel[i].getAttribute('data-reason')+' \u2014 found on: '+sel[i].getAttribute('data-source'));
+    }
+    return out.join('\\n')+'\\n';
+  }
+  function toast(msg){
+    var t=document.getElementById('cw-toast');
+    if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); }
+    t.textContent=msg; t.className='toast show';
+    setTimeout(function(){ t.className='toast'; }, 2400);
+  }
+  // dl + saveBlob duplicated here so this IIFE's exports (allowlist + fix-tracker) use the same Save-As
+  // picker as the share toolbar's IIFE below (the two scripts are separate scopes \u2014 like toast above).
+  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
+  function saveBlob(blob, name, okMsg){
+    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
+    // its own versioned file; the picker pre-fills it (the operator can still edit it).
+    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
+    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
+    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
+    if(window.showSaveFilePicker){
+      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
+      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
+      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
+        .then(function(h){ return h.createWritable(); })
+        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
+        .then(function(){ toast(okMsg); })
+        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
+      return;
+    }
+    fb();
+  }
+  function doExport(scope){
+    var txt=text(scope), name=dlName(), n=picked(scope).length;
+    saveBlob(new Blob([txt],{type:'text/plain;charset=utf-8'}), name, 'Exported '+n+' link(s) \u2192 '+name);
+  }
+  function doCopy(scope){
+    var txt=text(scope), n=picked(scope).length;
+    function ok(){ toast('Copied '+n+' line(s) to clipboard'); }
+    function legacy(){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); var good=false; try{ good=document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); good?ok():toast('Copy failed \u2014 use Export'); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok,legacy); } else { legacy(); }
+  }
+  function wire(scope){
+    var all=boxes(scope); if(!all.length) return;
+    for(var i=0;i<all.length;i++){ all[i].addEventListener('change', function(){ refresh(scope); }); }
+    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
+    if(pa){ pa.addEventListener('change', function(){ var b=boxes(scope); for(var k=0;k<b.length;k++){ b[k].checked=pa.checked; } refresh(scope); }); }
+    var b=bar(scope); if(b){ var ex=b.querySelector('.exportbtn'), cp=b.querySelector('.copybtn');
+      if(ex){ ex.addEventListener('click', function(){ doExport(scope); }); }
+      if(cp){ cp.addEventListener('click', function(){ doCopy(scope); }); } }
+    refresh(scope);
+  }
+  for(var i=0;i<SCOPES.length;i++){ wire(SCOPES[i]); }
+
+  // ---- standalone editable "fix tracker" export ----
+  var BS=String.fromCharCode(92);
+  function exportTracker(){
+    var tpl=window.__CW_TPL__; if(!tpl){ toast('Tracker template unavailable'); return; }
+    var data=JSON.parse(JSON.stringify(window.__CW_BROKEN__||{host:'',internal:[],external:[]}));
+    // A link belongs in the fix tracker UNLESS it's been manually marked "Working" \u2014 one uniform
+    // rule across Errors (assumed broken) AND Blocked (uncertain). So everything still untriaged is
+    // included by default and the tracker is a complete to-review list; marking Working is what
+    // drops a link. Scan the Working boxes on all three triage panels.
+    var excl={}, ob=document.querySelectorAll('#panel-errint .okbox, #panel-errext .okbox, #panel-blockd .okbox'), z, nx=0;
+    for(z=0;z<ob.length;z++){ if(ob[z].checked){ var du=ob[z].getAttribute('data-url'); if(!excl[du]){ nx++; } excl[du]=1; } }
+    function keep(list){ var out=[],q; for(q=0;q<(list||[]).length;q++){ if(!excl[list[q].url]) out.push(list[q]); } return out; }
+    // Blocked links are routed internal/external by kind, then merged into the same two tabs.
+    data.internal=keep(data.internal).concat(keep(data.blockedInt));
+    data.external=keep(data.external).concat(keep(data.blockedExt));
+    delete data.blockedInt; delete data.blockedExt;
+    // Carry each broken link's manual verdict (Broken/Working) + last-tested timestamp from the
+    // report's localStorage into the tracker, so the standalone file shows them and can keep editing.
+    function lg(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+    function annotate(list){ for(var q=0;q<list.length;q++){ var u=list[q].url; var vb=lg('cwbroken:'+HOST+':'+u)==='1', vo=lg('cwok:'+HOST+':'+u)==='1'; list[q].v=vb?'broken':(vo?'working':''); list[q].ts=lg('cwts:'+HOST+':'+u)||''; } }
+    annotate(data.internal); annotate(data.external);
+    data.ticked={};   // fix-tracking lives in the tracker now \u2014 nothing to seed from the report
+    var inj=JSON.stringify(data).split('</').join('<'+BS+'/');
+    var doc=tpl.replace('"__DATA__"', function(){ return inj; });
+    saveBlob(new Blob([doc],{type:'text/html;charset=utf-8'}), 'charlotte-fix-tracker.html', 'Exported fix tracker'+(nx?' ('+nx+' link'+(nx===1?'':'s')+' marked Working excluded)':''));
+  }
+  var tb=document.querySelectorAll('.trackbtn');
+  for(var ti=0;ti<tb.length;ti++){ tb[ti].addEventListener('click', exportTracker); }
+})();
+</script>
+`;
+    module2.exports = { pagerScriptFor, stateScript, pickExportScript };
+  }
+});
+
+// src/report/triage-script.js
+var require_triage_script = __commonJS({
+  "src/report/triage-script.js"(exports2, module2) {
+    "use strict";
+    var triageScript = (state, linkInstances) => `<script>(function(){
+  // Manual-testing triage for all three tabs (Errors \xB7 internal/external + Blocked). Two
+  // MUTUALLY-EXCLUSIVE boxes per link \u2014 "Broken" (confirms it's dead) and "Working"
+  // (confirms it loads). Ticking one unticks the other; clearing both returns the row to
+  // its default. "Tested" is implied by either box, so there's no separate Tested box.
+  // The Errors tabs default to BROKEN: every flagged link counts toward the header until
+  // you tick Working, which subtracts it and drops it from the fix tracker. The Blocked
+  // tab defaults to UNCERTAIN (not counted): ticking Broken adds it and routes it into the
+  // tracker by kind. A "Last triaged" cell auto-fills the date+time of the latest verdict.
+  // Ticks + timestamps persist in this browser (cwbroken: / cwok: / cwts: keys). Because that
+  // state lives in localStorage (not the file), a share toolbar can export/import the verdicts as
+  // JSON or bake them into a self-contained "shareable copy" (window.__CW_SEED__) for emailing.
+  // Partial (auto-refreshing) reports render read-only error rows \u2014 no per-row data-url and no
+  // triage boxes \u2014 so there is nothing to wire here, and running recomputeBroken() would wrongly
+  // zero the server-rendered "Broken hyperlink instances" header. Bail when no triage rows exist.
+  if(!document.querySelector('tr[data-url]')) return;
+  var HOST=${JSON.stringify(state.startHost)}, SCOPES=['errint','errext','blockd'], ERRS=['errint','errext'];
+  // Fixed row-2 totals \u2014 the denominators for each broken stat's live "(percent)".
+  var DENOM={inst:${linkInstances}, int:${state.pages.length}, ext:${state.external.size}, tot:${state.pages.length + state.external.size}};
+  // url -> its referrer pages (from the embedded broken-link data), memoized on first use \u2014 feeds the
+  // "Referrer pages with broken links" card: as triage changes which links still count as broken, the
+  // distinct spread of referrer pages is recomputed from the rows that still count.
+  var REFMAP=null;
+  function refMap(){ if(REFMAP) return REFMAP; REFMAP={}; var B=(typeof window!=='undefined')?window.__CW_BROKEN__:null; function add(a){ if(a) for(var i=0;i<a.length;i++) REFMAP[a[i].url]=a[i].refs||[]; } if(B){ add(B.internal); add(B.external); add(B.blockedInt); add(B.blockedExt); } return REFMAP; }
+  function L(){ try{ return localStorage; }catch(e){ return null; } }
+  function key(pfx,url){ return pfx+HOST+':'+url; }
+  // __CW_SEED__ carries verdicts baked into a "shareable copy" (see saveShareableCopy). When this
+  // browser exposes no localStorage (some file:// modes), getF/getS fall back to it so the copy
+  // still displays the sender's verdicts read-only.
+  function seedGet(k){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; return (sd&&sd.v&&sd.v.hasOwnProperty(k))?sd.v[k]:null; }
+  function getF(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null&&sv==='1'; } try{ return s.getItem(k)==='1'; }catch(e){ return false; } }
+  function setF(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,'1'); else s.removeItem(k); }catch(e){} }
+  function panel(scope){ return document.getElementById('panel-'+scope); }
+  function rowOf(el){ var n=el; while(n&&n.nodeName!=='TR') n=n.parentNode; return n; }
+  function hasCls(el,c){ return (' '+el.className+' ').indexOf(' '+c+' ')>=0; }
+  function addCls(el,c){ if(!hasCls(el,c)) el.className=(el.className?el.className+' ':'')+c; }
+  function rmCls(el,c){ el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^ +| +$/g,''); }
+  // String-valued persistence (for the "last tested" timestamp; getF/setF only do flags).
+  function getS(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null?sv:''; } try{ return s.getItem(k)||''; }catch(e){ return ''; } }
+  function setS(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,v); else s.removeItem(k); }catch(e){} }
+  // Auto-filled "Last triaged" stamp = local date+time the row's latest verdict was set.
+  // Updated whenever Broken or Working is ticked; cleared when the row returns to no verdict.
+  function nowStr(){ var d=new Date(); function p(x){ return (x<10?'0':'')+x; } return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+  function tsCell(tr){ return tr?tr.querySelector('.tscell'):null; }
+  function setTs(tr,url){ var s=nowStr(), c=tsCell(tr); if(c) c.textContent=s; setS(key('cwts:',url), s); }
+  function clrTs(tr,url){ var c=tsCell(tr); if(c) c.textContent=''; setS(key('cwts:',url), ''); }
+  // ---- share testing verdicts (localStorage stays in THIS browser; the file doesn't carry it) ----
+  function toast(msg){ var t=document.getElementById('cw-toast'); if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); } t.textContent=msg; t.className='toast show'; setTimeout(function(){ t.className='toast'; }, 2600); }
+  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
+  // Save a blob through the File System Access "Save As" PICKER so the operator chooses the folder + name
+  // (instead of it landing in the default Downloads folder). Feature-detected: where the API is missing or
+  // restricted it falls back to a plain download (dl). Cancelling the picker is silent. This is the additive,
+  // download-as-fallback enhancement AD-034 left for "if revisited".
+  function saveBlob(blob, name, okMsg){
+    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
+    // its own versioned file; the picker pre-fills it (the operator can still edit it).
+    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
+    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
+    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
+    if(window.showSaveFilePicker){
+      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
+      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
+      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
+        .then(function(h){ return h.createWritable(); })
+        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
+        .then(function(){ toast(okMsg); })
+        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
+      return;
+    }
+    fb();
+  }
+  // Snapshot every saved verdict (cwbroken: / cwok: / cwts:) for THIS crawl's host.
+  function collectState(){ var out={app:'charlotte-verdicts', host:HOST, v:{}}, s=L(); if(!s) return out; var i,k,n=0; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0||k.indexOf('cwts:'+HOST+':')===0)) out.v[k]=s.getItem(k); } return out; }
+  function countVerdicts(st){ var links={}, k, pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', v=(st&&st.v)||{}; for(k in v){ if(!v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) links[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) links[k.slice(po.length)]=1; } var c=0,z; for(z in links){ if(links.hasOwnProperty(z)) c++; } return c; }
+  function exportVerdicts(){ var st=collectState(), c=countVerdicts(st); if(!c){ toast('No verdicts to export yet \u2014 mark some links Broken or Working first'); return; } saveBlob(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}), 'charlotte-verdicts-'+HOST+'.json', 'Exported '+c+' verdict'+(c===1?'':'s')); }
+  // Replace each url the file has an opinion on (clear its 3 keys, then set what the file holds);
+  // urls the file doesn't mention are left as-is, so several people's exports merge cleanly.
+  function applyState(obj){ var s=L(); if(!s||!obj||!obj.v) return 0; var pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', pt='cwts:'+HOST+':', urls={}, k; for(k in obj.v){ if(!obj.v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) urls[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) urls[k.slice(po.length)]=1; else if(k.indexOf(pt)===0) urls[k.slice(pt.length)]=1; } var u; for(u in urls){ if(urls.hasOwnProperty(u)){ try{ s.removeItem(pb+u); s.removeItem(po+u); s.removeItem(pt+u); }catch(e){} } } var c=0; for(k in obj.v){ if(obj.v.hasOwnProperty(k)){ try{ s.setItem(k,obj.v[k]); c++; }catch(e){} } } return c; }
+  function importVerdicts(file){ if(!file) return; if(!L()){ toast('This browser blocks storage for local files \u2014 serve the report over a local web server to import'); return; } var r=new FileReader(); r.onload=function(){ var obj; try{ obj=JSON.parse(String(r.result)); }catch(e){ obj=null; } if(!obj||obj.app!=='charlotte-verdicts'||!obj.v){ toast('That isn\\'t a Charlotte verdicts file'); return; } if(obj.host!==HOST){ toast('That file is for \u201C'+obj.host+'\u201D, not \u201C'+HOST+'\u201D \u2014 not applied'); return; } var c=countVerdicts(obj); applyState(obj); toast('Imported '+c+' verdict'+(c===1?'':'s')+' \u2014 reloading\u2026'); setTimeout(function(){ try{ location.reload(); }catch(e){} }, 700); }; r.onerror=function(){ toast('Could not read the file'); }; try{ r.readAsText(file); }catch(e){ toast('Could not read the file'); } }
+  // Bake the current verdicts into a fresh self-contained copy of this report: serialize the page,
+  // strip any prior seed, and inject window.__CW_SEED__ just before </head> so it runs first.
+  function saveShareableCopy(){ var st=collectState(), c=countVerdicts(st); var SO='<scr'+'ipt>window.__CW_SEED__=', SC='</scr'+'ipt>'; var seed=SO+JSON.stringify(st).replace(/</g,'\\\\u003c')+';'+SC; var src='<!doctype html>\\n'+document.documentElement.outerHTML, pos; while((pos=src.indexOf(SO))>=0){ var en=src.indexOf(SC,pos); if(en<0) break; src=src.slice(0,pos)+src.slice(en+SC.length); } if(src.indexOf('</head>')>=0) src=src.replace('</head>', seed+'</head>'); else src=seed+src; saveBlob(new Blob([src],{type:'text/html;charset=utf-8'}), 'charlotte-report-'+HOST+'-shared.html', 'Saved a shareable copy with '+c+' verdict'+(c===1?'':'s')+' baked in'); }
+  // On opening a shared copy: prime localStorage from the seed, but ONLY if this browser has no
+  // verdicts for this host yet \u2014 never clobber a recipient's own triage.
+  function seedFromCopy(){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; if(!sd||!sd.v||sd.host!==HOST) return; var s=L(); if(!s) return; var i,k,n=0,has=false; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0)){ has=true; break; } } if(has) return; for(k in sd.v){ if(sd.v.hasOwnProperty(k)){ try{ s.setItem(k,sd.v[k]); }catch(e){} } } }
+  function update(scope){
+    var p=panel(scope); if(!p) return;
+    var trs=p.querySelectorAll('tr[data-url]'), n=0, tested=0, broke=0, ok=0, i;
+    for(i=0;i<trs.length;i++){ n++; var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'); var ib=!!(b&&b.checked), io=!!(o&&o.checked); if(ib||io) tested++; if(ib) broke++; if(io) ok++; }
+    var el=p.querySelector('.tcount'); if(el) el.textContent='Manually triaged: '+tested+' / '+n+' \xB7 confirmed broken: '+broke+' \xB7 confirmed working: '+ok;
+    recomputeBroken();
+  }
+  // Percent with adaptive precision (mirrors report.js fmtPct): one decimal normally, more decimals if
+  // needed so a small-but-nonzero share still shows a significant digit (0.03% not 0.0%).
+  function fmtPct(p){ if(!(p>0)) return '0.0'; var d=1; while(d<10&&Number(p.toFixed(d))===0) d++; return p.toFixed(d); }
+  // Set a header stat number, refresh its "(percent of total)" sibling (when a denom is given), and
+  // keep its card's red "bad" highlight in sync with the count.
+  function setStat(el, v, denom){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var nDiv=el.parentNode; if(typeof denom==='number'&&nDiv){ var pe=nDiv.querySelector('.pct'); if(pe) pe.textContent = denom>0 ? '('+fmtPct((v/denom)*100)+'%)' : ''; } var card=nDiv&&nDiv.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').trim(); } }
+  // Test-completeness outline on a "broken" stat card: GREEN dashed when every triageable link in the
+  // category has a verdict (the count is final), AMBER dashed while any remain untested (the count may
+  // still change), none when there's nothing to test. (Independent of setStat's 'bad' class.)
+  function setTestState(el, tested, total){ if(!el) return; var card=el.parentNode&&el.parentNode.parentNode; if(!card||typeof card.className!=='string') return; var c=(' '+card.className+' ').split(' tested-all ').join(' ').split(' tested-partial ').join(' ').trim(); if(total>0) c+=(tested>=total?' tested-all':' tested-partial'); card.className=c; }
+  // Live header stats, recomputed on load and on every verdict change. Errors tabs: each flagged
+  // link counts (one unique destination + its referrer instances) UNLESS confirmed Working, so
+  // clearing a false positive drops it from the instances total AND its Broken\xB7internal/external
+  // destination count. Blocked tab: only links confirmed Broken count (default uncertain), routed
+  // internal/external by their kind. Keeps all three top-level broken stats accurate after triage.
+  function recomputeBroken(){
+    var inst=0, uInt=0, uExt=0, sc, p, trs, i, pset={};
+    // pset collects the referrer pages of every link that STILL counts as broken \u2014 its size is the
+    // "Referrer pages with broken links" card (distinct pages, so a page linking several broken URLs
+    // counts once). Refs come from refMap() (the embedded broken-link data), keyed by the row's url.
+    function addRefs(u){ var M=refMap(), r=u&&M[u]; if(r) for(var z=0;z<r.length;z++) pset[r[z]]=1; }
+    // Per-category triage completeness for the green/amber outline: a row is "triaged" if either box is
+    // ticked. Internal = errint rows + blocked-internal; External = errext rows + blocked-external;
+    // bT/bN = the Blocked\xB7uncertain card's own completeness (all blocked rows, regardless of kind).
+    var iT=0, iN=0, eT=0, eN=0, bT=0, bN=0;
+    for(sc=0;sc<ERRS.length;sc++){ p=panel(ERRS[sc]); if(!p) continue; trs=p.querySelectorAll('tr[data-url]'); var isInt=(ERRS[sc]==='errint');
+      for(i=0;i<trs.length;i++){ var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'), td=(b&&b.checked)||(o&&o.checked);
+        if(isInt){ iN++; if(td) iT++; } else { eN++; if(td) eT++; }
+        if(o&&o.checked) continue;
+        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
+        addRefs(trs[i].getAttribute('data-url'));
+        if(isInt) uInt++; else uExt++; } }
+    p=panel('blockd'); if(p){ trs=p.querySelectorAll('tr[data-url]');
+      for(i=0;i<trs.length;i++){ var bb=trs[i].querySelector('.brokenbox'), bo=trs[i].querySelector('.okbox'), ext=(trs[i].getAttribute('data-kind')==='external'), t2=(bb&&bb.checked)||(bo&&bo.checked);
+        bN++; if(t2) bT++;
+        if(ext){ eN++; if(t2) eT++; } else { iN++; if(t2) iT++; }
+        if(!(bb&&bb.checked)) continue;
+        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
+        addRefs(trs[i].getAttribute('data-url'));
+        if(ext) uExt++; else uInt++; } }
+    var pgN=0, pk; for(pk in pset){ if(pset.hasOwnProperty(pk)) pgN++; }
+    setStat(document.getElementById('brokenInstN'), inst, DENOM.inst);
+    setStat(document.getElementById('brokenIntN'), uInt, DENOM.int);
+    setStat(document.getElementById('brokenExtN'), uExt, DENOM.ext);
+    setStat(document.getElementById('brokenTotN'), uInt+uExt, DENOM.tot);   // total unique destinations broken
+    setStat(document.getElementById('brokenPgN'), pgN);                     // referrer pages with broken links (no %)
+    setTestState(document.getElementById('brokenIntN'), iT, iN);
+    setTestState(document.getElementById('brokenExtN'), eT, eN);
+    // Broken hyperlink instances, total unique destinations broken, AND referrer pages all span internal +
+    // external (+ blocked), so their outlines need EVERY triageable link triaged.
+    setTestState(document.getElementById('brokenInstN'), iT+eT, iN+eN);
+    setTestState(document.getElementById('brokenTotN'), iT+eT, iN+eN);
+    setTestState(document.getElementById('brokenPgN'), iT+eT, iN+eN);
+    setTestState(document.getElementById('blockedN'), bT, bN);   // Blocked\xB7uncertain: green once all reviewed
+  }
+  // Apply a verdict to ONE row: set its boxes, persist the keys, swap classes, stamp/clear the
+  // Last-tested time. want is 'broken' | 'working' | '' (clears it). Shared by the per-link change
+  // handlers and the domain-level bulk control so both behave identically.
+  function applyVerdict(tr, url, want){
+    var b=tr.querySelector('.brokenbox'), o=tr.querySelector('.okbox');
+    if(want==='broken'){ if(b)b.checked=true; if(o)o.checked=false; setF(key('cwbroken:',url),true); setF(key('cwok:',url),false); rmCls(tr,'notbroken'); addCls(tr,'confirmed'); setTs(tr,url); }
+    else if(want==='working'){ if(o)o.checked=true; if(b)b.checked=false; setF(key('cwok:',url),true); setF(key('cwbroken:',url),false); rmCls(tr,'confirmed'); addCls(tr,'notbroken'); setTs(tr,url); }
+    else { if(b)b.checked=false; if(o)o.checked=false; setF(key('cwbroken:',url),false); setF(key('cwok:',url),false); rmCls(tr,'confirmed'); rmCls(tr,'notbroken'); clrTs(tr,url); }
+  }
+  // Domain-level bulk control (Errors\xB7external only). A domain's Broken/Working box applies the
+  // verdict to every link in that domain; its checked state is DERIVED from the children (all broken
+  // -> Broken, all working -> Working, mixed -> neither), so it survives reload from the per-link
+  // verdicts with no extra storage.
+  function rowsInDomain(host, scope){ var p=panel(scope); if(!p) return []; var all=p.querySelectorAll('tr[data-url]'), out=[], i; for(i=0;i<all.length;i++){ if(all[i].getAttribute('data-domain')===host) out.push(all[i]); } return out; }
+  function domCtl(host, scope, cls){ var p=panel(scope); if(!p) return null; var xs=p.querySelectorAll(cls), i; for(i=0;i<xs.length;i++){ if(xs[i].getAttribute('data-domain')===host) return xs[i]; } return null; }
+  // Set a disabled indicator box + toggle an 'on' class on its label (so it can be highlighted).
+  function setInd(box, on){ if(!box) return; box.checked=on; var lbl=box.parentNode; if(lbl&&typeof lbl.className==='string'){ var has=(' '+lbl.className+' ').indexOf(' on ')>=0; if(on&&!has) lbl.className=lbl.className+' on'; else if(!on&&has) lbl.className=(' '+lbl.className+' ').split(' on ').join(' ').trim(); } }
+  // Derive a domain header from its rows: the bulk Broken/Working boxes (checked when ALL broken /
+  // ALL working), the Mixture indicator (both verdicts present), the all-tested indicator, and the
+  // "triaged K/N" counter. Runs on load and after any per-link or bulk verdict change.
+  function deriveDomain(host, scope){
+    var rs=rowsInDomain(host, scope), n=rs.length, br=0, wk=0, i;
+    for(i=0;i<n;i++){ var b=rs[i].querySelector('.brokenbox'), o=rs[i].querySelector('.okbox'); if(b&&b.checked) br++; if(o&&o.checked) wk++; }
+    var tested=br+wk, db=domCtl(host,scope,'.dombroken'), dw=domCtl(host,scope,'.domworking');
+    if(db) db.checked=(n>0&&br===n);
+    if(dw) dw.checked=(n>0&&wk===n);
+    setInd(domCtl(host,scope,'.dommixture'), (br>0&&wk>0));
+    setInd(domCtl(host,scope,'.domalltested'), (n>0&&tested===n));
+    var pg=domCtl(host,scope,'.domprog'); if(pg) pg.textContent='\xB7 tested '+tested+'/'+n+' \xB7 '+br+' broken \xB7 '+wk+' working';
+    // Dashed-amber the header while the domain still has untested links; clears once all are tested.
+    var grp=domCtl(host,scope,'.domgrp'); if(grp) setCls(grp,'untested',(n>0&&tested<n));
+  }
+  function syncDomain(tr){ if(!tr) return; var h=tr.getAttribute('data-domain'), sc=tr.getAttribute('data-scope'); if(h&&sc) deriveDomain(h, sc); }
+  function applyDomain(host, scope, want){ var rs=rowsInDomain(host, scope), i; for(i=0;i<rs.length;i++){ applyVerdict(rs[i], rs[i].getAttribute('data-url'), want); } deriveDomain(host, scope); update(scope); }
+  function hasCls(el,c){ return !!(el&&typeof el.className==='string'&&(' '+el.className+' ').indexOf(' '+c+' ')>=0); }
+  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
+  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
+  // Wire the domain controls on BOTH grouped tabs (Errors\xB7external + Blocked\xB7uncertain).
+  function wireDomains(){ var sc=['errint','errext','blockd'], k; for(k=0;k<sc.length;k++) wireDomainScope(sc[k]); }
+  function wireDomainScope(scope){
+    var p=panel(scope); if(!p) return;
+    var tgs=p.querySelectorAll('.domtoggle'), bs=p.querySelectorAll('.dombroken'), os=p.querySelectorAll('.domworking'), i;
+    // Collapse/expand is a .collapsed class on .domgrp \u2014 under our control (no native <details>), so
+    // Expand/Collapse all set every group with certainty.
+    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
+    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'broken':''); }); }
+    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'working':''); }); }
+    var seen={}, all=p.querySelectorAll('tr[data-url]'); for(i=0;i<all.length;i++){ var h=all[i].getAttribute('data-domain'); if(h&&!seen[h]){ seen[h]=1; deriveDomain(h, scope); } }
+    var grps=p.querySelectorAll('.domgrp');
+    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
+    var ex=document.getElementById(scope+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
+    var co=document.getElementById(scope+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
+  }
+  function wire(scope){
+    var p=panel(scope); if(!p) return;
+    var trs=p.querySelectorAll('tr[data-url]'), i;
+    // Restore saved ticks. Broken wins if both keys are somehow set (keeps exclusivity).
+    for(i=0;i<trs.length;i++){ var tr=trs[i], b=tr.querySelector('.brokenbox'), o=tr.querySelector('.okbox'); if(!b||!o) continue;
+      var u=b.getAttribute('data-url'), wb=getF(key('cwbroken:',u)), wo=getF(key('cwok:',u));
+      if(wb){ b.checked=true; addCls(tr,'confirmed'); if(wo){ setF(key('cwok:',u),false); } }
+      else if(wo){ o.checked=true; addCls(tr,'notbroken'); }
+      var c=tsCell(tr); if(c) c.textContent=getS(key('cwts:',u)); }
+    var bs=p.querySelectorAll('.brokenbox'), os=p.querySelectorAll('.okbox');
+    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ var tr=rowOf(this); applyVerdict(tr, this.getAttribute('data-url'), this.checked?'broken':''); syncDomain(tr); update(scope); }); }
+    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ var tr=rowOf(this); applyVerdict(tr, this.getAttribute('data-url'), this.checked?'working':''); syncDomain(tr); update(scope); }); }
+    update(scope);
+  }
+  seedFromCopy();
+  for(var s=0;s<SCOPES.length;s++){ wire(SCOPES[s]); }
+  wireDomains();   // domain-level Broken/Working controls on the Errors\xB7external tab
+  // ---- drag-resizable triage columns ----------------------------------------------------------
+  // A triage tab can render several tables (one per domain group on Errors\xB7external / Blocked), so a
+  // resize broadcasts the new width to that column index in EVERY table of the tab, keeping the groups
+  // aligned. Widths persist per tab in localStorage; "Reset column widths" clears them.
+  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
+  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
+  function triTables(scope){ var p=panel(scope); if(!p) return []; return p.querySelectorAll('table.haspick, table.blkpick'); }
+  function applyCol(scope, idx, px){ var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
+  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
+  function gripDown(scope, th, idx, grip, e){
+    e.preventDefault(); e.stopPropagation();
+    var startX=e.clientX, startW=th.offsetWidth, cur=startW; addCls(grip,'drag');
+    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
+    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); rmCls(grip,'drag'); saveCol(scope, idx, cur); }
+    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true);
+  }
+  function wireColResize(scope){
+    var ts=triTables(scope); if(!ts.length) return;
+    var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
+    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j;
+      for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } }
+  }
+  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
+  for(var cz=0;cz<SCOPES.length;cz++) wireColResize(SCOPES[cz]);
+  var crs=document.querySelectorAll('.colreset'); for(var cr=0;cr<crs.length;cr++){ crs[cr].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
+  // Wire the share toolbar (final report only; absent otherwise).
+  var bCopy=document.getElementById('cwSaveCopy'); if(bCopy) bCopy.addEventListener('click', saveShareableCopy);
+  var bExp=document.getElementById('cwExportV'); if(bExp) bExp.addEventListener('click', exportVerdicts);
+  var bImp=document.getElementById('cwImportV'), fImp=document.getElementById('cwImportFile');
+  if(bImp&&fImp){ bImp.addEventListener('click', function(){ fImp.click(); }); fImp.addEventListener('change', function(){ var f=this.files&&this.files[0]; importVerdicts(f); try{ this.value=''; }catch(e){} }); }
+})();</script>
+`;
+    var collapseScript = (state) => `<script>(function(){
+  // Non-triage tabs (External, Internal destinations, Out of scope) use the SAME .domgrp collapsibles as
+  // the triage tabs but without verdict controls \u2014 so this wires just the caret toggle + Expand/Collapse
+  // all. deriveDomain is deliberately NOT called here, so these groups never get the amber "untested" halo
+  // (that's a triage-only signal). Each .domtoggle toggles its group's .collapsed class; the buttons set
+  // every group at once (no state detection \u2014 a single toggle could desync and show the wrong label).
+  function hasCls(el,c){ return (' '+(el.className||'')+' ').indexOf(' '+c+' ')>=0; }
+  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
+  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
+  // ---- drag-resizable columns for the non-triage grouped tables (.grptbl) -----------------------------
+  // The triage tabs' resize lives in a triage-only IIFE that bails when there are no verdict rows, so the
+  // non-triage tables carry their own copy here. Same mechanic: a grip per header, the new width broadcast
+  // to that column index across EVERY group table in the tab (keeping the groups aligned), persisted per
+  // 'cwcol:host:scope'. No enforced minimum width \u2014 drag a column as narrow as you like.
+  var HOST=${JSON.stringify(state.startHost)};
+  function L(){ try{ return localStorage; }catch(e){ return null; } }
+  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
+  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
+  function grpTables(scope){ var P=document.getElementById('panel-'+scope); return P? P.querySelectorAll('table.grptbl') : []; }
+  function applyCol(scope, idx, px){ var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
+  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
+  function gripDown(scope, th, idx, grip, e){ e.preventDefault(); e.stopPropagation(); var startX=e.clientX, startW=th.offsetWidth, cur=startW; setCls(grip,'drag',true);
+    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
+    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); setCls(grip,'drag',false); saveCol(scope, idx, cur); }
+    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true); }
+  function wireResize(scope){ var ts=grpTables(scope); if(!ts.length) return; var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
+    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } } }
+  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
+  var TABS=[['panel-external','ext'],['panel-internal','int'],['panel-outscope','oos']], t;
+  for(t=0;t<TABS.length;t++){ (function(pid, pre){
+    var P=document.getElementById(pid); if(!P) return;
+    var scope=pid.replace('panel-','');
+    var tgs=P.querySelectorAll('.domtoggle'), i;
+    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
+    var grps=P.querySelectorAll('.domgrp');
+    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
+    var ex=document.getElementById(pre+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
+    var co=document.getElementById(pre+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
+    wireResize(scope);
+  })(TABS[t][0], TABS[t][1]); }
+  var rbs=document.querySelectorAll('.grpcolreset'); for(var r=0;r<rbs.length;r++){ rbs[r].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
+})();</script>
+`;
+    module2.exports = { triageScript, collapseScript };
+  }
+});
+
 // src/report-templates/newwin.js
 var require_newwin = __commonJS({
   "src/report-templates/newwin.js"(exports2, module2) {
@@ -509,41 +1232,15 @@ var require_report_templates = __commonJS({
   }
 });
 
-// src/report.js
-var require_report = __commonJS({
-  "src/report.js"(exports2, module2) {
+// src/report/report-page.js
+var require_report_page = __commonJS({
+  "src/report/report-page.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("fs");
-    var REF_PREVIEW = 3;
-    var RENDER_CAP = Infinity;
-    var PAGE_SIZE = 1e3;
-    var BRAND = "Charlotte";
-    var BRAND_ICON = "\u{1F578}\uFE0F";
-    var THEME_LIGHT_CSS = ` html[data-theme="light"]{--bg:#f4f6f9;--panel:#ffffff;--panel2:#eaeef3;--fg:#1c2230;--muted:#5b6675;--accent:#0969da;--link:#0a66c2;--good:#1a7f37;--warn:#9a6700;--bad:#cf222e;--border:#d0d7de;--accent-fg:#ffffff}
- .themebtn{position:fixed;top:12px;right:16px;z-index:30;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;font-size:15px;line-height:1}.themebtn:hover{border-color:var(--accent);color:var(--accent)}`;
-    var THEME_HEAD = `<script>try{if(localStorage.getItem('charlotteTheme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>`;
-    var THEME_BTN = `<button id="themeToggle" class="themebtn" type="button" title="Toggle light / dark theme">\u{1F319}</button>`;
-    var LEGEND_HINT = `<div class="leghint" title="What the dashed outline around each broken / blocked card means"><span class="leglbl">Outline:</span><span class="legbox lg-g"></span>all triaged<span class="legbox lg-a"></span>some untriaged</div>`;
-    var THEME_JS = `<script>(function(){var b=document.getElementById('themeToggle');if(!b)return;function cur(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}function paint(){b.textContent=cur()==='light'?'\u2600\uFE0F':'\u{1F319}';b.title='Switch to '+(cur()==='light'?'dark':'light')+' theme';}paint();b.addEventListener('click',function(){if(cur()==='light'){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','light');}try{localStorage.setItem('charlotteTheme',cur());}catch(e){}paint();});})();</script>`;
-    var esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-    function effSettings(state, cfg) {
-      const s = state && state.settings || null;
-      const num = (v, d) => typeof v === "number" ? v : d;
-      const bool = (v, d) => typeof v === "boolean" ? v : d;
-      if (!s) return { concurrency: cfg.concurrency, delay: cfg.delay, rps: cfg.rps, maxPages: cfg.maxPages, maxDepth: cfg.maxDepth, includeSubdomains: cfg.includeSubdomains, checkExternal: cfg.checkExternal };
-      return {
-        concurrency: num(s.concurrency, cfg.concurrency),
-        delay: num(s.delay, cfg.delay),
-        rps: num(s.rps, cfg.rps),
-        maxPages: s.maxPages === null ? Infinity : num(s.maxPages, cfg.maxPages),
-        maxDepth: s.maxDepth === null ? Infinity : num(s.maxDepth, cfg.maxDepth),
-        includeSubdomains: bool(s.includeSubdomains, cfg.includeSubdomains),
-        checkExternal: bool(s.checkExternal, cfg.checkExternal)
-      };
-    }
-    function settingsAreKnown(state, cfg) {
-      return !!(state && state.settings) || !(cfg && (cfg.rebuildFrom || cfg.recheckFrom));
-    }
+    var { REF_PREVIEW, RENDER_CAP, BRAND, BRAND_ICON, THEME_HEAD, THEME_BTN, LEGEND_HINT, THEME_JS, esc } = require_branding();
+    var { effSettings, settingsAreKnown } = require_settings();
+    var { REPORT_CSS } = require_page_css();
+    var { pagerScriptFor, stateScript, pickExportScript } = require_page_scripts();
+    var { triageScript, collapseScript } = require_triage_script();
     var { NEWWIN, TRACKER_TEMPLATE } = require_report_templates();
     function buildReport(state, cfg, allow, partial) {
       const suppressed = [], active = [];
@@ -739,173 +1436,13 @@ var require_report = __commonJS({
       const logCard = !state.logSingleFile && parts.length ? `<div class="card"><h2>Progress log \u2014 ${parts.length} part${parts.length === 1 ? "" : "s"} <span class="muted" style="font-weight:400">(run ${esc(state.runId || "")})</span></h2>
        <div class="tablewrap"><table><thead><tr><th>Part</th><th>File</th><th>Lines</th><th>Bytes</th></tr></thead><tbody>${parts.map((p) => `<tr><td>${p.part}</td><td>${esc(p.file)}</td><td>${(p.lines || 0).toLocaleString()}</td><td>${(p.bytes || 0).toLocaleString()}</td></tr>`).join("")}</tbody></table></div>
        <p class="muted">Reconstruct the full log: <code>node crawl.js --merge-logs ${esc(state.logManifest || "")}</code></p></div>` : "";
-      const pagerScript = cfg.paginate ? `<script>(function(){
-  var PAGE_SIZE=${Number(cfg.pageSize) > 0 ? Math.floor(Number(cfg.pageSize)) : PAGE_SIZE};
-  function rows(tb){ var o=[],c=tb.children,i; for(i=0;i<c.length;i++){ if(c[i].tagName==='TR') o.push(c[i]); } return o; }
-  function el(t,c,x){ var e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e; }
-  function setup(table){
-    var tb=table.tBodies[0]; if(!tb) return;
-    var rw=rows(tb); if(rw.length<=PAGE_SIZE) return;
-    var pages=Math.ceil(rw.length/PAGE_SIZE), cur=-1, tw=table.parentNode;
-    var bar=el('div','pager'), prev=el('button','btn','\\u2039 Prev'), next=el('button','btn','Next \\u203a');
-    prev.type='button'; next.type='button';
-    var label=el('span','muted pglabel'), grow=el('span','grow'), jl=el('span','muted','Go to'), jump=el('input','pgjump');
-    jump.type='number'; jump.min='1'; jump.max=String(pages);
-    bar.appendChild(prev); bar.appendChild(next); bar.appendChild(label); bar.appendChild(grow); bar.appendChild(jl); bar.appendChild(jump);
-    function show(p){
-      p=Math.max(0,Math.min(pages-1,p)); if(p===cur) return; cur=p;
-      var start=cur*PAGE_SIZE, end=Math.min(rw.length,start+PAGE_SIZE), i;
-      for(i=0;i<rw.length;i++){ rw[i].style.display=(i>=start&&i<end)?'':'none'; }
-      label.textContent='Page '+(cur+1)+' of '+pages+' \\u00b7 rows '+(start+1).toLocaleString()+'\\u2013'+end.toLocaleString()+' of '+rw.length.toLocaleString();
-      prev.disabled=(cur===0); next.disabled=(cur===pages-1); jump.value=String(cur+1);
-      if(tw) tw.scrollTop=0;
-    }
-    prev.addEventListener('click',function(){ show(cur-1); });
-    next.addEventListener('click',function(){ show(cur+1); });
-    jump.addEventListener('change',function(){ var v=parseInt(jump.value,10); if(!isNaN(v)) show(v-1); });
-    tw.parentNode.insertBefore(bar,tw);
-    show(0);
-  }
-  var t=document.querySelectorAll('.tablewrap > table'),i;
-  for(i=0;i<t.length;i++){ setup(t[i]); }
-})();</script>
-` : "";
+      const pagerScript = pagerScriptFor(cfg);
       return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} \xB7 Crawl report \u2014 ${esc(state.startHost)}</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%95%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <style>
- :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340;--accent-fg:#06121f}
-${THEME_LIGHT_CSS}
- *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
- header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
- main{max-width:1500px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px}
- /* Two rows of broken-over-total pairs (col 1\u20134) + Blocked in col 5. Fixed 5 columns so each broken
-    stat sits directly above its total; collapses to 2 columns on narrow screens. */
- .stats{display:grid;gap:12px;grid-template-columns:repeat(5,minmax(0,1fr))}
- @media (max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
- .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}.stat .n{font-size:26px;font-weight:700}.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
- .stat .n .pct{font-size:14px;font-weight:600;color:var(--muted)}
- .stat.good .n{color:var(--good)}.stat.bad .n{color:var(--bad)}.stat.warn .n{color:var(--warn)}
- /* Test-completeness outline on the three "broken" stats: green = every link in that category has a
-    verdict (count is final); amber = some still untriaged (count may change). Inset outline -> no shift. */
- .stat.tested-all{outline:2px dashed var(--good);outline-offset:-1px}
- .stat.tested-partial{outline:2px dashed var(--warn);outline-offset:-1px}
- /* Outline-key legend, relocated to a compact fixed strip in the upper-right beside the theme toggle. */
- .leghint{position:fixed;top:13px;right:62px;z-index:30;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
- .leghint .leglbl{text-transform:uppercase;letter-spacing:.05em;font-size:10px}
- .leghint .legbox{flex:none;width:16px;height:11px;border:2px dashed var(--border);border-radius:3px;margin-left:5px}
- .leghint .legbox.lg-g{border-color:var(--good)}.leghint .legbox.lg-a{border-color:var(--warn)}
- @media (max-width:720px){.leghint{display:none}}
- table{width:100%;border-collapse:collapse;font-size:13px;min-width:820px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
- th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
- /* URL and Found-on columns get real width; long URLs wrap at sensible points, not every character */
- td{overflow-wrap:anywhere;word-break:normal}
- th:first-child,td:first-child{min-width:360px}
- td:last-child{min-width:300px}
- /* Internal-pages table: a 1\u20132 digit Depth and the small Status/Int/Ext cells shouldn't
-    hog width \u2014 narrow them and give the space to URL + Title so those wrap far less. */
- td a,a{color:var(--link);text-decoration:none}td a:hover,a:hover{text-decoration:underline}
- /* Fixed-height scroll viewport. resize:vertical adds a bottom-right grip so the operator can drag the
-    pane taller/shorter to taste (min-height keeps it from collapsing). Applies to flat tables here and to
-    the grouped .groupview below. The triage groups' own .dombody is overflow:visible (no grip there). */
- /* Flat tables (Suppressed, log, read-only/partial fallback) size to content up to a cap, so a short list
-    isn't a tall empty box; still drag-resizable. The big grouped lists use .groupview (definite height). */
- .tablewrap{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:8px;resize:vertical}
- /* Every tab's list lives in a FIXED-HEIGHT viewport that scrolls internally (consistent with the flat
-    .tablewrap tables) \u2014 so a long grouped list scrolls in place instead of stretching the whole page. */
- .groupview{height:460px;min-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;resize:vertical}
- .groupview .domgrp:last-child{margin-bottom:0}
- .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}.pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.err{background:rgba(248,113,113,.15);color:var(--bad)}.pill.skip{background:rgba(251,191,36,.15);color:var(--warn)}
- .muted{color:var(--muted)}h2{font-size:15px;margin:0 0 12px}details summary{cursor:pointer;font-weight:600;padding:6px 0}
- .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
- .hidden{display:none}code{background:var(--panel2);padding:1px 5px;border-radius:4px}
- .exptools{display:flex;align-items:center;gap:10px;margin:0 0 12px}
- /* Collapsible per-tab explanatory text \u2014 a muted, small disclosure so the (lengthy) help can be folded away. */
- .helpbox{margin:0 0 10px}
- .helpbox>summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;padding:4px 0}
- .helpbox>summary:hover{color:var(--accent)}
- .helpbox .helpbody{margin-top:4px}
- /* Triage tables \u2014 columns sized by CLASS so the layout holds with or without the (opt-in)
-    allowlist pick column: .pickcol pick box \xB7 .tscell timestamp \xB7 .tcol Broken/Working \xB7 .urlcol URL. */
- .pickcol{width:34px;text-align:center}
- .tcol{width:80px;text-align:center}
- .tscell{width:140px;white-space:nowrap}
- td.tscell{font-size:13px;color:var(--muted)}
- th.tscell{white-space:nowrap}
- .urlcol{width:380px}
- .reasoncol{width:180px}
- /* Triage AND non-triage grouped tables (.grptbl) use a FIXED layout (predictable widths) and size to the
-    SUM of their column widths (width:max-content) rather than stretching to 100% \u2014 so no column is starved
-    and a very wide window no longer leaves a giant mid-table gap. Every column is RESIZABLE: drag the grip
-    on a header's right edge. There is NO enforced minimum width \u2014 drag a column as narrow as you like.
-    Widths persist per browser and broadcast across a tab's groups so they stay aligned; a "Reset column
-    widths" button restores the defaults. */
- table.haspick,table.blkpick,table.grptbl{table-layout:fixed;width:max-content;min-width:0;max-width:none}
- table.haspick th,table.haspick td,table.blkpick th,table.blkpick td,table.grptbl th,table.grptbl td{min-width:0}
- /* Non-triage default column widths live in CSS (not inline) so "Reset column widths" \u2014 which clears the
-    inline width the drag writes \u2014 reverts to these, exactly as the triage tables revert to .urlcol/etc. */
- #panel-internal .grptbl th:nth-child(1){width:64px}#panel-internal .grptbl th:nth-child(2){width:380px}#panel-internal .grptbl th:nth-child(3){width:320px}#panel-internal .grptbl th:nth-child(4){width:96px}#panel-internal .grptbl th:nth-child(5){width:64px}#panel-internal .grptbl th:nth-child(6){width:64px}
- #panel-external .grptbl th:nth-child(1){width:460px}#panel-external .grptbl th:nth-child(2){width:120px}#panel-external .grptbl th:nth-child(3){width:420px}
- #panel-outscope .grptbl th:nth-child(1){width:520px}#panel-outscope .grptbl th:nth-child(2){width:420px}
- .haspick th,.blkpick th,.grptbl th{position:relative}
- .colgrip{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
- .colgrip:hover,.colgrip.drag{box-shadow:inset -2px 0 0 var(--accent)}
- table.haspick .foundcol,table.blkpick .foundcol{width:236px}
- .blkpick .kindcol{width:92px}
- /* Errors\xB7external is grouped into collapsible per-domain sections. A custom collapsible (not
-    <details>): a .domtoggle button + the domain Broken/Working pair as siblings, so the checkbox
-    clicks aren't eaten by a <summary> and the script can collapse via a .collapsed class. */
- .domgrp{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
- .domhead{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--panel2);flex-wrap:wrap}
- /* Domains with untested links get a dashed-amber header (inset outline: no clip from the group's
-    overflow:hidden, no layout shift); it clears once every link in the domain has a verdict. */
- .domgrp.untested .domhead{outline:2px dashed var(--warn);outline-offset:-2px}
- .domtoggle{flex:1;min-width:200px;background:none;border:none;color:var(--fg);font:inherit;font-weight:600;cursor:pointer;padding:4px 2px;text-align:left;overflow-wrap:anywhere}
- .domtoggle:hover{color:var(--accent)}
- .caret::before{content:"\u25BC";display:inline-block;width:1em;font-size:11px;color:var(--muted);font-weight:400}
- .domgrp.collapsed .caret::before{content:"\u25B6"}
- .domname{overflow-wrap:anywhere}
- .domverdict{font-weight:400;font-size:12px;color:var(--muted);display:inline-flex;flex-wrap:wrap;align-items:center}
- .domall{margin-right:2px}
- .domprog{font-size:12px}
- .domlbl{cursor:pointer;margin-left:14px;white-space:nowrap}
- .domlbl input{cursor:pointer;vertical-align:middle;margin:0 4px 0 0}
- /* Mixture + all-tested are read-only indicators (disabled); they go green when on. */
- .domlbl.ind{cursor:default}.domlbl.ind input{cursor:default}.domlbl.ind.on{color:var(--good)}
- .domgrp.collapsed .dombody{display:none}
- /* The domain's OWN table wrapper shows in full (no inner scrollbar); scope this to .dombody so it does
-    NOT also hit the nested "Found on" <details> wrapper, whose inline max-height + scroll must stay. */
- .domgrp .dombody{height:auto;max-height:none;min-height:0;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0;resize:none}
- /* The drag-to-resize grip + min-height belong only to TOP-LEVEL viewports. Nested .tablewrap (the
-    "Found on" referrer sublists, error subtables) must size to content and never sprout their own grip. */
- .tablewrap .tablewrap{height:auto;min-height:0;resize:none}
- .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
- .testbar{margin:0 0 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.tcount{color:var(--muted);font-size:12px}
- .colreset,.grpcolreset{margin-left:auto;font-size:12px;padding:4px 10px}
- tr.notbroken td:not(.tcol):not(.tscell):not(.pickcol){opacity:.45;text-decoration:line-through}
- tr.confirmed td:not(.tcol):not(.tscell):not(.pickcol){color:var(--bad)}
- .exportbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}.exportbar .grow{flex:1}
- .sharebar{border-left:3px solid var(--accent);padding-top:12px;padding-bottom:12px}.sharebar .exportbar{margin:0}
- .selcount{color:var(--muted);font-size:12px}
- .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
- .btn.exportbtn:not(:disabled){background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
- /* The fix-tracker export is the primary triage output \u2014 make the one share-bar button stand out. */
- .sharebar .trackbtn{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}.sharebar .trackbtn:hover{color:var(--accent-fg);filter:brightness(1.08)}
- .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}.toast.show{opacity:1}
- .vsep{display:inline-block;width:1px;height:20px;background:var(--border);margin:0 2px;vertical-align:middle}
- /* No-flash tab restore: a head script sets html.tab-NAME before first paint so
-    the correct tab/panel renders immediately, not the default then a swap. */
- html[class*="tab-"] .panel{display:none}
- html.tab-internal #panel-internal,html.tab-external #panel-external,html.tab-outscope #panel-outscope,html.tab-errint #panel-errint,html.tab-errext #panel-errext,html.tab-blockd #panel-blockd,html.tab-suppressed #panel-suppressed{display:block}
- html[class*="tab-"] .tab{background:var(--panel2);color:var(--fg);border-color:var(--border)}
- html.tab-internal .tab[data-tab="internal"],html.tab-external .tab[data-tab="external"],html.tab-outscope .tab[data-tab="outscope"],html.tab-errint .tab[data-tab="errint"],html.tab-errext .tab[data-tab="errext"],html.tab-blockd .tab[data-tab="blockd"],html.tab-suppressed .tab[data-tab="suppressed"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
- .subtable{width:100%;border-collapse:collapse}.subtable td{padding:4px 8px;border-bottom:1px solid var(--border)}
- details summary{color:var(--accent)}
- /* Client-side pagination bar (only present with --paginate, above any table over a page in size, incl. nested referrer lists). */
- .pager{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}.pager .grow{flex:1}.pager .pglabel{font-size:12px}
- .pager .pgjump{width:64px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font:inherit;font-size:12px}
-</style>
+${REPORT_CSS}</style>
 <script>(function(){try{var n=(location.hash||'').substring(1);if(!n){try{n=localStorage.getItem('charlotteTab')||'';}catch(e){}}if(n)document.documentElement.className='tab-'+n;}catch(e){}})();</script>
 ${THEME_HEAD}</head><body>${THEME_BTN}${hasTriage ? LEGEND_HINT : ""}
 <header><h1>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} <span class="muted" style="font-weight:400">\xB7 Crawl report</span> \u2014 ${esc(state.startHost)}</h1>
@@ -948,494 +1485,18 @@ ${THEME_HEAD}</head><body>${THEME_BTN}${hasTriage ? LEGEND_HINT : ""}
  </div>
  ${logCard}
 </main>
-<script>
-(function(){
-  var PARTIAL = ${partial ? "true" : "false"};
-  var TKEY='charlotteTab';
-  var tabs=document.querySelectorAll('.tab');
-  function L(){ try{ return window.localStorage; }catch(e){ return null; } }
-
-  // Active tab is driven by a class on <html> (html.tab-NAME) so the same CSS
-  // that prevents the first-paint flash also handles live switching.
-  function activate(name){
-    var first=tabs.length?tabs[0].getAttribute('data-tab'):'', found=false, i;
-    for(i=0;i<tabs.length;i++){ if(tabs[i].getAttribute('data-tab')===name) found=true; }
-    if(!found) name=first;
-    document.documentElement.className='tab-'+name;
-    var s=L(); if(s){ try{ s.setItem(TKEY,name); }catch(e){} }
-    try{ history.replaceState(null,'','#'+name); }catch(e){}
-    return name;
-  }
-  for(var i=0;i<tabs.length;i++){ tabs[i].addEventListener('click', function(){ activate(this.getAttribute('data-tab')); }); }
-
-  // ---- save/restore ALL in-tab state: every table's scroll, the page scroll,
-  //      and which collapsible sections are open ----
-  function allTW(){ return document.querySelectorAll('.tablewrap'); }
-  function panelOf(el){ while(el && el!==document){ if(el.className && (' '+el.className+' ').indexOf(' panel ')>=0) return el; el=el.parentNode; } return null; }
-  function twKey(tw){
-    var panel=panelOf(tw), pid=panel?panel.id:'p', idx=0;
-    var sibs=panel?panel.querySelectorAll('.tablewrap'):[tw];
-    for(var k=0;k<sibs.length;k++){ if(sibs[k]===tw){ idx=k; break; } }
-    return 'charlotteTW_'+pid+'_'+idx;
-  }
-  function saveState(){
-    var s=L(); if(!s) return;
-    try{
-      s.setItem('charlotteWinY', String(window.pageYOffset||document.documentElement.scrollTop||0));
-      var tw=allTW(); for(var i=0;i<tw.length;i++) s.setItem(twKey(tw[i]), String(tw[i].scrollTop));
-      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++) s.setItem('charlotteD_'+j, d[j].open?'1':'0');
-    }catch(e){}
-  }
-  function restoreState(){
-    var s=L(); if(!s) return;
-    try{
-      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++){ var dv=s.getItem('charlotteD_'+j); if(dv!==null) d[j].open=(dv==='1'); }
-      var tw=allTW(); for(var i=0;i<tw.length;i++){ var v=s.getItem(twKey(tw[i])); if(v!==null) tw[i].scrollTop=parseInt(v,10)||0; }
-      var wy=s.getItem('charlotteWinY'); if(wy!==null) window.scrollTo(0, parseInt(wy,10)||0);
-    }catch(e){}
-  }
-
-  // restore tab (hash, then storage) then state
-  var want=(location.hash||'').substring(1), s=L();
-  if(!want && s){ try{ want=s.getItem(TKEY)||''; }catch(e){} }
-  activate(want);
-  try{ if('scrollRestoration' in history) history.scrollRestoration='manual'; }catch(e){}
-  restoreState();
-
-  var tws=allTW(); for(var t=0;t<tws.length;t++) tws[t].addEventListener('scroll', saveState);
-  window.addEventListener('scroll', saveState);
-  var dets=document.querySelectorAll('details'); for(var dd=0;dd<dets.length;dd++) dets[dd].addEventListener('toggle', saveState);
-  window.addEventListener('beforeunload', saveState);
-
-  // ---- non-disruptive live refresh (partial reports only) ----
-  // Reload to pull new data, but NEVER while you're interacting: defer until
-  // there's been ~2.5s with no mouse/scroll/key activity and no text selected,
-  // then save state and reload (which restores it). So a refresh can't interrupt
-  // you mid-scroll, mid-read, or mid-selection.
-  if(PARTIAL){
-    var IDLE_MS=2500, lastAct=(new Date()).getTime();
-    function bump(){ lastAct=(new Date()).getTime(); }
-    var evs=['mousemove','mousedown','keydown','wheel','touchstart','scroll'];
-    for(var e=0;e<evs.length;e++) document.addEventListener(evs[e], bump, true);
-    function tick(){
-      var idle=(new Date()).getTime()-lastAct, sel='';
-      try{ sel=window.getSelection?String(window.getSelection()):''; }catch(_){}
-      if(idle<IDLE_MS || sel!==''){ setTimeout(tick, 600); return; }
-      saveState();
-      location.reload();
+${stateScript(partial)}${trackerEmbed}
+${pickExportScript(cfg, state)}${triageScript(state, linkInstances)}${collapseScript(state)}${pagerScript}${NEWWIN}${THEME_JS}</body></html>`;
     }
-    setTimeout(tick, 5000);
+    module2.exports = { buildReport };
   }
-})();
-</script>
-${trackerEmbed}
-<script>
-/* Broken-link selection \u2192 allowlist appendage (final report only). Each ticked
-   row on the two Errors tabs becomes an allowlist line; Export downloads them as
-   a file to append to the allowlist, Copy puts them on the clipboard. */
-(function(){
-  var ALLOWLIST = ${JSON.stringify(cfg.allowlist)};
-  var HOST = ${JSON.stringify(state.startHost)};
-  var BRAND = ${JSON.stringify(BRAND)};
-  var SCOPES = ['errint','errext'];
-  function panel(scope){ return document.getElementById('panel-'+scope); }
-  function boxes(scope){ var p=panel(scope); return p? p.querySelectorAll('.pickbox') : []; }
-  function picked(scope){ var b=boxes(scope), o=[]; for(var i=0;i<b.length;i++){ if(b[i].checked) o.push(b[i]); } return o; }
-  function bar(scope){ var p=panel(scope); return p? p.querySelector('.exportbar') : null; }
-  function dlName(){ var b=ALLOWLIST.split('/').pop().replace(/\\.[^.]*$/,''); return (b||'crawl-allowlist')+'.append.txt'; }
-  function refresh(scope){
-    var all=boxes(scope), n=picked(scope).length, b=bar(scope); if(!b) return;
-    var c=b.querySelector('.selcount'); if(c){ c.textContent=n+' selected'; }
-    // Only the allowlist actions depend on a selection; the fix-tracker export always
-    // works (it exports every referrer -> broken-link pair, ticked or not).
-    var btns=b.querySelectorAll('.copybtn,.exportbtn'); for(var i=0;i<btns.length;i++){ btns[i].disabled=(n===0); }
-    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
-    if(pa){ pa.checked=(n>0&&n===all.length); pa.indeterminate=(n>0&&n<all.length); }
-  }
-  function text(scope){
-    var sel=picked(scope), out=[];
-    out.push('# '+BRAND+' \u2014 allowlist appendage from crawl of '+HOST);
-    out.push('# generated '+new Date().toISOString()+' \u2014 '+sel.length+' link(s)');
-    out.push('# append to '+ALLOWLIST+' to suppress these in future scans, e.g.:');
-    out.push('#   cat '+dlName()+' >> '+ALLOWLIST);
-    out.push('#   ( *=wildcard   #=comment   blank lines ignored )');
-    out.push('#');
-    for(var i=0;i<sel.length;i++){
-      out.push(sel[i].getAttribute('data-url')+'   # '+sel[i].getAttribute('data-reason')+' \u2014 found on: '+sel[i].getAttribute('data-source'));
-    }
-    return out.join('\\n')+'\\n';
-  }
-  function toast(msg){
-    var t=document.getElementById('cw-toast');
-    if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); }
-    t.textContent=msg; t.className='toast show';
-    setTimeout(function(){ t.className='toast'; }, 2400);
-  }
-  // dl + saveBlob duplicated here so this IIFE's exports (allowlist + fix-tracker) use the same Save-As
-  // picker as the share toolbar's IIFE below (the two scripts are separate scopes \u2014 like toast above).
-  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
-  function saveBlob(blob, name, okMsg){
-    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
-    // its own versioned file; the picker pre-fills it (the operator can still edit it).
-    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
-    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
-    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
-    if(window.showSaveFilePicker){
-      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
-      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
-      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
-        .then(function(h){ return h.createWritable(); })
-        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
-        .then(function(){ toast(okMsg); })
-        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
-      return;
-    }
-    fb();
-  }
-  function doExport(scope){
-    var txt=text(scope), name=dlName(), n=picked(scope).length;
-    saveBlob(new Blob([txt],{type:'text/plain;charset=utf-8'}), name, 'Exported '+n+' link(s) \u2192 '+name);
-  }
-  function doCopy(scope){
-    var txt=text(scope), n=picked(scope).length;
-    function ok(){ toast('Copied '+n+' line(s) to clipboard'); }
-    function legacy(){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); var good=false; try{ good=document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); good?ok():toast('Copy failed \u2014 use Export'); }
-    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok,legacy); } else { legacy(); }
-  }
-  function wire(scope){
-    var all=boxes(scope); if(!all.length) return;
-    for(var i=0;i<all.length;i++){ all[i].addEventListener('change', function(){ refresh(scope); }); }
-    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
-    if(pa){ pa.addEventListener('change', function(){ var b=boxes(scope); for(var k=0;k<b.length;k++){ b[k].checked=pa.checked; } refresh(scope); }); }
-    var b=bar(scope); if(b){ var ex=b.querySelector('.exportbtn'), cp=b.querySelector('.copybtn');
-      if(ex){ ex.addEventListener('click', function(){ doExport(scope); }); }
-      if(cp){ cp.addEventListener('click', function(){ doCopy(scope); }); } }
-    refresh(scope);
-  }
-  for(var i=0;i<SCOPES.length;i++){ wire(SCOPES[i]); }
+});
 
-  // ---- standalone editable "fix tracker" export ----
-  var BS=String.fromCharCode(92);
-  function exportTracker(){
-    var tpl=window.__CW_TPL__; if(!tpl){ toast('Tracker template unavailable'); return; }
-    var data=JSON.parse(JSON.stringify(window.__CW_BROKEN__||{host:'',internal:[],external:[]}));
-    // A link belongs in the fix tracker UNLESS it's been manually marked "Working" \u2014 one uniform
-    // rule across Errors (assumed broken) AND Blocked (uncertain). So everything still untriaged is
-    // included by default and the tracker is a complete to-review list; marking Working is what
-    // drops a link. Scan the Working boxes on all three triage panels.
-    var excl={}, ob=document.querySelectorAll('#panel-errint .okbox, #panel-errext .okbox, #panel-blockd .okbox'), z, nx=0;
-    for(z=0;z<ob.length;z++){ if(ob[z].checked){ var du=ob[z].getAttribute('data-url'); if(!excl[du]){ nx++; } excl[du]=1; } }
-    function keep(list){ var out=[],q; for(q=0;q<(list||[]).length;q++){ if(!excl[list[q].url]) out.push(list[q]); } return out; }
-    // Blocked links are routed internal/external by kind, then merged into the same two tabs.
-    data.internal=keep(data.internal).concat(keep(data.blockedInt));
-    data.external=keep(data.external).concat(keep(data.blockedExt));
-    delete data.blockedInt; delete data.blockedExt;
-    // Carry each broken link's manual verdict (Broken/Working) + last-tested timestamp from the
-    // report's localStorage into the tracker, so the standalone file shows them and can keep editing.
-    function lg(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
-    function annotate(list){ for(var q=0;q<list.length;q++){ var u=list[q].url; var vb=lg('cwbroken:'+HOST+':'+u)==='1', vo=lg('cwok:'+HOST+':'+u)==='1'; list[q].v=vb?'broken':(vo?'working':''); list[q].ts=lg('cwts:'+HOST+':'+u)||''; } }
-    annotate(data.internal); annotate(data.external);
-    data.ticked={};   // fix-tracking lives in the tracker now \u2014 nothing to seed from the report
-    var inj=JSON.stringify(data).split('</').join('<'+BS+'/');
-    var doc=tpl.replace('"__DATA__"', function(){ return inj; });
-    saveBlob(new Blob([doc],{type:'text/html;charset=utf-8'}), 'charlotte-fix-tracker.html', 'Exported fix tracker'+(nx?' ('+nx+' link'+(nx===1?'':'s')+' marked Working excluded)':''));
-  }
-  var tb=document.querySelectorAll('.trackbtn');
-  for(var ti=0;ti<tb.length;ti++){ tb[ti].addEventListener('click', exportTracker); }
-})();
-</script>
-<script>(function(){
-  // Manual-testing triage for all three tabs (Errors \xB7 internal/external + Blocked). Two
-  // MUTUALLY-EXCLUSIVE boxes per link \u2014 "Broken" (confirms it's dead) and "Working"
-  // (confirms it loads). Ticking one unticks the other; clearing both returns the row to
-  // its default. "Tested" is implied by either box, so there's no separate Tested box.
-  // The Errors tabs default to BROKEN: every flagged link counts toward the header until
-  // you tick Working, which subtracts it and drops it from the fix tracker. The Blocked
-  // tab defaults to UNCERTAIN (not counted): ticking Broken adds it and routes it into the
-  // tracker by kind. A "Last triaged" cell auto-fills the date+time of the latest verdict.
-  // Ticks + timestamps persist in this browser (cwbroken: / cwok: / cwts: keys). Because that
-  // state lives in localStorage (not the file), a share toolbar can export/import the verdicts as
-  // JSON or bake them into a self-contained "shareable copy" (window.__CW_SEED__) for emailing.
-  // Partial (auto-refreshing) reports render read-only error rows \u2014 no per-row data-url and no
-  // triage boxes \u2014 so there is nothing to wire here, and running recomputeBroken() would wrongly
-  // zero the server-rendered "Broken hyperlink instances" header. Bail when no triage rows exist.
-  if(!document.querySelector('tr[data-url]')) return;
-  var HOST=${JSON.stringify(state.startHost)}, SCOPES=['errint','errext','blockd'], ERRS=['errint','errext'];
-  // Fixed row-2 totals \u2014 the denominators for each broken stat's live "(percent)".
-  var DENOM={inst:${linkInstances}, int:${state.pages.length}, ext:${state.external.size}, tot:${state.pages.length + state.external.size}};
-  // url -> its referrer pages (from the embedded broken-link data), memoized on first use \u2014 feeds the
-  // "Referrer pages with broken links" card: as triage changes which links still count as broken, the
-  // distinct spread of referrer pages is recomputed from the rows that still count.
-  var REFMAP=null;
-  function refMap(){ if(REFMAP) return REFMAP; REFMAP={}; var B=(typeof window!=='undefined')?window.__CW_BROKEN__:null; function add(a){ if(a) for(var i=0;i<a.length;i++) REFMAP[a[i].url]=a[i].refs||[]; } if(B){ add(B.internal); add(B.external); add(B.blockedInt); add(B.blockedExt); } return REFMAP; }
-  function L(){ try{ return localStorage; }catch(e){ return null; } }
-  function key(pfx,url){ return pfx+HOST+':'+url; }
-  // __CW_SEED__ carries verdicts baked into a "shareable copy" (see saveShareableCopy). When this
-  // browser exposes no localStorage (some file:// modes), getF/getS fall back to it so the copy
-  // still displays the sender's verdicts read-only.
-  function seedGet(k){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; return (sd&&sd.v&&sd.v.hasOwnProperty(k))?sd.v[k]:null; }
-  function getF(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null&&sv==='1'; } try{ return s.getItem(k)==='1'; }catch(e){ return false; } }
-  function setF(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,'1'); else s.removeItem(k); }catch(e){} }
-  function panel(scope){ return document.getElementById('panel-'+scope); }
-  function rowOf(el){ var n=el; while(n&&n.nodeName!=='TR') n=n.parentNode; return n; }
-  function hasCls(el,c){ return (' '+el.className+' ').indexOf(' '+c+' ')>=0; }
-  function addCls(el,c){ if(!hasCls(el,c)) el.className=(el.className?el.className+' ':'')+c; }
-  function rmCls(el,c){ el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^ +| +$/g,''); }
-  // String-valued persistence (for the "last tested" timestamp; getF/setF only do flags).
-  function getS(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null?sv:''; } try{ return s.getItem(k)||''; }catch(e){ return ''; } }
-  function setS(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,v); else s.removeItem(k); }catch(e){} }
-  // Auto-filled "Last triaged" stamp = local date+time the row's latest verdict was set.
-  // Updated whenever Broken or Working is ticked; cleared when the row returns to no verdict.
-  function nowStr(){ var d=new Date(); function p(x){ return (x<10?'0':'')+x; } return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
-  function tsCell(tr){ return tr?tr.querySelector('.tscell'):null; }
-  function setTs(tr,url){ var s=nowStr(), c=tsCell(tr); if(c) c.textContent=s; setS(key('cwts:',url), s); }
-  function clrTs(tr,url){ var c=tsCell(tr); if(c) c.textContent=''; setS(key('cwts:',url), ''); }
-  // ---- share testing verdicts (localStorage stays in THIS browser; the file doesn't carry it) ----
-  function toast(msg){ var t=document.getElementById('cw-toast'); if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); } t.textContent=msg; t.className='toast show'; setTimeout(function(){ t.className='toast'; }, 2600); }
-  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
-  // Save a blob through the File System Access "Save As" PICKER so the operator chooses the folder + name
-  // (instead of it landing in the default Downloads folder). Feature-detected: where the API is missing or
-  // restricted it falls back to a plain download (dl). Cancelling the picker is silent. This is the additive,
-  // download-as-fallback enhancement AD-034 left for "if revisited".
-  function saveBlob(blob, name, okMsg){
-    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
-    // its own versioned file; the picker pre-fills it (the operator can still edit it).
-    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
-    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
-    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
-    if(window.showSaveFilePicker){
-      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
-      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
-      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
-        .then(function(h){ return h.createWritable(); })
-        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
-        .then(function(){ toast(okMsg); })
-        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
-      return;
-    }
-    fb();
-  }
-  // Snapshot every saved verdict (cwbroken: / cwok: / cwts:) for THIS crawl's host.
-  function collectState(){ var out={app:'charlotte-verdicts', host:HOST, v:{}}, s=L(); if(!s) return out; var i,k,n=0; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0||k.indexOf('cwts:'+HOST+':')===0)) out.v[k]=s.getItem(k); } return out; }
-  function countVerdicts(st){ var links={}, k, pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', v=(st&&st.v)||{}; for(k in v){ if(!v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) links[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) links[k.slice(po.length)]=1; } var c=0,z; for(z in links){ if(links.hasOwnProperty(z)) c++; } return c; }
-  function exportVerdicts(){ var st=collectState(), c=countVerdicts(st); if(!c){ toast('No verdicts to export yet \u2014 mark some links Broken or Working first'); return; } saveBlob(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}), 'charlotte-verdicts-'+HOST+'.json', 'Exported '+c+' verdict'+(c===1?'':'s')); }
-  // Replace each url the file has an opinion on (clear its 3 keys, then set what the file holds);
-  // urls the file doesn't mention are left as-is, so several people's exports merge cleanly.
-  function applyState(obj){ var s=L(); if(!s||!obj||!obj.v) return 0; var pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', pt='cwts:'+HOST+':', urls={}, k; for(k in obj.v){ if(!obj.v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) urls[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) urls[k.slice(po.length)]=1; else if(k.indexOf(pt)===0) urls[k.slice(pt.length)]=1; } var u; for(u in urls){ if(urls.hasOwnProperty(u)){ try{ s.removeItem(pb+u); s.removeItem(po+u); s.removeItem(pt+u); }catch(e){} } } var c=0; for(k in obj.v){ if(obj.v.hasOwnProperty(k)){ try{ s.setItem(k,obj.v[k]); c++; }catch(e){} } } return c; }
-  function importVerdicts(file){ if(!file) return; if(!L()){ toast('This browser blocks storage for local files \u2014 serve the report over a local web server to import'); return; } var r=new FileReader(); r.onload=function(){ var obj; try{ obj=JSON.parse(String(r.result)); }catch(e){ obj=null; } if(!obj||obj.app!=='charlotte-verdicts'||!obj.v){ toast('That isn\\'t a Charlotte verdicts file'); return; } if(obj.host!==HOST){ toast('That file is for \u201C'+obj.host+'\u201D, not \u201C'+HOST+'\u201D \u2014 not applied'); return; } var c=countVerdicts(obj); applyState(obj); toast('Imported '+c+' verdict'+(c===1?'':'s')+' \u2014 reloading\u2026'); setTimeout(function(){ try{ location.reload(); }catch(e){} }, 700); }; r.onerror=function(){ toast('Could not read the file'); }; try{ r.readAsText(file); }catch(e){ toast('Could not read the file'); } }
-  // Bake the current verdicts into a fresh self-contained copy of this report: serialize the page,
-  // strip any prior seed, and inject window.__CW_SEED__ just before </head> so it runs first.
-  function saveShareableCopy(){ var st=collectState(), c=countVerdicts(st); var SO='<scr'+'ipt>window.__CW_SEED__=', SC='</scr'+'ipt>'; var seed=SO+JSON.stringify(st).replace(/</g,'\\\\u003c')+';'+SC; var src='<!doctype html>\\n'+document.documentElement.outerHTML, pos; while((pos=src.indexOf(SO))>=0){ var en=src.indexOf(SC,pos); if(en<0) break; src=src.slice(0,pos)+src.slice(en+SC.length); } if(src.indexOf('</head>')>=0) src=src.replace('</head>', seed+'</head>'); else src=seed+src; saveBlob(new Blob([src],{type:'text/html;charset=utf-8'}), 'charlotte-report-'+HOST+'-shared.html', 'Saved a shareable copy with '+c+' verdict'+(c===1?'':'s')+' baked in'); }
-  // On opening a shared copy: prime localStorage from the seed, but ONLY if this browser has no
-  // verdicts for this host yet \u2014 never clobber a recipient's own triage.
-  function seedFromCopy(){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; if(!sd||!sd.v||sd.host!==HOST) return; var s=L(); if(!s) return; var i,k,n=0,has=false; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0)){ has=true; break; } } if(has) return; for(k in sd.v){ if(sd.v.hasOwnProperty(k)){ try{ s.setItem(k,sd.v[k]); }catch(e){} } } }
-  function update(scope){
-    var p=panel(scope); if(!p) return;
-    var trs=p.querySelectorAll('tr[data-url]'), n=0, tested=0, broke=0, ok=0, i;
-    for(i=0;i<trs.length;i++){ n++; var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'); var ib=!!(b&&b.checked), io=!!(o&&o.checked); if(ib||io) tested++; if(ib) broke++; if(io) ok++; }
-    var el=p.querySelector('.tcount'); if(el) el.textContent='Manually triaged: '+tested+' / '+n+' \xB7 confirmed broken: '+broke+' \xB7 confirmed working: '+ok;
-    recomputeBroken();
-  }
-  // Percent with adaptive precision (mirrors report.js fmtPct): one decimal normally, more decimals if
-  // needed so a small-but-nonzero share still shows a significant digit (0.03% not 0.0%).
-  function fmtPct(p){ if(!(p>0)) return '0.0'; var d=1; while(d<10&&Number(p.toFixed(d))===0) d++; return p.toFixed(d); }
-  // Set a header stat number, refresh its "(percent of total)" sibling (when a denom is given), and
-  // keep its card's red "bad" highlight in sync with the count.
-  function setStat(el, v, denom){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var nDiv=el.parentNode; if(typeof denom==='number'&&nDiv){ var pe=nDiv.querySelector('.pct'); if(pe) pe.textContent = denom>0 ? '('+fmtPct((v/denom)*100)+'%)' : ''; } var card=nDiv&&nDiv.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').trim(); } }
-  // Test-completeness outline on a "broken" stat card: GREEN dashed when every triageable link in the
-  // category has a verdict (the count is final), AMBER dashed while any remain untested (the count may
-  // still change), none when there's nothing to test. (Independent of setStat's 'bad' class.)
-  function setTestState(el, tested, total){ if(!el) return; var card=el.parentNode&&el.parentNode.parentNode; if(!card||typeof card.className!=='string') return; var c=(' '+card.className+' ').split(' tested-all ').join(' ').split(' tested-partial ').join(' ').trim(); if(total>0) c+=(tested>=total?' tested-all':' tested-partial'); card.className=c; }
-  // Live header stats, recomputed on load and on every verdict change. Errors tabs: each flagged
-  // link counts (one unique destination + its referrer instances) UNLESS confirmed Working, so
-  // clearing a false positive drops it from the instances total AND its Broken\xB7internal/external
-  // destination count. Blocked tab: only links confirmed Broken count (default uncertain), routed
-  // internal/external by their kind. Keeps all three top-level broken stats accurate after triage.
-  function recomputeBroken(){
-    var inst=0, uInt=0, uExt=0, sc, p, trs, i, pset={};
-    // pset collects the referrer pages of every link that STILL counts as broken \u2014 its size is the
-    // "Referrer pages with broken links" card (distinct pages, so a page linking several broken URLs
-    // counts once). Refs come from refMap() (the embedded broken-link data), keyed by the row's url.
-    function addRefs(u){ var M=refMap(), r=u&&M[u]; if(r) for(var z=0;z<r.length;z++) pset[r[z]]=1; }
-    // Per-category triage completeness for the green/amber outline: a row is "triaged" if either box is
-    // ticked. Internal = errint rows + blocked-internal; External = errext rows + blocked-external;
-    // bT/bN = the Blocked\xB7uncertain card's own completeness (all blocked rows, regardless of kind).
-    var iT=0, iN=0, eT=0, eN=0, bT=0, bN=0;
-    for(sc=0;sc<ERRS.length;sc++){ p=panel(ERRS[sc]); if(!p) continue; trs=p.querySelectorAll('tr[data-url]'); var isInt=(ERRS[sc]==='errint');
-      for(i=0;i<trs.length;i++){ var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'), td=(b&&b.checked)||(o&&o.checked);
-        if(isInt){ iN++; if(td) iT++; } else { eN++; if(td) eT++; }
-        if(o&&o.checked) continue;
-        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
-        addRefs(trs[i].getAttribute('data-url'));
-        if(isInt) uInt++; else uExt++; } }
-    p=panel('blockd'); if(p){ trs=p.querySelectorAll('tr[data-url]');
-      for(i=0;i<trs.length;i++){ var bb=trs[i].querySelector('.brokenbox'), bo=trs[i].querySelector('.okbox'), ext=(trs[i].getAttribute('data-kind')==='external'), t2=(bb&&bb.checked)||(bo&&bo.checked);
-        bN++; if(t2) bT++;
-        if(ext){ eN++; if(t2) eT++; } else { iN++; if(t2) iT++; }
-        if(!(bb&&bb.checked)) continue;
-        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
-        addRefs(trs[i].getAttribute('data-url'));
-        if(ext) uExt++; else uInt++; } }
-    var pgN=0, pk; for(pk in pset){ if(pset.hasOwnProperty(pk)) pgN++; }
-    setStat(document.getElementById('brokenInstN'), inst, DENOM.inst);
-    setStat(document.getElementById('brokenIntN'), uInt, DENOM.int);
-    setStat(document.getElementById('brokenExtN'), uExt, DENOM.ext);
-    setStat(document.getElementById('brokenTotN'), uInt+uExt, DENOM.tot);   // total unique destinations broken
-    setStat(document.getElementById('brokenPgN'), pgN);                     // referrer pages with broken links (no %)
-    setTestState(document.getElementById('brokenIntN'), iT, iN);
-    setTestState(document.getElementById('brokenExtN'), eT, eN);
-    // Broken hyperlink instances, total unique destinations broken, AND referrer pages all span internal +
-    // external (+ blocked), so their outlines need EVERY triageable link triaged.
-    setTestState(document.getElementById('brokenInstN'), iT+eT, iN+eN);
-    setTestState(document.getElementById('brokenTotN'), iT+eT, iN+eN);
-    setTestState(document.getElementById('brokenPgN'), iT+eT, iN+eN);
-    setTestState(document.getElementById('blockedN'), bT, bN);   // Blocked\xB7uncertain: green once all reviewed
-  }
-  // Apply a verdict to ONE row: set its boxes, persist the keys, swap classes, stamp/clear the
-  // Last-tested time. want is 'broken' | 'working' | '' (clears it). Shared by the per-link change
-  // handlers and the domain-level bulk control so both behave identically.
-  function applyVerdict(tr, url, want){
-    var b=tr.querySelector('.brokenbox'), o=tr.querySelector('.okbox');
-    if(want==='broken'){ if(b)b.checked=true; if(o)o.checked=false; setF(key('cwbroken:',url),true); setF(key('cwok:',url),false); rmCls(tr,'notbroken'); addCls(tr,'confirmed'); setTs(tr,url); }
-    else if(want==='working'){ if(o)o.checked=true; if(b)b.checked=false; setF(key('cwok:',url),true); setF(key('cwbroken:',url),false); rmCls(tr,'confirmed'); addCls(tr,'notbroken'); setTs(tr,url); }
-    else { if(b)b.checked=false; if(o)o.checked=false; setF(key('cwbroken:',url),false); setF(key('cwok:',url),false); rmCls(tr,'confirmed'); rmCls(tr,'notbroken'); clrTs(tr,url); }
-  }
-  // Domain-level bulk control (Errors\xB7external only). A domain's Broken/Working box applies the
-  // verdict to every link in that domain; its checked state is DERIVED from the children (all broken
-  // -> Broken, all working -> Working, mixed -> neither), so it survives reload from the per-link
-  // verdicts with no extra storage.
-  function rowsInDomain(host, scope){ var p=panel(scope); if(!p) return []; var all=p.querySelectorAll('tr[data-url]'), out=[], i; for(i=0;i<all.length;i++){ if(all[i].getAttribute('data-domain')===host) out.push(all[i]); } return out; }
-  function domCtl(host, scope, cls){ var p=panel(scope); if(!p) return null; var xs=p.querySelectorAll(cls), i; for(i=0;i<xs.length;i++){ if(xs[i].getAttribute('data-domain')===host) return xs[i]; } return null; }
-  // Set a disabled indicator box + toggle an 'on' class on its label (so it can be highlighted).
-  function setInd(box, on){ if(!box) return; box.checked=on; var lbl=box.parentNode; if(lbl&&typeof lbl.className==='string'){ var has=(' '+lbl.className+' ').indexOf(' on ')>=0; if(on&&!has) lbl.className=lbl.className+' on'; else if(!on&&has) lbl.className=(' '+lbl.className+' ').split(' on ').join(' ').trim(); } }
-  // Derive a domain header from its rows: the bulk Broken/Working boxes (checked when ALL broken /
-  // ALL working), the Mixture indicator (both verdicts present), the all-tested indicator, and the
-  // "triaged K/N" counter. Runs on load and after any per-link or bulk verdict change.
-  function deriveDomain(host, scope){
-    var rs=rowsInDomain(host, scope), n=rs.length, br=0, wk=0, i;
-    for(i=0;i<n;i++){ var b=rs[i].querySelector('.brokenbox'), o=rs[i].querySelector('.okbox'); if(b&&b.checked) br++; if(o&&o.checked) wk++; }
-    var tested=br+wk, db=domCtl(host,scope,'.dombroken'), dw=domCtl(host,scope,'.domworking');
-    if(db) db.checked=(n>0&&br===n);
-    if(dw) dw.checked=(n>0&&wk===n);
-    setInd(domCtl(host,scope,'.dommixture'), (br>0&&wk>0));
-    setInd(domCtl(host,scope,'.domalltested'), (n>0&&tested===n));
-    var pg=domCtl(host,scope,'.domprog'); if(pg) pg.textContent='\xB7 tested '+tested+'/'+n+' \xB7 '+br+' broken \xB7 '+wk+' working';
-    // Dashed-amber the header while the domain still has untested links; clears once all are tested.
-    var grp=domCtl(host,scope,'.domgrp'); if(grp) setCls(grp,'untested',(n>0&&tested<n));
-  }
-  function syncDomain(tr){ if(!tr) return; var h=tr.getAttribute('data-domain'), sc=tr.getAttribute('data-scope'); if(h&&sc) deriveDomain(h, sc); }
-  function applyDomain(host, scope, want){ var rs=rowsInDomain(host, scope), i; for(i=0;i<rs.length;i++){ applyVerdict(rs[i], rs[i].getAttribute('data-url'), want); } deriveDomain(host, scope); update(scope); }
-  function hasCls(el,c){ return !!(el&&typeof el.className==='string'&&(' '+el.className+' ').indexOf(' '+c+' ')>=0); }
-  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
-  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
-  // Wire the domain controls on BOTH grouped tabs (Errors\xB7external + Blocked\xB7uncertain).
-  function wireDomains(){ var sc=['errint','errext','blockd'], k; for(k=0;k<sc.length;k++) wireDomainScope(sc[k]); }
-  function wireDomainScope(scope){
-    var p=panel(scope); if(!p) return;
-    var tgs=p.querySelectorAll('.domtoggle'), bs=p.querySelectorAll('.dombroken'), os=p.querySelectorAll('.domworking'), i;
-    // Collapse/expand is a .collapsed class on .domgrp \u2014 under our control (no native <details>), so
-    // Expand/Collapse all set every group with certainty.
-    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
-    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'broken':''); }); }
-    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'working':''); }); }
-    var seen={}, all=p.querySelectorAll('tr[data-url]'); for(i=0;i<all.length;i++){ var h=all[i].getAttribute('data-domain'); if(h&&!seen[h]){ seen[h]=1; deriveDomain(h, scope); } }
-    var grps=p.querySelectorAll('.domgrp');
-    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
-    var ex=document.getElementById(scope+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
-    var co=document.getElementById(scope+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
-  }
-  function wire(scope){
-    var p=panel(scope); if(!p) return;
-    var trs=p.querySelectorAll('tr[data-url]'), i;
-    // Restore saved ticks. Broken wins if both keys are somehow set (keeps exclusivity).
-    for(i=0;i<trs.length;i++){ var tr=trs[i], b=tr.querySelector('.brokenbox'), o=tr.querySelector('.okbox'); if(!b||!o) continue;
-      var u=b.getAttribute('data-url'), wb=getF(key('cwbroken:',u)), wo=getF(key('cwok:',u));
-      if(wb){ b.checked=true; addCls(tr,'confirmed'); if(wo){ setF(key('cwok:',u),false); } }
-      else if(wo){ o.checked=true; addCls(tr,'notbroken'); }
-      var c=tsCell(tr); if(c) c.textContent=getS(key('cwts:',u)); }
-    var bs=p.querySelectorAll('.brokenbox'), os=p.querySelectorAll('.okbox');
-    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ var tr=rowOf(this); applyVerdict(tr, this.getAttribute('data-url'), this.checked?'broken':''); syncDomain(tr); update(scope); }); }
-    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ var tr=rowOf(this); applyVerdict(tr, this.getAttribute('data-url'), this.checked?'working':''); syncDomain(tr); update(scope); }); }
-    update(scope);
-  }
-  seedFromCopy();
-  for(var s=0;s<SCOPES.length;s++){ wire(SCOPES[s]); }
-  wireDomains();   // domain-level Broken/Working controls on the Errors\xB7external tab
-  // ---- drag-resizable triage columns ----------------------------------------------------------
-  // A triage tab can render several tables (one per domain group on Errors\xB7external / Blocked), so a
-  // resize broadcasts the new width to that column index in EVERY table of the tab, keeping the groups
-  // aligned. Widths persist per tab in localStorage; "Reset column widths" clears them.
-  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
-  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
-  function triTables(scope){ var p=panel(scope); if(!p) return []; return p.querySelectorAll('table.haspick, table.blkpick'); }
-  function applyCol(scope, idx, px){ var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
-  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
-  function gripDown(scope, th, idx, grip, e){
-    e.preventDefault(); e.stopPropagation();
-    var startX=e.clientX, startW=th.offsetWidth, cur=startW; addCls(grip,'drag');
-    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
-    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); rmCls(grip,'drag'); saveCol(scope, idx, cur); }
-    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true);
-  }
-  function wireColResize(scope){
-    var ts=triTables(scope); if(!ts.length) return;
-    var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
-    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j;
-      for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } }
-  }
-  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
-  for(var cz=0;cz<SCOPES.length;cz++) wireColResize(SCOPES[cz]);
-  var crs=document.querySelectorAll('.colreset'); for(var cr=0;cr<crs.length;cr++){ crs[cr].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
-  // Wire the share toolbar (final report only; absent otherwise).
-  var bCopy=document.getElementById('cwSaveCopy'); if(bCopy) bCopy.addEventListener('click', saveShareableCopy);
-  var bExp=document.getElementById('cwExportV'); if(bExp) bExp.addEventListener('click', exportVerdicts);
-  var bImp=document.getElementById('cwImportV'), fImp=document.getElementById('cwImportFile');
-  if(bImp&&fImp){ bImp.addEventListener('click', function(){ fImp.click(); }); fImp.addEventListener('change', function(){ var f=this.files&&this.files[0]; importVerdicts(f); try{ this.value=''; }catch(e){} }); }
-})();</script>
-<script>(function(){
-  // Non-triage tabs (External, Internal destinations, Out of scope) use the SAME .domgrp collapsibles as
-  // the triage tabs but without verdict controls \u2014 so this wires just the caret toggle + Expand/Collapse
-  // all. deriveDomain is deliberately NOT called here, so these groups never get the amber "untested" halo
-  // (that's a triage-only signal). Each .domtoggle toggles its group's .collapsed class; the buttons set
-  // every group at once (no state detection \u2014 a single toggle could desync and show the wrong label).
-  function hasCls(el,c){ return (' '+(el.className||'')+' ').indexOf(' '+c+' ')>=0; }
-  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
-  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
-  // ---- drag-resizable columns for the non-triage grouped tables (.grptbl) -----------------------------
-  // The triage tabs' resize lives in a triage-only IIFE that bails when there are no verdict rows, so the
-  // non-triage tables carry their own copy here. Same mechanic: a grip per header, the new width broadcast
-  // to that column index across EVERY group table in the tab (keeping the groups aligned), persisted per
-  // 'cwcol:host:scope'. No enforced minimum width \u2014 drag a column as narrow as you like.
-  var HOST=${JSON.stringify(state.startHost)};
-  function L(){ try{ return localStorage; }catch(e){ return null; } }
-  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
-  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
-  function grpTables(scope){ var P=document.getElementById('panel-'+scope); return P? P.querySelectorAll('table.grptbl') : []; }
-  function applyCol(scope, idx, px){ var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
-  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
-  function gripDown(scope, th, idx, grip, e){ e.preventDefault(); e.stopPropagation(); var startX=e.clientX, startW=th.offsetWidth, cur=startW; setCls(grip,'drag',true);
-    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
-    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); setCls(grip,'drag',false); saveCol(scope, idx, cur); }
-    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true); }
-  function wireResize(scope){ var ts=grpTables(scope); if(!ts.length) return; var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
-    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } } }
-  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
-  var TABS=[['panel-external','ext'],['panel-internal','int'],['panel-outscope','oos']], t;
-  for(t=0;t<TABS.length;t++){ (function(pid, pre){
-    var P=document.getElementById(pid); if(!P) return;
-    var scope=pid.replace('panel-','');
-    var tgs=P.querySelectorAll('.domtoggle'), i;
-    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
-    var grps=P.querySelectorAll('.domgrp');
-    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
-    var ex=document.getElementById(pre+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
-    var co=document.getElementById(pre+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
-    wireResize(scope);
-  })(TABS[t][0], TABS[t][1]); }
-  var rbs=document.querySelectorAll('.grpcolreset'); for(var r=0;r<rbs.length;r++){ rbs[r].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
-})();</script>
-${pagerScript}${NEWWIN}${THEME_JS}</body></html>`;
-    }
+// src/report/json-report.js
+var require_json_report = __commonJS({
+  "src/report/json-report.js"(exports2, module2) {
+    "use strict";
+    var { effSettings, settingsAreKnown } = require_settings();
     function buildReportJson(state, cfg, allow, partial) {
       const suppressed = [], active = [];
       for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);
@@ -1464,10 +1525,17 @@ ${pagerScript}${NEWWIN}${THEME_JS}</body></html>`;
         blocked: (state.blocked || []).map((e) => ({ url: e.url, reason: e.reason, kind: e.kind || "internal", foundOn: refsOf(e.url).length ? refsOf(e.url) : e.source ? [e.source] : [] }))
       }, null, 2);
     }
-    function writeOutputs2(state, cfg, allow, partial) {
-      fs2.writeFileSync(cfg.out, buildReport(state, cfg, allow, partial));
-      if (cfg.json) fs2.writeFileSync(cfg.json, buildReportJson(state, cfg, allow, partial));
-    }
+    module2.exports = { buildReportJson };
+  }
+});
+
+// src/report/index-report.js
+var require_index_report = __commonJS({
+  "src/report/index-report.js"(exports2, module2) {
+    "use strict";
+    var fs2 = require("fs");
+    var { THEME_LIGHT_CSS, THEME_HEAD, THEME_BTN, THEME_JS } = require_branding();
+    var { NEWWIN } = require_report_templates();
     function buildIndexReport2(sites, cfg, allow, partial, startedAt) {
       const esc2 = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
       const done = sites.filter((s) => s.state && !s.partial).length;
@@ -1551,6 +1619,22 @@ ${THEME_JS}</body></html>`;
         })
       };
       fs2.writeFileSync(cfg.json, JSON.stringify(data, null, 2));
+    }
+    module2.exports = { buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 };
+  }
+});
+
+// src/report.js
+var require_report = __commonJS({
+  "src/report.js"(exports2, module2) {
+    "use strict";
+    var fs2 = require("fs");
+    var { buildReport } = require_report_page();
+    var { buildReportJson } = require_json_report();
+    var { buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 } = require_index_report();
+    function writeOutputs2(state, cfg, allow, partial) {
+      fs2.writeFileSync(cfg.out, buildReport(state, cfg, allow, partial));
+      if (cfg.json) fs2.writeFileSync(cfg.json, buildReportJson(state, cfg, allow, partial));
     }
     module2.exports = { buildReport, buildReportJson, writeOutputs: writeOutputs2, buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 };
   }

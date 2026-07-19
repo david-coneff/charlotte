@@ -742,17 +742,11 @@ var require_newwin = __commonJS({
   }
 });
 
-// src/report-templates/tracker-template.js
-var require_tracker_template = __commonJS({
-  "src/report-templates/tracker-template.js"(exports2, module2) {
+// src/report-templates/tracker-css.js
+var require_tracker_css = __commonJS({
+  "src/report-templates/tracker-css.js"(exports2, module2) {
     "use strict";
-    var NEWWIN = require_newwin();
-    var TRACKER_TEMPLATE = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>\u{1F578}\uFE0F Charlotte \u2014 Broken-link fix tracker</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%95%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
-<style>
-:root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--warn:#fbbf24;--bad:#f87171;--border:#2c3340;--accent-fg:#06121f}
+    module2.exports = `:root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--warn:#fbbf24;--bad:#f87171;--border:#2c3340;--accent-fg:#06121f}
 html[data-theme="light"]{--bg:#f4f6f9;--panel:#ffffff;--panel2:#eaeef3;--fg:#1c2230;--muted:#5b6675;--accent:#0969da;--link:#0a66c2;--good:#1a7f37;--warn:#9a6700;--bad:#cf222e;--border:#d0d7de;--accent-fg:#ffffff}
 .themebtn{position:fixed;top:12px;right:16px;z-index:30;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;font-size:15px;line-height:1}.themebtn:hover{border-color:var(--accent);color:var(--accent)}
 *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
@@ -837,36 +831,15 @@ a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}td a{
 .pgnum{color:var(--muted);font-size:12px}
 .pgbtn:disabled{opacity:.5;cursor:default}
 tr.done td:not(.c):not(.v):not(.ft):not(.ts){opacity:.5;text-decoration:line-through}
-.muted{color:var(--muted)}.hidden{display:none}
-</style>
-<script>try{if(localStorage.getItem('charlotteTheme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script></head><body><button id="themeToggle" class="themebtn" type="button" title="Toggle light / dark theme">\u{1F319}</button>
-<header><h1>\u{1F578}\uFE0F Charlotte <span class="muted" style="font-weight:400">\xB7 Broken-link fix tracker</span></h1><p id="sub"></p></header>
-<main>
-<div class="statcard">
- <div class="statrow">
-  <div class="stat fixed"><div class="statn"><span id="st-fInst">0</span> <span class="statpct" id="st-fInstP"></span></div><div class="statl">Fixed hyperlink instances</div></div>
-  <div class="stat fixed"><div class="statn"><span id="st-fInt">0</span> <span class="statpct" id="st-fIntP"></span></div><div class="statl">Fixed internal destinations</div></div>
-  <div class="stat fixed"><div class="statn"><span id="st-fExt">0</span> <span class="statpct" id="st-fExtP"></span></div><div class="statl">Fixed external destinations</div></div>
-  <div class="stat fixed"><div class="statn"><span id="st-fPg">0</span> <span class="statpct" id="st-fPgP"></span></div><div class="statl">Pages remediated</div></div>
- </div>
- <div class="statrow">
-  <div class="stat broken"><div class="statn" id="st-bInst">0</div><div class="statl">Broken hyperlink instances</div></div>
-  <div class="stat broken"><div class="statn" id="st-bInt">0</div><div class="statl">Broken internal destinations</div></div>
-  <div class="stat broken"><div class="statn" id="st-bExt">0</div><div class="statl">Broken external destinations</div></div>
-  <div class="stat broken"><div class="statn" id="st-bPg">0</div><div class="statl">Pages with broken links</div></div>
- </div>
- <p class="statnote">Top row = how many references you've <strong>Fixed</strong> (remediated the link on the page), as a share of the <strong>Broken</strong> workload below. Marking a link <strong>Working</strong> drops it from the broken counts.</p>
-</div>
-<div class="card">
- <div class="bar">
-  <div class="tabs"><button class="gtab active" data-g="page" type="button" title="Group by referrer page, listing ALL its broken links (internal and external together) \u2014 fix a whole page at once">By page</button><button class="gtab" data-g="link" type="button" title="Group by broken link, listing every page that links to it \u2014 confirm a broken link is resolved everywhere it appears">By broken link</button></div>
-  <button id="expAll" class="btn" type="button" title="Expand every group on this tab">Expand all</button><button id="colAll" class="btn" type="button" title="Collapse every group on this tab">Collapse all</button><button id="colReset" class="btn" type="button" title="Restore the default column widths">\u2194 Reset columns</button>
-  <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">\u2B07 Export</button><button id="cwImp" class="btn" type="button" title="Load one or more tracker-state JSON files (e.g. a folder of contributors' exports) \u2014 merges them all by entry, then reloads">\u2B06 Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in \u2014 email that single file">\u{1F4BE} Save copy</button><button id="cwPages" class="btn" type="button" title="Batch-save one mini-tracker per referrer PAGE \u2014 each scoped to just that page's broken links and named after the page address \u2014 into a folder you pick. Hand a page's file to whoever owns it; they fix &amp; export, you Import their JSON back here.">\u{1F5C2} Bulk export: per page</button><button id="cwFolders" class="btn" type="button" title="Batch-save one mini-tracker per tier-1 site SUBFOLDER \u2014 every page under e.g. /about/ goes in one file, scoped to those pages' broken links and named after the folder \u2014 into a folder you pick. For delegating a whole section of the site to one owner.">\u{1F5C1} Bulk export: per subfolder</button><input type="file" id="cwImpF" accept="application/json,.json" multiple style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
- </div>
- <div class="tabview" id="tv-all"><div class="pagerbar" id="pager-all"></div><div class="trkview" id="view-all"><div id="panel-all"></div></div></div>
-</div></main>
-<script>
-var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
+.muted{color:var(--muted)}.hidden{display:none}`;
+  }
+});
+
+// src/report-templates/tracker-script.js
+var require_tracker_script = __commonJS({
+  "src/report-templates/tracker-script.js"(exports2, module2) {
+    "use strict";
+    module2.exports = `var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
 (function(){
   var NS='cwfix:'+(DATA.host||'')+':', NL=String.fromCharCode(10);
   function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -1213,7 +1186,52 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   var cAll=count();
   document.getElementById('sub').textContent=(DATA.host||'')+' \xB7 generated '+(DATA.generatedAt||'')+' \xB7 '+cAll.pages+' referrer page(s), '+cAll.total+' broken-link instance(s) \xB7 fixes, verdicts, times & notes saved in this browser';
   fill();
-})();
+})();`;
+  }
+});
+
+// src/report-templates/tracker-template.js
+var require_tracker_template = __commonJS({
+  "src/report-templates/tracker-template.js"(exports2, module2) {
+    "use strict";
+    var NEWWIN = require_newwin();
+    var TRACKER_CSS = require_tracker_css();
+    var TRACKER_SCRIPT = require_tracker_script();
+    var TRACKER_TEMPLATE = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>\u{1F578}\uFE0F Charlotte \u2014 Broken-link fix tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%95%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<style>
+` + TRACKER_CSS + `
+</style>
+<script>try{if(localStorage.getItem('charlotteTheme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script></head><body><button id="themeToggle" class="themebtn" type="button" title="Toggle light / dark theme">\u{1F319}</button>
+<header><h1>\u{1F578}\uFE0F Charlotte <span class="muted" style="font-weight:400">\xB7 Broken-link fix tracker</span></h1><p id="sub"></p></header>
+<main>
+<div class="statcard">
+ <div class="statrow">
+  <div class="stat fixed"><div class="statn"><span id="st-fInst">0</span> <span class="statpct" id="st-fInstP"></span></div><div class="statl">Fixed hyperlink instances</div></div>
+  <div class="stat fixed"><div class="statn"><span id="st-fInt">0</span> <span class="statpct" id="st-fIntP"></span></div><div class="statl">Fixed internal destinations</div></div>
+  <div class="stat fixed"><div class="statn"><span id="st-fExt">0</span> <span class="statpct" id="st-fExtP"></span></div><div class="statl">Fixed external destinations</div></div>
+  <div class="stat fixed"><div class="statn"><span id="st-fPg">0</span> <span class="statpct" id="st-fPgP"></span></div><div class="statl">Pages remediated</div></div>
+ </div>
+ <div class="statrow">
+  <div class="stat broken"><div class="statn" id="st-bInst">0</div><div class="statl">Broken hyperlink instances</div></div>
+  <div class="stat broken"><div class="statn" id="st-bInt">0</div><div class="statl">Broken internal destinations</div></div>
+  <div class="stat broken"><div class="statn" id="st-bExt">0</div><div class="statl">Broken external destinations</div></div>
+  <div class="stat broken"><div class="statn" id="st-bPg">0</div><div class="statl">Pages with broken links</div></div>
+ </div>
+ <p class="statnote">Top row = how many references you've <strong>Fixed</strong> (remediated the link on the page), as a share of the <strong>Broken</strong> workload below. Marking a link <strong>Working</strong> drops it from the broken counts.</p>
+</div>
+<div class="card">
+ <div class="bar">
+  <div class="tabs"><button class="gtab active" data-g="page" type="button" title="Group by referrer page, listing ALL its broken links (internal and external together) \u2014 fix a whole page at once">By page</button><button class="gtab" data-g="link" type="button" title="Group by broken link, listing every page that links to it \u2014 confirm a broken link is resolved everywhere it appears">By broken link</button></div>
+  <button id="expAll" class="btn" type="button" title="Expand every group on this tab">Expand all</button><button id="colAll" class="btn" type="button" title="Collapse every group on this tab">Collapse all</button><button id="colReset" class="btn" type="button" title="Restore the default column widths">\u2194 Reset columns</button>
+  <span class="grow"></span><span id="prog" class="muted"></span><button id="reset" class="btn" type="button">Clear ticks</button><span style="width:1px;height:20px;background:var(--border)"></span><button id="cwExp" class="btn" type="button" title="Download this tracker's state (fixed + when, verdicts + when, notes) as JSON to share">\u2B07 Export</button><button id="cwImp" class="btn" type="button" title="Load one or more tracker-state JSON files (e.g. a folder of contributors' exports) \u2014 merges them all by entry, then reloads">\u2B06 Import</button><button id="cwCopy" class="btn" type="button" title="Save a self-contained copy of this tracker with all current state baked in \u2014 email that single file">\u{1F4BE} Save copy</button><button id="cwPages" class="btn" type="button" title="Batch-save one mini-tracker per referrer PAGE \u2014 each scoped to just that page's broken links and named after the page address \u2014 into a folder you pick. Hand a page's file to whoever owns it; they fix &amp; export, you Import their JSON back here.">\u{1F5C2} Bulk export: per page</button><button id="cwFolders" class="btn" type="button" title="Batch-save one mini-tracker per tier-1 site SUBFOLDER \u2014 every page under e.g. /about/ goes in one file, scoped to those pages' broken links and named after the folder \u2014 into a folder you pick. For delegating a whole section of the site to one owner.">\u{1F5C1} Bulk export: per subfolder</button><input type="file" id="cwImpF" accept="application/json,.json" multiple style="position:fixed;left:-9999px;width:1px;height:1px;opacity:0">
+ </div>
+ <div class="tabview" id="tv-all"><div class="pagerbar" id="pager-all"></div><div class="trkview" id="view-all"><div id="panel-all"></div></div></div>
+</div></main>
+<script>
+` + TRACKER_SCRIPT + `
 </script>
 ` + NEWWIN + `
 <script>(function(){var b=document.getElementById('themeToggle');if(!b)return;function cur(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}function paint(){b.textContent=cur()==='light'?'\u2600\uFE0F':'\u{1F319}';b.title='Switch to '+(cur()==='light'?'dark':'light')+' theme';}paint();b.addEventListener('click',function(){if(cur()==='light'){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','light');}try{localStorage.setItem('charlotteTheme',cur());}catch(e){}paint();});})();</script></body></html>`;

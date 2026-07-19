@@ -1,13 +1,9 @@
 {
-  "_comment": "Monolith-growth census baseline (DS-016). The shared rhiz-lint monolith-growth check (rhiz_growth engine, from rhizome tools-stable) reads this and bands charlotte's hand-grown source against the thresholds. `rhiz census` drills the bands. Scan is scoped to src/ (the source of truth); the root crawl.js / crawl-render.js are BUILD OUTPUTS generated from src/ by build.mjs and are excluded. Files already over threshold at adoption (2026-07-18) are recorded in keep_whole as a baseline snapshot with their size-at-adoption, so the stale-detector re-nags only if they GROW past the stale factor — the census is adopted as a forward tripwire, not a demand to partition stable code today.",
+  "_comment": "Monolith-growth census baseline (DS-016). The shared rhiz-lint monolith-growth check (rhiz_growth engine, from rhizome tools-stable) reads this and bands charlotte's hand-grown source against the thresholds. `rhiz census` drills the bands. Scan is scoped to src/ (the source of truth); the root crawl.js / crawl-render.js are BUILD OUTPUTS generated from src/ by build.mjs and are excluded. The three files over threshold at adoption (2026-07-18) — src/report.js, src/crawl.js, src/report-templates/tracker-template.js — were all partitioned into ≤500-line modules via the build-roll-up modality (DS-002/DS-016) on 2026-07-19 (each kept alive as a thin facade/assembler; verified byte-identical build output on the golden fixtures). keep_whole is now empty: nothing is deliberately kept whole, and every src/ file is under threshold. The census remains a forward tripwire — add an entry here only to deliberately hold a future file whole, with its size-at-adoption and an honest reason.",
   "thresholds": {"lines": 500, "bytes": 50000, "advisory_fraction": 0.8, "stale_growth": 1.25},
   "code": {
     "scan": ["src/"],
     "extensions": [".js", ".mjs"]
   },
-  "keep_whole": {
-    "src/report.js": {"lines": 1136, "bytes": 119535, "recorded": "2026-07-18", "reason": "pre-existing at census adoption — report generator/templating; baseline snapshot, not yet evaluated for partition. Stale-detector re-nags if it grows >1.25x."},
-    "src/crawl.js": {"lines": 664, "bytes": 38318, "recorded": "2026-07-18", "reason": "pre-existing at census adoption — crawler core (source of the generated root crawl.js); baseline snapshot, not yet evaluated for partition. Stale-detector re-nags if it grows >1.25x."},
-    "src/report-templates/tracker-template.js": {"lines": 502, "bytes": 58472, "recorded": "2026-07-18", "reason": "pre-existing at census adoption — a single HTML/JS report template (mostly embedded markup); cohesive as one template. Stale-detector re-nags if it grows >1.25x."}
-  }
+  "keep_whole": {}
 }

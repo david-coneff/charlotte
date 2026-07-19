@@ -1533,7 +1533,7 @@ var require_json_report = __commonJS({
 var require_index_report = __commonJS({
   "src/report/index-report.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("fs");
+    var fs3 = require("fs");
     var { THEME_LIGHT_CSS, THEME_HEAD, THEME_BTN, THEME_JS } = require_branding();
     var { NEWWIN } = require_report_templates();
     function buildIndexReport2(sites, cfg, allow, partial, startedAt) {
@@ -1618,7 +1618,7 @@ ${THEME_JS}</body></html>`;
           };
         })
       };
-      fs2.writeFileSync(cfg.json, JSON.stringify(data, null, 2));
+      fs3.writeFileSync(cfg.json, JSON.stringify(data, null, 2));
     }
     module2.exports = { buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 };
   }
@@ -1628,13 +1628,13 @@ ${THEME_JS}</body></html>`;
 var require_report = __commonJS({
   "src/report.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("fs");
+    var fs3 = require("fs");
     var { buildReport } = require_report_page();
     var { buildReportJson } = require_json_report();
     var { buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 } = require_index_report();
     function writeOutputs2(state, cfg, allow, partial) {
-      fs2.writeFileSync(cfg.out, buildReport(state, cfg, allow, partial));
-      if (cfg.json) fs2.writeFileSync(cfg.json, buildReportJson(state, cfg, allow, partial));
+      fs3.writeFileSync(cfg.out, buildReport(state, cfg, allow, partial));
+      if (cfg.json) fs3.writeFileSync(cfg.json, buildReportJson(state, cfg, allow, partial));
     }
     module2.exports = { buildReport, buildReportJson, writeOutputs: writeOutputs2, buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 };
   }
@@ -1644,22 +1644,22 @@ var require_report = __commonJS({
 var require_log = __commonJS({
   "src/log.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("fs");
-    var path2 = require("path");
+    var fs3 = require("fs");
+    var path = require("path");
     function makeLogWriter2(cfg, meta) {
       if (!cfg.log) return { line() {
       }, finalize() {
       }, parts: [], manifestPath: "", singleFile: true };
-      const dir = path2.dirname(cfg.log);
-      const ext = path2.extname(cfg.log) || ".log";
-      const stem = path2.basename(cfg.log, ext);
+      const dir = path.dirname(cfg.log);
+      const ext = path.extname(cfg.log) || ".log";
+      const stem = path.basename(cfg.log, ext);
       const maxBytes = cfg.logMaxBytes;
       const single = maxBytes <= 0;
-      const manifestPath = single ? "" : path2.join(dir, stem + ".manifest.json");
+      const manifestPath = single ? "" : path.join(dir, stem + ".manifest.json");
       const parts = [];
       const nowIso = () => (/* @__PURE__ */ new Date()).toISOString();
       let idx = 0, curPath = null, curBytes = 0, curLines = 0;
-      const partPath = (n) => single ? cfg.log : path2.join(dir, stem + ".part" + String(n).padStart(3, "0") + ext);
+      const partPath = (n) => single ? cfg.log : path.join(dir, stem + ".part" + String(n).padStart(3, "0") + ext);
       function writeManifest(complete) {
         if (single) return;
         if (parts.length) {
@@ -1668,7 +1668,7 @@ var require_log = __commonJS({
         }
         const m = { run: meta.run, startUrl: meta.startUrl, startedAt: meta.startedAt, base: stem, ext, maxBytes, parts, complete: !!complete, updatedAt: nowIso() };
         try {
-          fs2.writeFileSync(manifestPath, JSON.stringify(m, null, 2));
+          fs3.writeFileSync(manifestPath, JSON.stringify(m, null, 2));
         } catch {
         }
       }
@@ -1684,17 +1684,17 @@ var require_log = __commonJS({
         if (!single) {
           const header = "#META " + JSON.stringify({ run: meta.run, part: idx, base: stem, ext, startUrl: meta.startUrl, partStarted: nowIso() }) + "\n";
           try {
-            fs2.writeFileSync(curPath, header);
+            fs3.writeFileSync(curPath, header);
           } catch {
           }
           curBytes += Buffer.byteLength(header);
         } else {
           try {
-            fs2.writeFileSync(curPath, "");
+            fs3.writeFileSync(curPath, "");
           } catch {
           }
         }
-        parts.push({ part: idx, file: path2.basename(curPath), started: nowIso(), bytes: curBytes, lines: 0 });
+        parts.push({ part: idx, file: path.basename(curPath), started: nowIso(), bytes: curBytes, lines: 0 });
         writeManifest(false);
       }
       function line(s) {
@@ -1703,7 +1703,7 @@ var require_log = __commonJS({
         if (curPath === null) roll();
         else if (!single && curBytes + len > maxBytes) roll();
         try {
-          fs2.appendFileSync(curPath, buf);
+          fs3.appendFileSync(curPath, buf);
         } catch {
         }
         curBytes += len;
@@ -1711,12 +1711,12 @@ var require_log = __commonJS({
       }
       return { line, finalize: writeManifest, parts, manifestPath, singleFile: single };
     }
-    function makeJournal2(file) {
+    function makeJournal(file) {
       if (!file) return { ev() {
       }, on: false };
       const ev = (obj) => {
         try {
-          fs2.appendFileSync(file, JSON.stringify(obj) + "\n");
+          fs3.appendFileSync(file, JSON.stringify(obj) + "\n");
         } catch {
         }
       };
@@ -1724,50 +1724,50 @@ var require_log = __commonJS({
     }
     function mergeLogs2(target, outFile) {
       let manifest = null, dir = ".", stem = "", ext = ".log";
-      if (target && fs2.existsSync(target) && fs2.statSync(target).isFile() && target.endsWith(".json")) {
-        manifest = JSON.parse(fs2.readFileSync(target, "utf8"));
-        dir = path2.dirname(target);
+      if (target && fs3.existsSync(target) && fs3.statSync(target).isFile() && target.endsWith(".json")) {
+        manifest = JSON.parse(fs3.readFileSync(target, "utf8"));
+        dir = path.dirname(target);
         stem = manifest.base;
         ext = manifest.ext || ".log";
       } else {
-        const isDir = fs2.existsSync(target) && fs2.statSync(target).isDirectory();
-        dir = isDir ? target : path2.dirname(target);
-        const baseGuess = isDir ? "" : path2.basename(target, path2.extname(target) || "");
-        ext = isDir ? ".log" : path2.extname(target) || ".log";
-        const mp = path2.join(dir, (baseGuess || "crawl-progress") + ".manifest.json");
-        if (fs2.existsSync(mp)) {
-          manifest = JSON.parse(fs2.readFileSync(mp, "utf8"));
+        const isDir = fs3.existsSync(target) && fs3.statSync(target).isDirectory();
+        dir = isDir ? target : path.dirname(target);
+        const baseGuess = isDir ? "" : path.basename(target, path.extname(target) || "");
+        ext = isDir ? ".log" : path.extname(target) || ".log";
+        const mp = path.join(dir, (baseGuess || "crawl-progress") + ".manifest.json");
+        if (fs3.existsSync(mp)) {
+          manifest = JSON.parse(fs3.readFileSync(mp, "utf8"));
           stem = manifest.base;
           ext = manifest.ext || ".log";
         } else stem = baseGuess;
       }
       let orderedFiles;
       if (manifest && Array.isArray(manifest.parts) && manifest.parts.length) {
-        orderedFiles = manifest.parts.slice().sort((a, b) => a.part - b.part).map((p) => path2.join(dir, p.file));
+        orderedFiles = manifest.parts.slice().sort((a, b) => a.part - b.part).map((p) => path.join(dir, p.file));
       } else {
         const re = new RegExp("^" + stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\.part(\\d+)" + ext.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$");
         const found = [];
-        for (const f of fs2.readdirSync(dir)) {
+        for (const f of fs3.readdirSync(dir)) {
           const m = f.match(re);
-          if (m) found.push({ n: Number(m[1]), file: path2.join(dir, f) });
+          if (m) found.push({ n: Number(m[1]), file: path.join(dir, f) });
         }
         found.sort((a, b) => a.n - b.n);
         orderedFiles = found.map((x) => x.file);
       }
       if (!orderedFiles.length) throw new Error("No log parts found for: " + target);
-      const sink = outFile ? fs2.createWriteStream(outFile) : process.stdout;
+      const sink = outFile ? fs3.createWriteStream(outFile) : process.stdout;
       const head = `# composite log reconstructed from ${orderedFiles.length} part(s)${manifest ? ` (run ${manifest.run}${manifest.complete ? "" : ", INCOMPLETE"})` : ""}
 `;
       sink.write(head);
       for (const file of orderedFiles) {
-        const text = fs2.readFileSync(file, "utf8");
+        const text = fs3.readFileSync(file, "utf8");
         const body = text.replace(/^#META [^\n]*\n?/, "");
         sink.write(body);
       }
       if (outFile) sink.end();
       return orderedFiles.length;
     }
-    module2.exports = { makeLogWriter: makeLogWriter2, makeJournal: makeJournal2, mergeLogs: mergeLogs2 };
+    module2.exports = { makeLogWriter: makeLogWriter2, makeJournal, mergeLogs: mergeLogs2 };
   }
 });
 
@@ -1775,8 +1775,8 @@ var require_log = __commonJS({
 var require_parse = __commonJS({
   "src/parse.js"(exports2, module2) {
     "use strict";
-    var zlib2 = require("zlib");
-    var { URL: URL2 } = require("url");
+    var zlib = require("zlib");
+    var { URL } = require("url");
     var TITLE_CAP = 300;
     function decodeEntities(s) {
       return s.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (whole, ent) => {
@@ -1788,7 +1788,7 @@ var require_parse = __commonJS({
         return map[ent.toLowerCase()] || whole;
       });
     }
-    function extractLinks2(html, pageUrl) {
+    function extractLinks(html, pageUrl) {
       const src = html.replace(/<!--[\s\S]*?-->/g, "");
       let base = pageUrl;
       const bm = src.match(/<base\b[^>]*\bhref\s*=\s*("([^"]*)"|'([^']*)'|([^\s">]+))/i);
@@ -1796,7 +1796,7 @@ var require_parse = __commonJS({
         const href = decodeEntities((bm[2] ?? bm[3] ?? bm[4] ?? "").trim());
         if (href) {
           try {
-            base = new URL2(href, pageUrl).href;
+            base = new URL(href, pageUrl).href;
           } catch {
           }
         }
@@ -1808,7 +1808,7 @@ var require_parse = __commonJS({
         const raw = decodeEntities((m[2] ?? m[3] ?? m[4] ?? "").trim());
         if (!raw || raw.startsWith("#") || /^(javascript:|mailto:|tel:|data:)/i.test(raw)) continue;
         try {
-          links.push(new URL2(raw, base));
+          links.push(new URL(raw, base));
         } catch {
         }
       }
@@ -1824,7 +1824,7 @@ var require_parse = __commonJS({
       if (c.indexOf("msword") >= 0 || c.indexOf("ms-excel") >= 0 || c.indexOf("ms-powerpoint") >= 0 || c.indexOf("vnd.ms-") >= 0 || /\.(doc|xls|ppt)(\?|$)/.test(p)) return "ole";
       return null;
     }
-    function sniffMagic2(buf) {
+    function sniffMagic(buf) {
       if (!buf || buf.length < 4) return null;
       if (buf[0] === 37 && buf[1] === 80 && buf[2] === 68 && buf[3] === 70) return "pdf";
       if (buf[0] === 80 && buf[1] === 75) return "ooxml";
@@ -1860,7 +1860,7 @@ var require_parse = __commonJS({
         const dataStart = lhOff + 30 + lhNameLen + lhExtraLen;
         const comp = buf.slice(dataStart, dataStart + compSize);
         try {
-          out.push({ name, data: method === 0 ? comp : zlib2.inflateRawSync(comp) });
+          out.push({ name, data: method === 0 ? comp : zlib.inflateRawSync(comp) });
         } catch {
         }
       }
@@ -1897,9 +1897,9 @@ var require_parse = __commonJS({
       while (m = re.exec(s2)) urls.push(m[0]);
       return urls;
     }
-    function extractDocLinks2(buf, docType, baseUrl) {
+    function extractDocLinks(buf, docType, baseUrl) {
       let type = docType;
-      if (!type || type === "sniff") type = sniffMagic2(buf) || type;
+      if (!type || type === "sniff") type = sniffMagic(buf) || type;
       let raws;
       if (type === "ooxml") raws = ooxmlLinks(buf);
       else if (type === "pdf") raws = pdfLinks(buf);
@@ -1909,7 +1909,7 @@ var require_parse = __commonJS({
         let s = String(r).trim().replace(/[).,;'">]+$/, "");
         if (!s || /^(mailto:|tel:|javascript:)/i.test(s)) continue;
         try {
-          const u = new URL2(s, baseUrl);
+          const u = new URL(s, baseUrl);
           if ((u.protocol === "http:" || u.protocol === "https:") && !seen.has(u.href)) {
             seen.add(u.href);
             out.push(u);
@@ -1919,113 +1919,7 @@ var require_parse = __commonJS({
       }
       return out;
     }
-    module2.exports = { extractLinks: extractLinks2, extractDocLinks: extractDocLinks2, docTypeOf, sniffMagic: sniffMagic2 };
-  }
-});
-
-// src/seen.js
-var require_seen = __commonJS({
-  "src/seen.js"(exports2, module2) {
-    "use strict";
-    var fs2 = require("fs");
-    function fnv1a64(str) {
-      const prime = 0x100000001b3n, mask = 0xffffffffffffffffn;
-      let h = 0xcbf29ce484222325n;
-      for (let i = 0; i < str.length; i++) {
-        const c = str.charCodeAt(i);
-        h = (h ^ BigInt(c & 255)) * prime & mask;
-        if (c > 255) h = (h ^ BigInt(c >> 8 & 255)) * prime & mask;
-      }
-      return h === 0n ? 1n : h;
-    }
-    function makeSeenStore2(mode, maxItems, seenFile) {
-      if (mode === "memory" || !Number.isFinite(maxItems)) {
-        const s = /* @__PURE__ */ new Set();
-        return {
-          mode: "memory",
-          tryAdd(k) {
-            if (s.has(k)) return false;
-            if (s.size >= maxItems) return false;
-            s.add(k);
-            return true;
-          },
-          get size() {
-            return s.size;
-          },
-          close() {
-          }
-        };
-      }
-      const slots = Math.max(1024, Math.ceil(maxItems / 0.7) + 1);
-      const slotsBig = BigInt(slots);
-      let count = 0;
-      if (mode === "disk") {
-        const fd = fs2.openSync(seenFile, "w+");
-        fs2.ftruncateSync(fd, slots * 8);
-        const buf = Buffer.alloc(8);
-        const read = (i) => {
-          fs2.readSync(fd, buf, 0, 8, i * 8);
-          return buf.readBigUInt64BE(0);
-        };
-        const write = (i, h) => {
-          buf.writeBigUInt64BE(h, 0);
-          fs2.writeSync(fd, buf, 0, 8, i * 8);
-        };
-        return {
-          mode: "disk",
-          tryAdd(k) {
-            const h = fnv1a64(k);
-            let i = Number(h % slotsBig);
-            for (; ; ) {
-              const v = read(i);
-              if (v === 0n) {
-                if (count >= maxItems) return false;
-                write(i, h);
-                count++;
-                return true;
-              }
-              if (v === h) return false;
-              i = (i + 1) % slots;
-            }
-          },
-          get size() {
-            return count;
-          },
-          close() {
-            try {
-              fs2.closeSync(fd);
-              fs2.unlinkSync(seenFile);
-            } catch {
-            }
-          }
-        };
-      }
-      const table = new BigUint64Array(slots);
-      return {
-        mode: "compact",
-        tryAdd(k) {
-          const h = fnv1a64(k);
-          let i = Number(h % slotsBig);
-          for (; ; ) {
-            const v = table[i];
-            if (v === 0n) {
-              if (count >= maxItems) return false;
-              table[i] = h;
-              count++;
-              return true;
-            }
-            if (v === h) return false;
-            i = (i + 1) % slots;
-          }
-        },
-        get size() {
-          return count;
-        },
-        close() {
-        }
-      };
-    }
-    module2.exports = { makeSeenStore: makeSeenStore2 };
+    module2.exports = { extractLinks, extractDocLinks, docTypeOf, sniffMagic };
   }
 });
 
@@ -2033,11 +1927,11 @@ var require_seen = __commonJS({
 var require_fetch = __commonJS({
   "src/fetch.js"(exports2, module2) {
     "use strict";
-    var http2 = require("http");
-    var https2 = require("https");
-    var zlib2 = require("zlib");
-    var { URL: URL2 } = require("url");
-    var { docTypeOf, sniffMagic: sniffMagic2 } = require_parse();
+    var http = require("http");
+    var https = require("https");
+    var zlib = require("zlib");
+    var { URL } = require("url");
+    var { docTypeOf, sniffMagic } = require_parse();
     var MAX_REDIRECTS = 5;
     var MAX_BYTES = 5 * 1024 * 1024;
     var BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -2055,12 +1949,12 @@ var require_fetch = __commonJS({
       return new Promise((resolve) => {
         let u;
         try {
-          u = new URL2(target);
+          u = new URL(target);
         } catch {
           return resolve({ status: 0, err: "bad URL" });
         }
         if (u.protocol !== "http:" && u.protocol !== "https:") return resolve({ status: 0, err: "unsupported protocol" });
-        const lib = u.protocol === "https:" ? https2 : http2;
+        const lib = u.protocol === "https:" ? https : http;
         let done = false;
         const finish = (v) => {
           if (!done) {
@@ -2074,7 +1968,7 @@ var require_fetch = __commonJS({
             res.resume();
             let nextUrl;
             try {
-              nextUrl = new URL2(res.headers.location, u).href;
+              nextUrl = new URL(res.headers.location, u).href;
             } catch {
               return finish({ status: 0, err: "bad redirect" });
             }
@@ -2088,7 +1982,7 @@ var require_fetch = __commonJS({
         req.end();
       });
     }
-    async function probe2(target, cfg) {
+    async function probe(target, cfg) {
       let { status, err } = await rawStatus(target, "HEAD", cfg);
       const headInconclusive = !!err || status === 0 || status === 400 || status === 403 || status === 405 || status === 406 || status === 429 || status === 501 || status >= 500;
       if (headInconclusive) {
@@ -2102,7 +1996,7 @@ var require_fetch = __commonJS({
       }
       return { status, err };
     }
-    function linkDisposition2(status, err) {
+    function linkDisposition(status, err) {
       if (status >= 200 && status < 400) return "ok";
       if (status === 404 || status === 410) return "broken";
       if (status === 401 || status === 403 || status === 405 || status === 406 || status === 408 || status === 409 || status === 429 || status === 451 || status === 999 || status >= 500 && status <= 599) return "blocked";
@@ -2110,27 +2004,27 @@ var require_fetch = __commonJS({
       if (status === 400) return "broken";
       return "broken";
     }
-    function request2(target, method, cfg, redirects = 0) {
+    function request(target, method, cfg, redirects = 0) {
       return new Promise((resolve, reject) => {
         let u;
         try {
-          u = new URL2(target);
+          u = new URL(target);
         } catch {
           return reject(new Error("bad URL"));
         }
         if (u.protocol !== "http:" && u.protocol !== "https:") return reject(new Error("unsupported protocol"));
-        const lib = u.protocol === "https:" ? https2 : http2;
+        const lib = u.protocol === "https:" ? https : http;
         const req = lib.request(u, { method, headers: requestHeaders(cfg) }, (res) => {
           const code = res.statusCode || 0;
           if ([301, 302, 303, 307, 308].includes(code) && res.headers.location && redirects < MAX_REDIRECTS) {
             res.resume();
             let nextUrl;
             try {
-              nextUrl = new URL2(res.headers.location, u).href;
+              nextUrl = new URL(res.headers.location, u).href;
             } catch {
               return reject(new Error("bad redirect"));
             }
-            return resolve(request2(nextUrl, method, cfg, redirects + 1));
+            return resolve(request(nextUrl, method, cfg, redirects + 1));
           }
           const ct = res.headers["content-type"] || "";
           const retryAfter = res.headers["retry-after"] || null;
@@ -2166,7 +2060,7 @@ var require_fetch = __commonJS({
           res.on("data", (d) => {
             if (aborted) return;
             if (!knownDoc && bufs.length === 0) {
-              if (!sniffMagic2(d)) {
+              if (!sniffMagic(d)) {
                 aborted = true;
                 res.destroy();
                 resolve({ status: code, contentType: ct, html: null, retryAfter });
@@ -2191,7 +2085,7 @@ var require_fetch = __commonJS({
         req.end();
       });
     }
-    module2.exports = { request: request2, probe: probe2, linkDisposition: linkDisposition2, BROWSER_UA };
+    module2.exports = { request, probe, linkDisposition, BROWSER_UA };
   }
 });
 
@@ -2199,7 +2093,7 @@ var require_fetch = __commonJS({
 var require_cli = __commonJS({
   "src/cli.js"(exports2, module2) {
     "use strict";
-    var { URL: URL2 } = require("url");
+    var { URL } = require("url");
     var { BROWSER_UA } = require_fetch();
     function parseArgs2(argv) {
       const cfg = {
@@ -2454,7 +2348,7 @@ var require_cli = __commonJS({
       if (!cfg.startUrls.length && !cfg.recheckFrom && !cfg.rebuildFrom) die2("Missing start URL.\n");
       for (const u of cfg.startUrls) {
         try {
-          new URL2(u);
+          new URL(u);
         } catch {
           die2("Invalid start URL: " + u);
         }
@@ -2573,12 +2467,12 @@ Reconstruct a partitioned log into one composite stream:
 var require_netutil = __commonJS({
   "src/netutil.js"(exports2, module2) {
     "use strict";
-    var { URL: URL2 } = require("url");
-    var { request: request2 } = require_fetch();
-    var sleep2 = (ms) => new Promise((r) => setTimeout(r, ms));
-    function normalize2(u) {
+    var { URL } = require("url");
+    var { request } = require_fetch();
+    var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    function normalize(u) {
       try {
-        const x = new URL2(u);
+        const x = new URL(u);
         x.hash = "";
         let s = x.href;
         if (s.endsWith("/") && x.pathname !== "/") s = s.slice(0, -1);
@@ -2587,12 +2481,12 @@ var require_netutil = __commonJS({
         return u;
       }
     }
-    function sameDomain2(host, startHost, includeSub) {
+    function sameDomain(host, startHost, includeSub) {
       if (host === startHost) return true;
       if (includeSub) return host.endsWith("." + startHost) || startHost.endsWith("." + host);
       return false;
     }
-    function makeRateLimiter2(minGap) {
+    function makeRateLimiter(minGap) {
       const getGap = typeof minGap === "function" ? minGap : () => minGap;
       let next = 0;
       return async function acquire() {
@@ -2602,10 +2496,10 @@ var require_netutil = __commonJS({
         const slot = Math.max(now, next);
         next = slot + gap;
         const wait = slot - now;
-        if (wait > 0) await sleep2(wait);
+        if (wait > 0) await sleep(wait);
       };
     }
-    function parseRetryAfter2(value, maxMs) {
+    function parseRetryAfter(value, maxMs) {
       if (!value) return 0;
       const secs = Number(value);
       let ms;
@@ -2616,7 +2510,7 @@ var require_netutil = __commonJS({
       }
       return Math.max(0, Math.min(ms, maxMs));
     }
-    function makeThrottle2(maxBackoffMs) {
+    function makeThrottle(maxBackoffMs) {
       const BASE = 5e3;
       let backoffUntil = 0, streak = 0;
       return {
@@ -2624,7 +2518,7 @@ var require_netutil = __commonJS({
           for (; ; ) {
             const wait = backoffUntil - Date.now();
             if (wait <= 0) return;
-            await sleep2(Math.min(wait, 2e3));
+            await sleep(Math.min(wait, 2e3));
           }
         },
         noteThrottle(retryMs) {
@@ -2645,10 +2539,10 @@ var require_netutil = __commonJS({
         }
       };
     }
-    async function fetchCrawlDelay2(cfg) {
+    async function fetchCrawlDelay(cfg) {
       try {
-        const u = new URL2(cfg.startUrl);
-        const r = await request2(`${u.protocol}//${u.host}/robots.txt`, "GET", cfg);
+        const u = new URL(cfg.startUrl);
+        const r = await request(`${u.protocol}//${u.host}/robots.txt`, "GET", cfg);
         if (!r.html || r.status >= 400) return 0;
         return parseCrawlDelay(r.html, cfg.userAgent);
       } catch {
@@ -2691,7 +2585,7 @@ var require_netutil = __commonJS({
       }
       return specificDelay != null ? specificDelay : starDelay != null ? starDelay : 0;
     }
-    module2.exports = { sleep: sleep2, normalize: normalize2, sameDomain: sameDomain2, makeRateLimiter: makeRateLimiter2, parseRetryAfter: parseRetryAfter2, makeThrottle: makeThrottle2, fetchCrawlDelay: fetchCrawlDelay2 };
+    module2.exports = { sleep, normalize, sameDomain, makeRateLimiter, parseRetryAfter, makeThrottle, fetchCrawlDelay };
   }
 });
 
@@ -2699,30 +2593,30 @@ var require_netutil = __commonJS({
 var require_recheck = __commonJS({
   "src/recheck.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("fs");
-    var path2 = require("path");
-    var { URL: URL2 } = require("url");
-    var { makeRateLimiter: makeRateLimiter2, makeThrottle: makeThrottle2, sleep: sleep2 } = require_netutil();
-    var { request: request2, probe: probe2, linkDisposition: linkDisposition2 } = require_fetch();
+    var fs3 = require("fs");
+    var path = require("path");
+    var { URL } = require("url");
+    var { makeRateLimiter, makeThrottle, sleep } = require_netutil();
+    var { request, probe, linkDisposition } = require_fetch();
     var { writeOutputs: writeOutputs2, buildReportJson, buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 } = require_report();
     var { makeLogWriter: makeLogWriter2 } = require_log();
     function recheckSidecarPath(p) {
       if (!p) return "";
-      const ext = path2.extname(p);
+      const ext = path.extname(p);
       return ext ? p.slice(0, -ext.length) + ".recheck.json" : p + ".recheck.json";
     }
     function cleanupControlFiles(cfg) {
       try {
-        if (cfg.stopFile && fs2.existsSync(cfg.stopFile)) fs2.unlinkSync(cfg.stopFile);
+        if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) fs3.unlinkSync(cfg.stopFile);
       } catch {
       }
       try {
-        if (cfg.pauseFile && fs2.existsSync(cfg.pauseFile)) fs2.unlinkSync(cfg.pauseFile);
+        if (cfg.pauseFile && fs3.existsSync(cfg.pauseFile)) fs3.unlinkSync(cfg.pauseFile);
       } catch {
       }
     }
     function loadStateFromJson(file) {
-      const j = JSON.parse(fs2.readFileSync(file, "utf8"));
+      const j = JSON.parse(fs3.readFileSync(file, "utf8"));
       const refs = /* @__PURE__ */ new Map();
       const addRefs = (url, foundOn) => {
         if (Array.isArray(foundOn) && foundOn.length) refs.set(url, new Set(foundOn));
@@ -2749,7 +2643,7 @@ var require_recheck = __commonJS({
       const pages = j.internalPages || [];
       let startHost = "";
       try {
-        startHost = new URL2(pages[0] && pages[0].url || errors[0] && errors[0].url || "http://localhost/").hostname;
+        startHost = new URL(pages[0] && pages[0].url || errors[0] && errors[0].url || "http://localhost/").hostname;
       } catch {
       }
       const runtimeMs = j.summary && Number.isFinite(j.summary.runtimeMs) ? j.summary.runtimeMs : null;
@@ -2789,21 +2683,21 @@ var require_recheck = __commonJS({
       const flagged = [...flaggedMap.values()];
       console.log(`Re-checking ${flagged.length} flagged link${flagged.length === 1 ? "" : "s"}${srcLabel || ""} (rate: ${cfg.rps ? cfg.rps + "/s" : "uncapped"}, ${cfg.concurrency} concurrent${cfg.browser ? ", browser UA" : ""})\u2026`);
       log(`# recheck-start total=${flagged.length} host=${state.startHost || "?"}`);
-      const limiter = makeRateLimiter2(cfg.rps > 0 ? 1e3 / cfg.rps : 0);
-      const throttle = makeThrottle2(cfg.maxBackoff * 1e3);
+      const limiter = makeRateLimiter(cfg.rps > 0 ? 1e3 / cfg.rps : 0);
+      const throttle = makeThrottle(cfg.maxBackoff * 1e3);
       const newErrors = [], newBlocked = [];
       let i = 0, nowOk = 0, nowBlk = 0, stillBad = 0, stopped = false;
       async function control() {
-        if (cfg.stopFile && fs2.existsSync(cfg.stopFile)) {
+        if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) {
           stopped = true;
           return;
         }
-        while (cfg.pauseFile && fs2.existsSync(cfg.pauseFile)) {
-          if (cfg.stopFile && fs2.existsSync(cfg.stopFile)) {
+        while (cfg.pauseFile && fs3.existsSync(cfg.pauseFile)) {
+          if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) {
             stopped = true;
             return;
           }
-          await sleep2(400);
+          await sleep(400);
         }
       }
       async function worker() {
@@ -2817,17 +2711,17 @@ var require_recheck = __commonJS({
           await limiter();
           let disp, detail;
           if (f.kind === "external") {
-            const { status, err } = await probe2(f.url, cfg);
-            disp = linkDisposition2(status, err);
+            const { status, err } = await probe(f.url, cfg);
+            disp = linkDisposition(status, err);
             detail = status > 0 ? "HTTP " + status : err || "no response";
           } else {
             try {
-              const r = await request2(f.url, "GET", cfg);
-              disp = linkDisposition2(r.status, null);
+              const r = await request(f.url, "GET", cfg);
+              disp = linkDisposition(r.status, null);
               detail = "HTTP " + r.status;
             } catch (err) {
               const m = String(err && err.message || err);
-              disp = linkDisposition2(0, m);
+              disp = linkDisposition(0, m);
               detail = m;
             }
           }
@@ -2852,7 +2746,7 @@ var require_recheck = __commonJS({
             console.log(`  x   ${f.url} \u2014 ${detail}`);
             log(`RECHK broken ${f.url} \u2014 ${detail}`);
           }
-          if (cfg.delay) await sleep2(cfg.delay);
+          if (cfg.delay) await sleep(cfg.delay);
         }
       }
       await Promise.all(Array.from({ length: Math.max(1, cfg.concurrency) }, worker));
@@ -2868,13 +2762,13 @@ var require_recheck = __commonJS({
       return { flagged: flagged.length, nowOk, nowBlk, stillBad, stopped };
     }
     async function runRecheck2(cfg, allow) {
-      if (!fs2.existsSync(cfg.recheckFrom)) {
+      if (!fs3.existsSync(cfg.recheckFrom)) {
         console.error("Error: --recheck-from file not found: " + cfg.recheckFrom);
         process.exit(1);
       }
       let j;
       try {
-        j = JSON.parse(fs2.readFileSync(cfg.recheckFrom, "utf8"));
+        j = JSON.parse(fs3.readFileSync(cfg.recheckFrom, "utf8"));
       } catch (e) {
         console.error("Error: --recheck-from is not valid JSON: " + (e.message || e));
         process.exit(1);
@@ -2890,7 +2784,7 @@ var require_recheck = __commonJS({
       const sidecar = recheckSidecarPath(cfg.json || cfg.out);
       if (sidecar) {
         try {
-          fs2.writeFileSync(sidecar, buildReportJson(state, cfg, allow, false));
+          fs3.writeFileSync(sidecar, buildReportJson(state, cfg, allow, false));
         } catch (e) {
           console.error("Re-check JSON write failed: " + (e.message || e));
         }
@@ -2905,11 +2799,11 @@ Re-check ${r.stopped ? "stopped early" : "done"}: ${r.nowOk} now OK (removed), $
       if (cfg.json) console.log(`JSON:    ${cfg.json}`);
     }
     async function runRecheckMulti(cfg, allow, j, logger) {
-      const dir = path2.dirname(cfg.recheckFrom);
+      const dir = path.dirname(cfg.recheckFrom);
       const sites = [], missing = [];
       for (const s of j.sites || []) {
-        const jf = s.jsonFile ? path2.join(dir, s.jsonFile) : "";
-        if (!jf || !fs2.existsSync(jf)) {
+        const jf = s.jsonFile ? path.join(dir, s.jsonFile) : "";
+        if (!jf || !fs3.existsSync(jf)) {
           missing.push(s.host || s.url || "?");
           continue;
         }
@@ -2920,7 +2814,7 @@ Re-check ${r.stopped ? "stopped early" : "done"}: ${r.nowOk} now OK (removed), $
           missing.push(s.host || s.url || "?");
           continue;
         }
-        sites.push({ url: s.url, host: s.host, state, partial: false, reportFile: s.reportFile || "", jsonFile: s.jsonFile || "", reportPath: s.reportFile ? path2.join(dir, s.reportFile) : "", jsonPath: jf });
+        sites.push({ url: s.url, host: s.host, state, partial: false, reportFile: s.reportFile || "", jsonFile: s.jsonFile || "", reportPath: s.reportFile ? path.join(dir, s.reportFile) : "", jsonPath: jf });
       }
       if (missing.length) {
         console.error(`Re-check: ${missing.length} of ${(j.sites || []).length} site(s) have no per-site JSON next to the index (${missing.join(", ")}).`);
@@ -2942,7 +2836,7 @@ Re-check ${r.stopped ? "stopped early" : "done"}: ${r.nowOk} now OK (removed), $
         const sidecar = recheckSidecarPath(s.jsonPath || s.reportPath);
         if (sidecar) {
           try {
-            fs2.writeFileSync(sidecar, buildReportJson(s.state, cfg, allow, false));
+            fs3.writeFileSync(sidecar, buildReportJson(s.state, cfg, allow, false));
           } catch (e) {
             console.error(`Re-check JSON write failed (${s.host}): ` + (e.message || e));
           }
@@ -2956,7 +2850,7 @@ Re-check ${r.stopped ? "stopped early" : "done"}: ${r.nowOk} now OK (removed), $
       }
       const startedAt = j.crawledAt || (/* @__PURE__ */ new Date()).toISOString();
       try {
-        fs2.writeFileSync(cfg.out, buildIndexReport2(sites, cfg, allow, false, startedAt));
+        fs3.writeFileSync(cfg.out, buildIndexReport2(sites, cfg, allow, false, startedAt));
       } catch (e) {
         console.error("Index write failed: " + (e.message || e));
       }
@@ -2975,13 +2869,13 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
       if (cfg.json) console.log(`JSON:    ${cfg.json}`);
     }
     async function runRebuild2(cfg, allow) {
-      if (!fs2.existsSync(cfg.rebuildFrom)) {
+      if (!fs3.existsSync(cfg.rebuildFrom)) {
         console.error("Error: --rebuild-from file not found: " + cfg.rebuildFrom);
         process.exit(1);
       }
       let j;
       try {
-        j = JSON.parse(fs2.readFileSync(cfg.rebuildFrom, "utf8"));
+        j = JSON.parse(fs3.readFileSync(cfg.rebuildFrom, "utf8"));
       } catch (e) {
         console.error("Error: --rebuild-from is not valid JSON: " + (e.message || e));
         process.exit(1);
@@ -2999,11 +2893,11 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
       if (cfg.json) console.log(`JSON:    ${cfg.json}`);
     }
     async function runRebuildMulti(cfg, allow, j) {
-      const dir = path2.dirname(cfg.rebuildFrom);
+      const dir = path.dirname(cfg.rebuildFrom);
       const sites = [], missing = [];
       for (const s of j.sites || []) {
-        const jf = s.jsonFile ? path2.join(dir, s.jsonFile) : "";
-        if (!jf || !fs2.existsSync(jf)) {
+        const jf = s.jsonFile ? path.join(dir, s.jsonFile) : "";
+        if (!jf || !fs3.existsSync(jf)) {
           missing.push(s.host || s.url || "?");
           continue;
         }
@@ -3015,7 +2909,7 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
           continue;
         }
         state.finishedMs = Date.now();
-        sites.push({ url: s.url, host: s.host, state, partial: false, reportFile: s.reportFile || "", jsonFile: s.jsonFile || "", reportPath: s.reportFile ? path2.join(dir, s.reportFile) : "", jsonPath: jf });
+        sites.push({ url: s.url, host: s.host, state, partial: false, reportFile: s.reportFile || "", jsonFile: s.jsonFile || "", reportPath: s.reportFile ? path.join(dir, s.reportFile) : "", jsonPath: jf });
       }
       if (missing.length) {
         console.error(`Rebuild: ${missing.length} of ${(j.sites || []).length} site(s) have no per-site JSON next to the index (${missing.join(", ")}) \u2014 they can't be rebuilt without re-crawling.`);
@@ -3031,7 +2925,7 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
       }
       const startedAt = j.crawledAt || (/* @__PURE__ */ new Date()).toISOString();
       try {
-        fs2.writeFileSync(cfg.out, buildIndexReport2(sites, cfg, allow, false, startedAt));
+        fs3.writeFileSync(cfg.out, buildIndexReport2(sites, cfg, allow, false, startedAt));
       } catch (e) {
         console.error("Index write failed: " + (e.message || e));
       }
@@ -3051,615 +2945,762 @@ Rebuilt ${sites.length} site report(s) + index.`);
   }
 });
 
-// src/crawl.js
-var http = require("http");
-var https = require("https");
-var fs = require("fs");
-var path = require("path");
-var zlib = require("zlib");
-var { URL } = require("url");
-var { writeOutputs, buildIndexReport, writeCombinedJson } = require_report();
-var { makeLogWriter, makeJournal, mergeLogs } = require_log();
-var { extractLinks, extractDocLinks, sniffMagic } = require_parse();
-var { makeSeenStore } = require_seen();
-var { request, probe, linkDisposition } = require_fetch();
-var { parseArgs, die } = require_cli();
-var { sleep, normalize, sameDomain, makeRateLimiter, parseRetryAfter, makeThrottle, fetchCrawlDelay } = require_netutil();
-var { runRecheck, runRebuild } = require_recheck();
-function loadAllowlist(file) {
-  if (!file || !fs.existsSync(file)) return [];
-  return fs.readFileSync(file, "utf8").split(/\r?\n/).map((line) => {
-    const t = line.trim();
-    if (!t || t.startsWith("#")) return null;
-    return t.split(/\s+#/)[0].trim();
-  }).filter(Boolean);
-}
-function compileAllow(patterns) {
-  return patterns.map((p) => {
-    const re = "^" + p.split("*").map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$";
-    return new RegExp(re);
-  });
-}
-async function crawl(cfg, allow, sharedLogger, onProgress) {
-  const startHost = new URL(cfg.startUrl).hostname;
-  let crawlDelay = cfg.crawlDelay;
-  let robotsDelay = 0;
-  if (!cfg.crawlDelay && !cfg.ignoreRobots) {
-    robotsDelay = await fetchCrawlDelay(cfg);
-    crawlDelay = robotsDelay;
-  }
-  const effGapMs = () => {
-    let g = 0;
-    if (cfg.rps > 0) g = Math.max(g, 1e3 / cfg.rps);
-    if (crawlDelay > 0) g = Math.max(g, crawlDelay * 1e3);
-    return g;
-  };
-  const limiter = makeRateLimiter(effGapMs);
-  const throttle = makeThrottle(cfg.maxBackoff * 1e3);
-  const urlCap = cfg.maxUrls > 0 ? cfg.maxUrls : cfg.maxPages === Infinity ? Infinity : cfg.maxPages * 50;
-  let pathPrefix = "";
-  if (cfg.pathPrefix) pathPrefix = cfg.pathPrefix;
-  else if (cfg.scope === "path") {
-    try {
-      pathPrefix = new URL(cfg.startUrl).pathname;
-    } catch {
+// src/crawl/allowlist.js
+var require_allowlist = __commonJS({
+  "src/crawl/allowlist.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    function loadAllowlist2(file) {
+      if (!file || !fs3.existsSync(file)) return [];
+      return fs3.readFileSync(file, "utf8").split(/\r?\n/).map((line) => {
+        const t = line.trim();
+        if (!t || t.startsWith("#")) return null;
+        return t.split(/\s+#/)[0].trim();
+      }).filter(Boolean);
     }
-  }
-  pathPrefix = pathPrefix.replace(/\/+$/, "");
-  const inScope = (pathname) => !pathPrefix || pathname === pathPrefix || pathname.indexOf(pathPrefix + "/") === 0;
-  let storeCap = urlCap;
-  if ((cfg.seen === "compact" || cfg.seen === "disk") && !Number.isFinite(storeCap)) {
-    storeCap = 1e6;
-    console.log(`Note: --seen ${cfg.seen} needs a bounded URL count; using ${storeCap.toLocaleString()}. Override with --max-urls.`);
-  }
-  const seen = makeSeenStore(cfg.seen, storeCap, cfg.seenFile);
-  seen.tryAdd(normalize(cfg.startUrl));
-  const state = {
-    startHost,
-    pathPrefix,
-    queue: [{ url: cfg.startUrl, depth: 0, parent: "(start)" }],
-    seen,
-    pages: [],
-    external: /* @__PURE__ */ new Map(),
-    outOfScope: /* @__PURE__ */ new Map(),
-    // same domain, outside pathPrefix: recorded, never followed
-    refs: /* @__PURE__ */ new Map(),
-    // target URL -> Set of every distinct referrer page
-    errors: [],
-    blocked: [],
-    // links our automated check couldn't confirm (likely OK in a browser)
-    retries: 0,
-    crawlDelay,
-    crawled: 0,
-    startedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    startedMs: Date.now()
-  };
-  const runId = `${state.startedAt.replace(/[-:]/g, "").replace(/\..+/, "")}-${Math.random().toString(16).slice(2, 8)}`;
-  const logger = sharedLogger || makeLogWriter(cfg, { run: runId, startUrl: cfg.startUrl, startedAt: state.startedAt });
-  state.runId = runId;
-  state.logParts = logger.parts;
-  state.logManifest = logger.manifestPath;
-  state.logSingleFile = logger.singleFile;
-  const journal = makeJournal(cfg.state);
-  const J = journal.ev;
-  if (journal.on && !cfg.resume) {
-    try {
-      fs.writeFileSync(cfg.state, "");
-    } catch {
+    function compileAllow2(patterns) {
+      return patterns.map((p) => {
+        const re = "^" + p.split("*").map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$";
+        return new RegExp(re);
+      });
     }
-    J({ t: "meta", v: 1, run: runId, startUrl: cfg.startUrl, scope: pathPrefix || "", depth: cfg.maxDepth === Infinity ? null : cfg.maxDepth, subs: !!cfg.includeSubdomains, startedAt: state.startedAt });
+    module2.exports = { loadAllowlist: loadAllowlist2, compileAllow: compileAllow2 };
   }
-  const logLine = (s) => logger.line(s);
-  function addRef(target, ref) {
-    let s = state.refs.get(target);
-    if (!s) {
-      s = /* @__PURE__ */ new Set();
-      state.refs.set(target, s);
+});
+
+// src/seen.js
+var require_seen = __commonJS({
+  "src/seen.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    function fnv1a64(str) {
+      const prime = 0x100000001b3n, mask = 0xffffffffffffffffn;
+      let h = 0xcbf29ce484222325n;
+      for (let i = 0; i < str.length; i++) {
+        const c = str.charCodeAt(i);
+        h = (h ^ BigInt(c & 255)) * prime & mask;
+        if (c > 255) h = (h ^ BigInt(c >> 8 & 255)) * prime & mask;
+      }
+      return h === 0n ? 1n : h;
     }
-    if (cfg.maxReferrers <= 0 || s.size < cfg.maxReferrers) s.add(ref);
+    function makeSeenStore(mode, maxItems, seenFile) {
+      if (mode === "memory" || !Number.isFinite(maxItems)) {
+        const s = /* @__PURE__ */ new Set();
+        return {
+          mode: "memory",
+          tryAdd(k) {
+            if (s.has(k)) return false;
+            if (s.size >= maxItems) return false;
+            s.add(k);
+            return true;
+          },
+          get size() {
+            return s.size;
+          },
+          close() {
+          }
+        };
+      }
+      const slots = Math.max(1024, Math.ceil(maxItems / 0.7) + 1);
+      const slotsBig = BigInt(slots);
+      let count = 0;
+      if (mode === "disk") {
+        const fd = fs3.openSync(seenFile, "w+");
+        fs3.ftruncateSync(fd, slots * 8);
+        const buf = Buffer.alloc(8);
+        const read = (i) => {
+          fs3.readSync(fd, buf, 0, 8, i * 8);
+          return buf.readBigUInt64BE(0);
+        };
+        const write = (i, h) => {
+          buf.writeBigUInt64BE(h, 0);
+          fs3.writeSync(fd, buf, 0, 8, i * 8);
+        };
+        return {
+          mode: "disk",
+          tryAdd(k) {
+            const h = fnv1a64(k);
+            let i = Number(h % slotsBig);
+            for (; ; ) {
+              const v = read(i);
+              if (v === 0n) {
+                if (count >= maxItems) return false;
+                write(i, h);
+                count++;
+                return true;
+              }
+              if (v === h) return false;
+              i = (i + 1) % slots;
+            }
+          },
+          get size() {
+            return count;
+          },
+          close() {
+            try {
+              fs3.closeSync(fd);
+              fs3.unlinkSync(seenFile);
+            } catch {
+            }
+          }
+        };
+      }
+      const table = new BigUint64Array(slots);
+      return {
+        mode: "compact",
+        tryAdd(k) {
+          const h = fnv1a64(k);
+          let i = Number(h % slotsBig);
+          for (; ; ) {
+            const v = table[i];
+            if (v === 0n) {
+              if (count >= maxItems) return false;
+              table[i] = h;
+              count++;
+              return true;
+            }
+            if (v === h) return false;
+            i = (i + 1) % slots;
+          }
+        },
+        get size() {
+          return count;
+        },
+        close() {
+        }
+      };
+    }
+    module2.exports = { makeSeenStore };
   }
-  let interrupted = false;
-  if (cfg.resume) {
-    const doneSet = /* @__PURE__ */ new Set();
-    const enq = /* @__PURE__ */ new Map();
-    const vSessions = /* @__PURE__ */ new Map();
-    let session = 0, quarantined = 0;
-    const consider = (target, parentUrl, parentDepth) => {
-      addRef(target, parentUrl);
-      if (parentDepth < cfg.maxDepth && seen.tryAdd(target) && !enq.has(target)) enq.set(target, { depth: parentDepth + 1, parent: parentUrl });
-    };
-    let lines = [];
-    try {
-      lines = fs.readFileSync(cfg.resume, "utf8").split(/\r?\n/);
-    } catch {
-    }
-    let meta = null, replayed = 0, rGood = 0;
-    for (const ln of lines) {
-      if (!ln) continue;
-      let e;
+});
+
+// src/crawl/resume.js
+var require_resume = __commonJS({
+  "src/crawl/resume.js"(exports2, module2) {
+    "use strict";
+    var { normalize } = require_netutil();
+    function replayResume(state, cfg, seen, addRef, logLine, J) {
+      const doneSet = /* @__PURE__ */ new Set();
+      const enq = /* @__PURE__ */ new Map();
+      const vSessions = /* @__PURE__ */ new Map();
+      let session = 0, quarantined = 0;
+      const consider = (target, parentUrl, parentDepth) => {
+        addRef(target, parentUrl);
+        if (parentDepth < cfg.maxDepth && seen.tryAdd(target) && !enq.has(target)) enq.set(target, { depth: parentDepth + 1, parent: parentUrl });
+      };
+      let lines = [];
       try {
-        e = JSON.parse(ln);
+        lines = fs.readFileSync(cfg.resume, "utf8").split(/\r?\n/);
       } catch {
-        continue;
       }
-      if (e.t === "meta") {
-        if (!meta) meta = e;
-        continue;
-      }
-      if (e.t === "r") {
-        session++;
-        continue;
-      }
-      if (e.t === "v") {
-        let s = vSessions.get(e.u);
-        if (!s) {
-          s = /* @__PURE__ */ new Set();
-          vSessions.set(e.u, s);
-        }
-        s.add(session);
-        continue;
-      }
-      if (e.t !== "p" && e.t !== "k" && e.t !== "e" && e.t !== "b") continue;
-      if (doneSet.has(e.u)) continue;
-      doneSet.add(e.u);
-      replayed++;
-      if (e.t === "p") {
-        rGood++;
-        state.pages.push({ url: e.u, title: e.ti, status: e.s, depth: e.d, internal: (e.in || []).length, external: (e.ex || []).length });
-        for (const t of e.in || []) consider(t, e.u, e.d);
-        for (const pr of e.ex || []) {
-          const u = pr[0];
-          if (!state.external.has(u)) state.external.set(u, { url: u, host: pr[1], status: null });
-          addRef(u, e.u);
-        }
-        for (const u of e.oo || []) {
-          if (!state.outOfScope.has(u)) state.outOfScope.set(u, { url: u });
-          addRef(u, e.u);
-        }
-      } else if (e.t === "k") {
-        state.pages.push({ url: e.u, title: "(non-HTML: " + (e.ct || "?") + ")", status: e.s, depth: e.d, internal: 0, external: 0 });
-      } else if (e.t === "e") {
-        state.errors.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
-      } else {
-        state.blocked.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
-      }
-    }
-    if (meta && meta.startUrl && meta.startUrl !== cfg.startUrl) console.log(`Note: resume journal was for ${meta.startUrl}; now crawling ${cfg.startUrl}.`);
-    state.queue = [];
-    for (const [u, info] of enq) {
-      if (doneSet.has(u)) continue;
-      const sess = vSessions.get(u);
-      if (sess && sess.size >= 2) {
-        state.blocked.push({ url: u, reason: `quarantined \u2014 aborted the crawler ${sess.size}\xD7 without completing (likely a page that crashes it)`, source: info.parent, kind: "internal" });
-        quarantined++;
-        continue;
-      }
-      state.queue.push({ url: u, depth: info.depth, parent: info.parent });
-    }
-    const su = normalize(cfg.startUrl);
-    if (!doneSet.has(su) && !enq.has(su)) state.queue.unshift({ url: su, depth: 0, parent: "(start)" });
-    state.crawled = doneSet.size;
-    if (replayed > 0) logLine(`# resume-stats crawled=${state.crawled} good=${rGood} broken=${state.errors.length} blocked=${state.blocked.length} external=${state.external.size}`);
-    J({ t: "r", at: (/* @__PURE__ */ new Date()).toISOString() });
-    console.log(`Resumed from ${cfg.resume}: ${replayed} already done, ${state.queue.length} queued${quarantined ? `, ${quarantined} quarantined (crashing page${quarantined === 1 ? "" : "s"})` : ""}.`);
-  }
-  async function visit(job) {
-    state.crawled++;
-    J({ t: "v", u: job.url });
-    await throttle.gate();
-    await limiter();
-    let r;
-    try {
-      r = await request(job.url, "GET", cfg);
-    } catch (e) {
-      const msg = String(e.message || e);
-      if (linkDisposition(0, msg) === "blocked") {
-        state.blocked.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
-        J({ t: "b", u: job.url, r: msg, k: "internal", src: job.parent });
-        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} BLOCKED ${job.url} :: ${msg} :: found on ${job.parent}`);
-        console.log(`  ?  ${job.url} \u2014 ${msg} (uncertain; found on ${job.parent})`);
-      } else {
-        state.errors.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
-        J({ t: "e", u: job.url, r: msg, k: "internal", src: job.parent });
-        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: ${msg} :: found on ${job.parent}`);
-        console.log(`  x  ${job.url} \u2014 ${msg}  (found on ${job.parent})`);
-      }
-      return;
-    }
-    if (r.status === 429 || r.status === 503) {
-      const waitMs = throttle.noteThrottle(parseRetryAfter(r.retryAfter, cfg.maxBackoff * 1e3));
-      job.attempts = (job.attempts || 0) + 1;
-      if (job.attempts <= cfg.maxRetries) {
-        state.crawled--;
-        state.retries++;
-        state.queue.push(job);
-        const untilMs = Date.now() + throttle.activeMs();
-        logLine(`# BACKOFF ${(/* @__PURE__ */ new Date()).toISOString()} HTTP ${r.status} waitMs=${waitMs} untilMs=${untilMs} attempt=${job.attempts} url=${job.url}`);
-        console.log(`  ~  [${r.status}] rate limited \u2014 backing off ${Math.round(waitMs / 1e3)}s, will retry ${job.url}`);
-        return;
-      }
-      state.errors.push({ url: job.url, reason: `rate limited (HTTP ${r.status}, gave up after ${cfg.maxRetries} retries)`, source: job.parent, kind: "internal" });
-      J({ t: "e", u: job.url, r: `rate limited (HTTP ${r.status})`, k: "internal", src: job.parent });
-      logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: HTTP ${r.status} (gave up after ${cfg.maxRetries} retries) :: found on ${job.parent}`);
-      console.log(`  x  [${r.status}] ${job.url} \u2014 gave up after ${cfg.maxRetries} retries`);
-      return;
-    }
-    throttle.noteSuccess();
-    if (r.status >= 400) {
-      if (linkDisposition(r.status, null) === "blocked") {
-        state.blocked.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
-        J({ t: "b", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
-        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} BLOCKED ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
-        console.log(`  ?  [${r.status}] ${job.url}  (uncertain; found on ${job.parent})`);
-      } else {
-        state.errors.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
-        J({ t: "e", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
-        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
-        console.log(`  x  [${r.status}] ${job.url}  (found on ${job.parent})`);
-      }
-      return;
-    }
-    let links, title;
-    if (r.html) {
-      const ex = extractLinks(r.html, job.url);
-      links = ex.links;
-      title = ex.title;
-    } else if (r.doc) {
-      const dt = r.docType || sniffMagic(r.doc) || "doc";
-      links = extractDocLinks(r.doc, dt, job.url);
-      title = "(" + (dt === "ooxml" ? "office-doc" : dt) + ", " + links.length + " links)";
-    } else {
-      state.pages.push({ url: job.url, title: "(non-HTML: " + (r.contentType || "?") + ")", status: r.status, depth: job.depth, internal: 0, external: 0 });
-      J({ t: "k", u: job.url, s: r.status, d: job.depth, ct: r.contentType || "" });
-      logLine(`${(/* @__PURE__ */ new Date()).toISOString()} SKIP ${job.url} :: ${r.contentType || "non-HTML"}`);
-      return;
-    }
-    let internalFound = 0, externalFound = 0;
-    const inT = [], exT = [], ooT = [];
-    for (const link of links) {
-      if (link.protocol !== "http:" && link.protocol !== "https:") continue;
-      if (sameDomain(link.hostname, startHost, cfg.includeSubdomains)) {
-        if (inScope(link.pathname)) {
-          internalFound++;
-          const norm = normalize(link.href);
-          addRef(norm, job.url);
-          if (journal.on) inT.push(norm);
-          if (job.depth < cfg.maxDepth && seen.tryAdd(norm)) state.queue.push({ url: norm, depth: job.depth + 1, parent: job.url });
-        } else {
-          if (!state.outOfScope.has(link.href)) state.outOfScope.set(link.href, { url: link.href });
-          addRef(link.href, job.url);
-          if (journal.on) ooT.push(link.href);
-        }
-      } else {
-        externalFound++;
-        if (!state.external.has(link.href)) state.external.set(link.href, { url: link.href, host: link.hostname, status: null });
-        addRef(link.href, job.url);
-        if (journal.on) exT.push([link.href, link.hostname]);
-      }
-    }
-    state.pages.push({ url: job.url, title, status: r.status, depth: job.depth, internal: internalFound, external: externalFound });
-    J({ t: "p", u: job.url, s: r.status, d: job.depth, ti: title, in: inT, ex: exT, oo: ooT });
-    logLine(`${(/* @__PURE__ */ new Date()).toISOString()} OK d${job.depth} ${r.status} ${job.url} int=${internalFound} ext=${externalFound} extTotal=${state.external.size}`);
-    console.log(`  ok [d${job.depth}] ${job.url}  (${internalFound} int, ${externalFound} ext)`);
-  }
-  const isPaused = () => cfg.pauseFile && fs.existsSync(cfg.pauseFile);
-  let inFlight = 0;
-  let lastReportMs = Date.now();
-  async function worker() {
-    while (!interrupted) {
-      if (isPaused()) {
-        await sleep(300);
-        continue;
-      }
-      if (state.crawled >= cfg.maxPages) return;
-      const job = state.queue.shift();
-      if (!job) {
-        if (inFlight > 0) {
-          await sleep(100);
+      let meta = null, replayed = 0, rGood = 0;
+      for (const ln of lines) {
+        if (!ln) continue;
+        let e;
+        try {
+          e = JSON.parse(ln);
+        } catch {
           continue;
         }
-        return;
-      }
-      inFlight++;
-      try {
-        await visit(job);
-      } finally {
-        inFlight--;
-      }
-      const dueByCount = cfg.checkpoint && state.crawled % cfg.checkpoint === 0;
-      if (dueByCount || Date.now() - lastReportMs > 2e3) {
-        writeOutputs(state, cfg, allow, true);
-        if (dueByCount) {
-          logLine(`# checkpoint ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} queued=${state.queue.length} -> ${cfg.out}`);
-          logger.finalize(false);
+        if (e.t === "meta") {
+          if (!meta) meta = e;
+          continue;
         }
-        if (onProgress) try {
-          onProgress(state);
+        if (e.t === "r") {
+          session++;
+          continue;
+        }
+        if (e.t === "v") {
+          let s = vSessions.get(e.u);
+          if (!s) {
+            s = /* @__PURE__ */ new Set();
+            vSessions.set(e.u, s);
+          }
+          s.add(session);
+          continue;
+        }
+        if (e.t !== "p" && e.t !== "k" && e.t !== "e" && e.t !== "b") continue;
+        if (doneSet.has(e.u)) continue;
+        doneSet.add(e.u);
+        replayed++;
+        if (e.t === "p") {
+          rGood++;
+          state.pages.push({ url: e.u, title: e.ti, status: e.s, depth: e.d, internal: (e.in || []).length, external: (e.ex || []).length });
+          for (const t of e.in || []) consider(t, e.u, e.d);
+          for (const pr of e.ex || []) {
+            const u = pr[0];
+            if (!state.external.has(u)) state.external.set(u, { url: u, host: pr[1], status: null });
+            addRef(u, e.u);
+          }
+          for (const u of e.oo || []) {
+            if (!state.outOfScope.has(u)) state.outOfScope.set(u, { url: u });
+            addRef(u, e.u);
+          }
+        } else if (e.t === "k") {
+          state.pages.push({ url: e.u, title: "(non-HTML: " + (e.ct || "?") + ")", status: e.s, depth: e.d, internal: 0, external: 0 });
+        } else if (e.t === "e") {
+          state.errors.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
+        } else {
+          state.blocked.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
+        }
+      }
+      if (meta && meta.startUrl && meta.startUrl !== cfg.startUrl) console.log(`Note: resume journal was for ${meta.startUrl}; now crawling ${cfg.startUrl}.`);
+      state.queue = [];
+      for (const [u, info] of enq) {
+        if (doneSet.has(u)) continue;
+        const sess = vSessions.get(u);
+        if (sess && sess.size >= 2) {
+          state.blocked.push({ url: u, reason: `quarantined \u2014 aborted the crawler ${sess.size}\xD7 without completing (likely a page that crashes it)`, source: info.parent, kind: "internal" });
+          quarantined++;
+          continue;
+        }
+        state.queue.push({ url: u, depth: info.depth, parent: info.parent });
+      }
+      const su = normalize(cfg.startUrl);
+      if (!doneSet.has(su) && !enq.has(su)) state.queue.unshift({ url: su, depth: 0, parent: "(start)" });
+      state.crawled = doneSet.size;
+      if (replayed > 0) logLine(`# resume-stats crawled=${state.crawled} good=${rGood} broken=${state.errors.length} blocked=${state.blocked.length} external=${state.external.size}`);
+      J({ t: "r", at: (/* @__PURE__ */ new Date()).toISOString() });
+      console.log(`Resumed from ${cfg.resume}: ${replayed} already done, ${state.queue.length} queued${quarantined ? `, ${quarantined} quarantined (crashing page${quarantined === 1 ? "" : "s"})` : ""}.`);
+    }
+    module2.exports = { replayResume };
+  }
+});
+
+// src/crawl/engine.js
+var require_engine = __commonJS({
+  "src/crawl/engine.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    var { URL } = require("url");
+    var { writeOutputs: writeOutputs2 } = require_report();
+    var { makeLogWriter: makeLogWriter2, makeJournal } = require_log();
+    var { extractLinks, extractDocLinks, sniffMagic } = require_parse();
+    var { makeSeenStore } = require_seen();
+    var { request, probe, linkDisposition } = require_fetch();
+    var { sleep, normalize, sameDomain, makeRateLimiter, parseRetryAfter, makeThrottle, fetchCrawlDelay } = require_netutil();
+    var { replayResume } = require_resume();
+    async function crawl2(cfg, allow, sharedLogger, onProgress) {
+      const startHost = new URL(cfg.startUrl).hostname;
+      let crawlDelay = cfg.crawlDelay;
+      let robotsDelay = 0;
+      if (!cfg.crawlDelay && !cfg.ignoreRobots) {
+        robotsDelay = await fetchCrawlDelay(cfg);
+        crawlDelay = robotsDelay;
+      }
+      const effGapMs = () => {
+        let g = 0;
+        if (cfg.rps > 0) g = Math.max(g, 1e3 / cfg.rps);
+        if (crawlDelay > 0) g = Math.max(g, crawlDelay * 1e3);
+        return g;
+      };
+      const limiter = makeRateLimiter(effGapMs);
+      const throttle = makeThrottle(cfg.maxBackoff * 1e3);
+      const urlCap = cfg.maxUrls > 0 ? cfg.maxUrls : cfg.maxPages === Infinity ? Infinity : cfg.maxPages * 50;
+      let pathPrefix = "";
+      if (cfg.pathPrefix) pathPrefix = cfg.pathPrefix;
+      else if (cfg.scope === "path") {
+        try {
+          pathPrefix = new URL(cfg.startUrl).pathname;
         } catch {
         }
-        lastReportMs = Date.now();
       }
-      if (cfg.delay) await sleep(cfg.delay);
-    }
-  }
-  const depthLabel = cfg.maxDepth === Infinity ? "unlimited" : cfg.maxDepth;
-  const pagesLabel = cfg.maxPages === Infinity ? "unlimited" : cfg.maxPages;
-  const scopeLabel = pathPrefix ? `path ${pathPrefix}/` : "whole domain";
-  logLine(`# crawl start ${state.startedAt} ${cfg.startUrl} scope=${scopeLabel} maxPages=${pagesLabel} maxDepth=${depthLabel} checkpoint=${cfg.checkpoint} crawlDelay=${crawlDelay}s run=${runId}`);
-  if (crawlDelay > 0) console.log(`Crawl-delay: ${crawlDelay}s ${robotsDelay > 0 ? "(from robots.txt)" : "(manual)"} \u2014 ~${(1 / crawlDelay).toFixed(2)} req/sec`);
-  writeOutputs(state, cfg, allow, true);
-  if (onProgress) try {
-    onProgress(state);
-  } catch {
-  }
-  let controlTimer = null;
-  function cleanupControlFiles() {
-    try {
-      if (cfg.stopFile && fs.existsSync(cfg.stopFile)) fs.unlinkSync(cfg.stopFile);
-    } catch {
-    }
-    try {
-      if (cfg.pauseFile && fs.existsSync(cfg.pauseFile)) fs.unlinkSync(cfg.pauseFile);
-    } catch {
-    }
-  }
-  function shutdown(reason) {
-    if (interrupted) process.exit(130);
-    interrupted = true;
-    if (controlTimer) {
-      clearInterval(controlTimer);
-      controlTimer = null;
-    }
-    console.log(`
-${reason} \u2014 flushing partial results (${state.pages.length} pages, ${state.queue.length} queued)\u2026`);
-    try {
-      logLine(`# ${reason} ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} queued=${state.queue.length}`);
-      logger.finalize(false);
-      writeOutputs(state, cfg, allow, true);
-      if (onProgress) onProgress(state);
-      cleanupControlFiles();
-    } catch {
-    }
-    const logHint = cfg.log ? `
-Progress log:   ${logger.singleFile ? cfg.log : logger.manifestPath + ` (${logger.parts.length} part${logger.parts.length === 1 ? "" : "s"})`}` : "";
-    console.log(`Partial report: ${cfg.out}${logHint}`);
-    process.exit(130);
-  }
-  const onSigint = () => shutdown("INTERRUPTED");
-  process.on("SIGINT", onSigint);
-  let lastTuneRaw = null;
-  try {
-    if (cfg.tuneFile && fs.existsSync(cfg.tuneFile)) lastTuneRaw = fs.readFileSync(cfg.tuneFile, "utf8");
-  } catch {
-  }
-  const applyTune = () => {
-    if (!cfg.tuneFile) return;
-    let raw;
-    try {
-      raw = fs.readFileSync(cfg.tuneFile, "utf8");
-    } catch {
-      return;
-    }
-    if (raw === lastTuneRaw) return;
-    lastTuneRaw = raw;
-    let t;
-    try {
-      t = JSON.parse(raw);
-    } catch {
-      return;
-    }
-    if (!t || typeof t !== "object") return;
-    const ch = [];
-    if (Number.isFinite(t.delay) && t.delay >= 0 && t.delay !== cfg.delay) {
-      cfg.delay = t.delay;
-      ch.push(`delay=${t.delay}ms`);
-    }
-    if (Number.isFinite(t.rps) && t.rps >= 0 && t.rps !== cfg.rps) {
-      cfg.rps = t.rps;
-      ch.push(`rps=${t.rps || "off"}`);
-    }
-    if (Number.isFinite(t.crawlDelay) && t.crawlDelay >= 0 && t.crawlDelay !== crawlDelay) {
-      crawlDelay = t.crawlDelay;
-      state.crawlDelay = t.crawlDelay;
-      ch.push(`crawl-delay=${t.crawlDelay}s`);
-    }
-    if (Number.isFinite(t.timeout) && t.timeout >= 1e3 && t.timeout !== cfg.timeout) {
-      cfg.timeout = t.timeout;
-      ch.push(`timeout=${t.timeout}ms`);
-    }
-    if (ch.length) {
-      logLine(`# RETUNED ${(/* @__PURE__ */ new Date()).toISOString()} ${ch.join(" ")}`);
-      console.log("Re-tuned: " + ch.join(", ") + ".");
-    }
-  };
-  let pausedState = false;
-  if (cfg.stopFile || cfg.pauseFile || cfg.tuneFile) {
-    controlTimer = setInterval(() => {
-      if (cfg.stopFile && fs.existsSync(cfg.stopFile)) {
-        shutdown("STOPPED");
-        return;
+      pathPrefix = pathPrefix.replace(/\/+$/, "");
+      const inScope = (pathname) => !pathPrefix || pathname === pathPrefix || pathname.indexOf(pathPrefix + "/") === 0;
+      let storeCap = urlCap;
+      if ((cfg.seen === "compact" || cfg.seen === "disk") && !Number.isFinite(storeCap)) {
+        storeCap = 1e6;
+        console.log(`Note: --seen ${cfg.seen} needs a bounded URL count; using ${storeCap.toLocaleString()}. Override with --max-urls.`);
       }
-      applyTune();
-      const p = isPaused();
-      if (p && !pausedState) {
-        pausedState = true;
-        logLine(`# PAUSED ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled}`);
-        console.log("Paused.");
-      } else if (!p && pausedState) {
-        pausedState = false;
-        logLine(`# RESUMED ${(/* @__PURE__ */ new Date()).toISOString()}`);
-        console.log("Resumed.");
-      }
-    }, 400);
-  }
-  console.log(`Crawling ${cfg.startUrl} (host ${startHost}, scope: ${scopeLabel})`);
-  console.log(`Limits: ${cfg.concurrency} concurrent, ${cfg.delay}ms delay, ${cfg.rps ? cfg.rps + " rps cap" : "no rps cap"}, max ${pagesLabel} pages / depth ${depthLabel}${cfg.checkpoint ? `, checkpoint every ${cfg.checkpoint}` : ""}, seen=${cfg.seen}
-`);
-  await Promise.all(Array.from({ length: cfg.concurrency }, worker));
-  process.removeListener("SIGINT", onSigint);
-  if (controlTimer) {
-    clearInterval(controlTimer);
-    controlTimer = null;
-  }
-  cleanupControlFiles();
-  if (cfg.checkExternal && !interrupted) {
-    const exts = [...state.external.values()];
-    console.log(`
-Checking ${exts.length} external links\u2026`);
-    logLine(`# extcheck start ${(/* @__PURE__ */ new Date()).toISOString()} total=${exts.length}`);
-    let i = 0, checked = 0, bad = 0, blockedN = 0;
-    async function checker() {
-      while (i < exts.length && !interrupted) {
-        if (isPaused()) {
-          await sleep(300);
-          continue;
+      const seen = makeSeenStore(cfg.seen, storeCap, cfg.seenFile);
+      seen.tryAdd(normalize(cfg.startUrl));
+      const state = {
+        startHost,
+        pathPrefix,
+        queue: [{ url: cfg.startUrl, depth: 0, parent: "(start)" }],
+        seen,
+        pages: [],
+        external: /* @__PURE__ */ new Map(),
+        outOfScope: /* @__PURE__ */ new Map(),
+        // same domain, outside pathPrefix: recorded, never followed
+        refs: /* @__PURE__ */ new Map(),
+        // target URL -> Set of every distinct referrer page
+        errors: [],
+        blocked: [],
+        // links our automated check couldn't confirm (likely OK in a browser)
+        retries: 0,
+        crawlDelay,
+        crawled: 0,
+        startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        startedMs: Date.now()
+      };
+      const runId = `${state.startedAt.replace(/[-:]/g, "").replace(/\..+/, "")}-${Math.random().toString(16).slice(2, 8)}`;
+      const logger = sharedLogger || makeLogWriter2(cfg, { run: runId, startUrl: cfg.startUrl, startedAt: state.startedAt });
+      state.runId = runId;
+      state.logParts = logger.parts;
+      state.logManifest = logger.manifestPath;
+      state.logSingleFile = logger.singleFile;
+      const journal = makeJournal(cfg.state);
+      const J = journal.ev;
+      if (journal.on && !cfg.resume) {
+        try {
+          fs3.writeFileSync(cfg.state, "");
+        } catch {
         }
-        const e = exts[i++];
+        J({ t: "meta", v: 1, run: runId, startUrl: cfg.startUrl, scope: pathPrefix || "", depth: cfg.maxDepth === Infinity ? null : cfg.maxDepth, subs: !!cfg.includeSubdomains, startedAt: state.startedAt });
+      }
+      const logLine = (s) => logger.line(s);
+      function addRef(target, ref) {
+        let s = state.refs.get(target);
+        if (!s) {
+          s = /* @__PURE__ */ new Set();
+          state.refs.set(target, s);
+        }
+        if (cfg.maxReferrers <= 0 || s.size < cfg.maxReferrers) s.add(ref);
+      }
+      let interrupted = false;
+      if (cfg.resume) replayResume(state, cfg, seen, addRef, logLine, J);
+      async function visit(job) {
+        state.crawled++;
+        J({ t: "v", u: job.url });
         await throttle.gate();
         await limiter();
-        const { status, err } = await probe(e.url, cfg);
-        const disp = linkDisposition(status, err);
-        const detail = status > 0 ? "HTTP " + status : err || "no response";
-        checked++;
-        const rf = state.refs.get(e.url);
-        const source = rf ? [...rf][0] || "" : "";
-        if (disp === "ok") {
-          e.status = "ok";
-        } else if (disp === "blocked") {
-          e.status = "blocked";
-          blockedN++;
-          state.blocked.push({ url: e.url, reason: detail, source, kind: "external" });
-        } else {
-          e.status = "err";
-          bad++;
-          state.errors.push({ url: e.url, reason: "external unreachable (" + detail + ")", source, kind: "external" });
-        }
-        logLine(`# extcheck ${checked}/${exts.length} ${e.status} ${detail} ${e.url}`);
-        if (Date.now() - lastReportMs > 2e3) {
-          writeOutputs(state, cfg, allow, true);
-          if (onProgress) try {
-            onProgress(state);
-          } catch {
+        let r;
+        try {
+          r = await request(job.url, "GET", cfg);
+        } catch (e) {
+          const msg = String(e.message || e);
+          if (linkDisposition(0, msg) === "blocked") {
+            state.blocked.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
+            J({ t: "b", u: job.url, r: msg, k: "internal", src: job.parent });
+            logLine(`${(/* @__PURE__ */ new Date()).toISOString()} BLOCKED ${job.url} :: ${msg} :: found on ${job.parent}`);
+            console.log(`  ?  ${job.url} \u2014 ${msg} (uncertain; found on ${job.parent})`);
+          } else {
+            state.errors.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
+            J({ t: "e", u: job.url, r: msg, k: "internal", src: job.parent });
+            logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: ${msg} :: found on ${job.parent}`);
+            console.log(`  x  ${job.url} \u2014 ${msg}  (found on ${job.parent})`);
           }
-          lastReportMs = Date.now();
+          return;
         }
-        if (cfg.delay) await sleep(cfg.delay);
-      }
-    }
-    await Promise.all(Array.from({ length: cfg.concurrency }, checker));
-    logLine(`# extcheck done ${(/* @__PURE__ */ new Date()).toISOString()} checked=${checked} unreachable=${bad} blocked=${blockedN}`);
-    console.log(`Checked ${checked} external links, ${bad} unreachable, ${blockedN} blocked/uncertain.`);
-  }
-  if (cfg.recheck && !interrupted && state.errors.length) {
-    const toRecheck = state.errors.slice();
-    console.log(`
-Re-checking ${toRecheck.length} failed link${toRecheck.length === 1 ? "" : "s"} (second pass)\u2026`);
-    logLine(`# recheck start ${(/* @__PURE__ */ new Date()).toISOString()} count=${toRecheck.length}`);
-    let i = 0, fixed = 0, moved = 0;
-    async function rechecker() {
-      while (i < toRecheck.length && !interrupted) {
-        if (isPaused()) {
-          await sleep(300);
-          continue;
+        if (r.status === 429 || r.status === 503) {
+          const waitMs = throttle.noteThrottle(parseRetryAfter(r.retryAfter, cfg.maxBackoff * 1e3));
+          job.attempts = (job.attempts || 0) + 1;
+          if (job.attempts <= cfg.maxRetries) {
+            state.crawled--;
+            state.retries++;
+            state.queue.push(job);
+            const untilMs = Date.now() + throttle.activeMs();
+            logLine(`# BACKOFF ${(/* @__PURE__ */ new Date()).toISOString()} HTTP ${r.status} waitMs=${waitMs} untilMs=${untilMs} attempt=${job.attempts} url=${job.url}`);
+            console.log(`  ~  [${r.status}] rate limited \u2014 backing off ${Math.round(waitMs / 1e3)}s, will retry ${job.url}`);
+            return;
+          }
+          state.errors.push({ url: job.url, reason: `rate limited (HTTP ${r.status}, gave up after ${cfg.maxRetries} retries)`, source: job.parent, kind: "internal" });
+          J({ t: "e", u: job.url, r: `rate limited (HTTP ${r.status})`, k: "internal", src: job.parent });
+          logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: HTTP ${r.status} (gave up after ${cfg.maxRetries} retries) :: found on ${job.parent}`);
+          console.log(`  x  [${r.status}] ${job.url} \u2014 gave up after ${cfg.maxRetries} retries`);
+          return;
         }
-        const e = toRecheck[i++];
-        await throttle.gate();
-        await limiter();
-        let disp = "broken", detail = "";
-        if (e.kind === "external") {
-          const { status, err } = await probe(e.url, cfg);
-          disp = linkDisposition(status, err);
-          detail = status > 0 ? "HTTP " + status : err || "no response";
+        throttle.noteSuccess();
+        if (r.status >= 400) {
+          if (linkDisposition(r.status, null) === "blocked") {
+            state.blocked.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
+            J({ t: "b", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
+            logLine(`${(/* @__PURE__ */ new Date()).toISOString()} BLOCKED ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
+            console.log(`  ?  [${r.status}] ${job.url}  (uncertain; found on ${job.parent})`);
+          } else {
+            state.errors.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
+            J({ t: "e", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
+            logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
+            console.log(`  x  [${r.status}] ${job.url}  (found on ${job.parent})`);
+          }
+          return;
+        }
+        let links, title;
+        if (r.html) {
+          const ex = extractLinks(r.html, job.url);
+          links = ex.links;
+          title = ex.title;
+        } else if (r.doc) {
+          const dt = r.docType || sniffMagic(r.doc) || "doc";
+          links = extractDocLinks(r.doc, dt, job.url);
+          title = "(" + (dt === "ooxml" ? "office-doc" : dt) + ", " + links.length + " links)";
         } else {
+          state.pages.push({ url: job.url, title: "(non-HTML: " + (r.contentType || "?") + ")", status: r.status, depth: job.depth, internal: 0, external: 0 });
+          J({ t: "k", u: job.url, s: r.status, d: job.depth, ct: r.contentType || "" });
+          logLine(`${(/* @__PURE__ */ new Date()).toISOString()} SKIP ${job.url} :: ${r.contentType || "non-HTML"}`);
+          return;
+        }
+        let internalFound = 0, externalFound = 0;
+        const inT = [], exT = [], ooT = [];
+        for (const link of links) {
+          if (link.protocol !== "http:" && link.protocol !== "https:") continue;
+          if (sameDomain(link.hostname, startHost, cfg.includeSubdomains)) {
+            if (inScope(link.pathname)) {
+              internalFound++;
+              const norm = normalize(link.href);
+              addRef(norm, job.url);
+              if (journal.on) inT.push(norm);
+              if (job.depth < cfg.maxDepth && seen.tryAdd(norm)) state.queue.push({ url: norm, depth: job.depth + 1, parent: job.url });
+            } else {
+              if (!state.outOfScope.has(link.href)) state.outOfScope.set(link.href, { url: link.href });
+              addRef(link.href, job.url);
+              if (journal.on) ooT.push(link.href);
+            }
+          } else {
+            externalFound++;
+            if (!state.external.has(link.href)) state.external.set(link.href, { url: link.href, host: link.hostname, status: null });
+            addRef(link.href, job.url);
+            if (journal.on) exT.push([link.href, link.hostname]);
+          }
+        }
+        state.pages.push({ url: job.url, title, status: r.status, depth: job.depth, internal: internalFound, external: externalFound });
+        J({ t: "p", u: job.url, s: r.status, d: job.depth, ti: title, in: inT, ex: exT, oo: ooT });
+        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} OK d${job.depth} ${r.status} ${job.url} int=${internalFound} ext=${externalFound} extTotal=${state.external.size}`);
+        console.log(`  ok [d${job.depth}] ${job.url}  (${internalFound} int, ${externalFound} ext)`);
+      }
+      const isPaused = () => cfg.pauseFile && fs3.existsSync(cfg.pauseFile);
+      let inFlight = 0;
+      let lastReportMs = Date.now();
+      async function worker() {
+        while (!interrupted) {
+          if (isPaused()) {
+            await sleep(300);
+            continue;
+          }
+          if (state.crawled >= cfg.maxPages) return;
+          const job = state.queue.shift();
+          if (!job) {
+            if (inFlight > 0) {
+              await sleep(100);
+              continue;
+            }
+            return;
+          }
+          inFlight++;
           try {
-            const r = await request(e.url, "GET", cfg);
-            disp = linkDisposition(r.status, null);
-            detail = "HTTP " + r.status;
-          } catch (err) {
-            const m = String(err && err.message || err);
-            disp = linkDisposition(0, m);
-            detail = m;
+            await visit(job);
+          } finally {
+            inFlight--;
+          }
+          const dueByCount = cfg.checkpoint && state.crawled % cfg.checkpoint === 0;
+          if (dueByCount || Date.now() - lastReportMs > 2e3) {
+            writeOutputs2(state, cfg, allow, true);
+            if (dueByCount) {
+              logLine(`# checkpoint ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} queued=${state.queue.length} -> ${cfg.out}`);
+              logger.finalize(false);
+            }
+            if (onProgress) try {
+              onProgress(state);
+            } catch {
+            }
+            lastReportMs = Date.now();
+          }
+          if (cfg.delay) await sleep(cfg.delay);
+        }
+      }
+      const depthLabel = cfg.maxDepth === Infinity ? "unlimited" : cfg.maxDepth;
+      const pagesLabel = cfg.maxPages === Infinity ? "unlimited" : cfg.maxPages;
+      const scopeLabel = pathPrefix ? `path ${pathPrefix}/` : "whole domain";
+      logLine(`# crawl start ${state.startedAt} ${cfg.startUrl} scope=${scopeLabel} maxPages=${pagesLabel} maxDepth=${depthLabel} checkpoint=${cfg.checkpoint} crawlDelay=${crawlDelay}s run=${runId}`);
+      if (crawlDelay > 0) console.log(`Crawl-delay: ${crawlDelay}s ${robotsDelay > 0 ? "(from robots.txt)" : "(manual)"} \u2014 ~${(1 / crawlDelay).toFixed(2)} req/sec`);
+      writeOutputs2(state, cfg, allow, true);
+      if (onProgress) try {
+        onProgress(state);
+      } catch {
+      }
+      let controlTimer = null;
+      function cleanupControlFiles() {
+        try {
+          if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) fs3.unlinkSync(cfg.stopFile);
+        } catch {
+        }
+        try {
+          if (cfg.pauseFile && fs3.existsSync(cfg.pauseFile)) fs3.unlinkSync(cfg.pauseFile);
+        } catch {
+        }
+      }
+      function shutdown(reason) {
+        if (interrupted) process.exit(130);
+        interrupted = true;
+        if (controlTimer) {
+          clearInterval(controlTimer);
+          controlTimer = null;
+        }
+        console.log(`
+${reason} \u2014 flushing partial results (${state.pages.length} pages, ${state.queue.length} queued)\u2026`);
+        try {
+          logLine(`# ${reason} ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} queued=${state.queue.length}`);
+          logger.finalize(false);
+          writeOutputs2(state, cfg, allow, true);
+          if (onProgress) onProgress(state);
+          cleanupControlFiles();
+        } catch {
+        }
+        const logHint = cfg.log ? `
+Progress log:   ${logger.singleFile ? cfg.log : logger.manifestPath + ` (${logger.parts.length} part${logger.parts.length === 1 ? "" : "s"})`}` : "";
+        console.log(`Partial report: ${cfg.out}${logHint}`);
+        process.exit(130);
+      }
+      const onSigint = () => shutdown("INTERRUPTED");
+      process.on("SIGINT", onSigint);
+      let lastTuneRaw = null;
+      try {
+        if (cfg.tuneFile && fs3.existsSync(cfg.tuneFile)) lastTuneRaw = fs3.readFileSync(cfg.tuneFile, "utf8");
+      } catch {
+      }
+      const applyTune = () => {
+        if (!cfg.tuneFile) return;
+        let raw;
+        try {
+          raw = fs3.readFileSync(cfg.tuneFile, "utf8");
+        } catch {
+          return;
+        }
+        if (raw === lastTuneRaw) return;
+        lastTuneRaw = raw;
+        let t;
+        try {
+          t = JSON.parse(raw);
+        } catch {
+          return;
+        }
+        if (!t || typeof t !== "object") return;
+        const ch = [];
+        if (Number.isFinite(t.delay) && t.delay >= 0 && t.delay !== cfg.delay) {
+          cfg.delay = t.delay;
+          ch.push(`delay=${t.delay}ms`);
+        }
+        if (Number.isFinite(t.rps) && t.rps >= 0 && t.rps !== cfg.rps) {
+          cfg.rps = t.rps;
+          ch.push(`rps=${t.rps || "off"}`);
+        }
+        if (Number.isFinite(t.crawlDelay) && t.crawlDelay >= 0 && t.crawlDelay !== crawlDelay) {
+          crawlDelay = t.crawlDelay;
+          state.crawlDelay = t.crawlDelay;
+          ch.push(`crawl-delay=${t.crawlDelay}s`);
+        }
+        if (Number.isFinite(t.timeout) && t.timeout >= 1e3 && t.timeout !== cfg.timeout) {
+          cfg.timeout = t.timeout;
+          ch.push(`timeout=${t.timeout}ms`);
+        }
+        if (ch.length) {
+          logLine(`# RETUNED ${(/* @__PURE__ */ new Date()).toISOString()} ${ch.join(" ")}`);
+          console.log("Re-tuned: " + ch.join(", ") + ".");
+        }
+      };
+      let pausedState = false;
+      if (cfg.stopFile || cfg.pauseFile || cfg.tuneFile) {
+        controlTimer = setInterval(() => {
+          if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) {
+            shutdown("STOPPED");
+            return;
+          }
+          applyTune();
+          const p = isPaused();
+          if (p && !pausedState) {
+            pausedState = true;
+            logLine(`# PAUSED ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled}`);
+            console.log("Paused.");
+          } else if (!p && pausedState) {
+            pausedState = false;
+            logLine(`# RESUMED ${(/* @__PURE__ */ new Date()).toISOString()}`);
+            console.log("Resumed.");
+          }
+        }, 400);
+      }
+      console.log(`Crawling ${cfg.startUrl} (host ${startHost}, scope: ${scopeLabel})`);
+      console.log(`Limits: ${cfg.concurrency} concurrent, ${cfg.delay}ms delay, ${cfg.rps ? cfg.rps + " rps cap" : "no rps cap"}, max ${pagesLabel} pages / depth ${depthLabel}${cfg.checkpoint ? `, checkpoint every ${cfg.checkpoint}` : ""}, seen=${cfg.seen}
+`);
+      await Promise.all(Array.from({ length: cfg.concurrency }, worker));
+      process.removeListener("SIGINT", onSigint);
+      if (controlTimer) {
+        clearInterval(controlTimer);
+        controlTimer = null;
+      }
+      cleanupControlFiles();
+      if (cfg.checkExternal && !interrupted) {
+        const exts = [...state.external.values()];
+        console.log(`
+Checking ${exts.length} external links\u2026`);
+        logLine(`# extcheck start ${(/* @__PURE__ */ new Date()).toISOString()} total=${exts.length}`);
+        let i = 0, checked = 0, bad = 0, blockedN = 0;
+        async function checker() {
+          while (i < exts.length && !interrupted) {
+            if (isPaused()) {
+              await sleep(300);
+              continue;
+            }
+            const e = exts[i++];
+            await throttle.gate();
+            await limiter();
+            const { status, err } = await probe(e.url, cfg);
+            const disp = linkDisposition(status, err);
+            const detail = status > 0 ? "HTTP " + status : err || "no response";
+            checked++;
+            const rf = state.refs.get(e.url);
+            const source = rf ? [...rf][0] || "" : "";
+            if (disp === "ok") {
+              e.status = "ok";
+            } else if (disp === "blocked") {
+              e.status = "blocked";
+              blockedN++;
+              state.blocked.push({ url: e.url, reason: detail, source, kind: "external" });
+            } else {
+              e.status = "err";
+              bad++;
+              state.errors.push({ url: e.url, reason: "external unreachable (" + detail + ")", source, kind: "external" });
+            }
+            logLine(`# extcheck ${checked}/${exts.length} ${e.status} ${detail} ${e.url}`);
+            if (Date.now() - lastReportMs > 2e3) {
+              writeOutputs2(state, cfg, allow, true);
+              if (onProgress) try {
+                onProgress(state);
+              } catch {
+              }
+              lastReportMs = Date.now();
+            }
+            if (cfg.delay) await sleep(cfg.delay);
           }
         }
-        if (disp === "ok") {
-          const idx = state.errors.indexOf(e);
-          if (idx >= 0) state.errors.splice(idx, 1);
-          if (e.kind === "external") {
-            const ent = state.external.get(e.url);
-            if (ent) ent.status = "ok";
+        await Promise.all(Array.from({ length: cfg.concurrency }, checker));
+        logLine(`# extcheck done ${(/* @__PURE__ */ new Date()).toISOString()} checked=${checked} unreachable=${bad} blocked=${blockedN}`);
+        console.log(`Checked ${checked} external links, ${bad} unreachable, ${blockedN} blocked/uncertain.`);
+      }
+      if (cfg.recheck && !interrupted && state.errors.length) {
+        const toRecheck = state.errors.slice();
+        console.log(`
+Re-checking ${toRecheck.length} failed link${toRecheck.length === 1 ? "" : "s"} (second pass)\u2026`);
+        logLine(`# recheck start ${(/* @__PURE__ */ new Date()).toISOString()} count=${toRecheck.length}`);
+        let i = 0, fixed = 0, moved = 0;
+        async function rechecker() {
+          while (i < toRecheck.length && !interrupted) {
+            if (isPaused()) {
+              await sleep(300);
+              continue;
+            }
+            const e = toRecheck[i++];
+            await throttle.gate();
+            await limiter();
+            let disp = "broken", detail = "";
+            if (e.kind === "external") {
+              const { status, err } = await probe(e.url, cfg);
+              disp = linkDisposition(status, err);
+              detail = status > 0 ? "HTTP " + status : err || "no response";
+            } else {
+              try {
+                const r = await request(e.url, "GET", cfg);
+                disp = linkDisposition(r.status, null);
+                detail = "HTTP " + r.status;
+              } catch (err) {
+                const m = String(err && err.message || err);
+                disp = linkDisposition(0, m);
+                detail = m;
+              }
+            }
+            if (disp === "ok") {
+              const idx = state.errors.indexOf(e);
+              if (idx >= 0) state.errors.splice(idx, 1);
+              if (e.kind === "external") {
+                const ent = state.external.get(e.url);
+                if (ent) ent.status = "ok";
+              }
+              fixed++;
+              logLine(`# recheck ${e.url} was=error now=ok`);
+            } else if (disp === "blocked") {
+              const idx = state.errors.indexOf(e);
+              if (idx >= 0) state.errors.splice(idx, 1);
+              if (e.kind === "external") {
+                const ent = state.external.get(e.url);
+                if (ent) ent.status = "blocked";
+              }
+              state.blocked.push({ url: e.url, reason: detail, source: e.source, kind: e.kind });
+              moved++;
+              logLine(`# recheck ${e.url} was=error now=blocked`);
+            } else {
+              logLine(`# recheck ${e.url} still=error`);
+            }
+            if (Date.now() - lastReportMs > 2e3) {
+              writeOutputs2(state, cfg, allow, true);
+              if (onProgress) try {
+                onProgress(state);
+              } catch {
+              }
+              lastReportMs = Date.now();
+            }
+            if (cfg.delay) await sleep(cfg.delay);
           }
-          fixed++;
-          logLine(`# recheck ${e.url} was=error now=ok`);
-        } else if (disp === "blocked") {
-          const idx = state.errors.indexOf(e);
-          if (idx >= 0) state.errors.splice(idx, 1);
-          if (e.kind === "external") {
-            const ent = state.external.get(e.url);
-            if (ent) ent.status = "blocked";
-          }
-          state.blocked.push({ url: e.url, reason: detail, source: e.source, kind: e.kind });
-          moved++;
-          logLine(`# recheck ${e.url} was=error now=blocked`);
-        } else {
-          logLine(`# recheck ${e.url} still=error`);
         }
-        if (Date.now() - lastReportMs > 2e3) {
-          writeOutputs(state, cfg, allow, true);
-          if (onProgress) try {
-            onProgress(state);
-          } catch {
-          }
-          lastReportMs = Date.now();
-        }
-        if (cfg.delay) await sleep(cfg.delay);
+        await Promise.all(Array.from({ length: cfg.concurrency }, rechecker));
+        logLine(`# recheck done ${(/* @__PURE__ */ new Date()).toISOString()} fixed=${fixed} blocked=${moved} stillBroken=${toRecheck.length - fixed - moved}`);
+        console.log(`Re-check: ${fixed} of ${toRecheck.length} now OK, ${moved} blocked/uncertain, ${toRecheck.length - fixed - moved} still broken.`);
+      }
+      for (const e of state.errors) {
+        const rf = state.refs.get(e.url);
+        const list = rf && rf.size ? [...rf] : e.source ? [e.source] : [];
+        for (const ref of list) logLine(`# brokenref ${e.kind || "internal"} ${e.url} <- ${ref}`);
+      }
+      logLine(`# crawl done ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} pages=${state.pages.length} external=${state.external.size} errors=${state.errors.length}`);
+      logger.finalize(!sharedLogger);
+      seen.close();
+      state.finishedMs = Date.now();
+      return state;
+    }
+    module2.exports = { crawl: crawl2 };
+  }
+});
+
+// src/crawl/suggest.js
+var require_suggest = __commonJS({
+  "src/crawl/suggest.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    var path = require("path");
+    var { URL } = require("url");
+    function writeSuggested2(cfg, suppressedOut, activeErrors) {
+      if (!activeErrors.length) {
+        return false;
+      }
+      const lines = [];
+      lines.push("# Suggested allowlist \u2014 broken links found " + (/* @__PURE__ */ new Date()).toISOString());
+      lines.push("# These are NOT yet in " + cfg.allowlist + ".");
+      lines.push("#");
+      lines.push("# To stop a broken link from appearing in future reports, KEEP its");
+      lines.push("# line here and append it to " + cfg.allowlist + " (or pass this file");
+      lines.push("# via --allowlist). DELETE lines for issues you still want flagged.");
+      lines.push("# '*' is a wildcard. '#' starts a comment. Blank lines are ignored.");
+      lines.push("#");
+      for (const e of activeErrors) {
+        lines.push(`${e.url}   # ${e.reason} \u2014 found on: ${e.source || "(start)"}`);
+      }
+      fs3.writeFileSync(cfg.suggest, lines.join("\n") + "\n");
+      return true;
+    }
+    function hostOf2(u) {
+      try {
+        return new URL(u).hostname;
+      } catch {
+        return u;
       }
     }
-    await Promise.all(Array.from({ length: cfg.concurrency }, rechecker));
-    logLine(`# recheck done ${(/* @__PURE__ */ new Date()).toISOString()} fixed=${fixed} blocked=${moved} stillBroken=${toRecheck.length - fixed - moved}`);
-    console.log(`Re-check: ${fixed} of ${toRecheck.length} now OK, ${moved} blocked/uncertain, ${toRecheck.length - fixed - moved} still broken.`);
+    function sitePath2(out, i, host) {
+      const ext = path.extname(out) || ".html";
+      const stem = out.slice(0, out.length - ext.length);
+      return `${stem}.${i + 1}-${host.replace(/[^a-z0-9.-]/gi, "_")}${ext}`;
+    }
+    module2.exports = { writeSuggested: writeSuggested2, hostOf: hostOf2, sitePath: sitePath2 };
   }
-  for (const e of state.errors) {
-    const rf = state.refs.get(e.url);
-    const list = rf && rf.size ? [...rf] : e.source ? [e.source] : [];
-    for (const ref of list) logLine(`# brokenref ${e.kind || "internal"} ${e.url} <- ${ref}`);
-  }
-  logLine(`# crawl done ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} pages=${state.pages.length} external=${state.external.size} errors=${state.errors.length}`);
-  logger.finalize(!sharedLogger);
-  seen.close();
-  state.finishedMs = Date.now();
-  return state;
-}
-function writeSuggested(cfg, suppressedOut, activeErrors) {
-  if (!activeErrors.length) {
-    return false;
-  }
-  const lines = [];
-  lines.push("# Suggested allowlist \u2014 broken links found " + (/* @__PURE__ */ new Date()).toISOString());
-  lines.push("# These are NOT yet in " + cfg.allowlist + ".");
-  lines.push("#");
-  lines.push("# To stop a broken link from appearing in future reports, KEEP its");
-  lines.push("# line here and append it to " + cfg.allowlist + " (or pass this file");
-  lines.push("# via --allowlist). DELETE lines for issues you still want flagged.");
-  lines.push("# '*' is a wildcard. '#' starts a comment. Blank lines are ignored.");
-  lines.push("#");
-  for (const e of activeErrors) {
-    lines.push(`${e.url}   # ${e.reason} \u2014 found on: ${e.source || "(start)"}`);
-  }
-  fs.writeFileSync(cfg.suggest, lines.join("\n") + "\n");
-  return true;
-}
-function hostOf(u) {
-  try {
-    return new URL(u).hostname;
-  } catch {
-    return u;
-  }
-}
-function sitePath(out, i, host) {
-  const ext = path.extname(out) || ".html";
-  const stem = out.slice(0, out.length - ext.length);
-  return `${stem}.${i + 1}-${host.replace(/[^a-z0-9.-]/gi, "_")}${ext}`;
-}
+});
+
+// src/crawl.js
+var fs2 = require("fs");
+var { writeOutputs, buildIndexReport, writeCombinedJson } = require_report();
+var { makeLogWriter, mergeLogs } = require_log();
+var { parseArgs, die } = require_cli();
+var { runRecheck, runRebuild } = require_recheck();
+var { loadAllowlist, compileAllow } = require_allowlist();
+var { crawl } = require_engine();
+var { writeSuggested, hostOf, sitePath } = require_suggest();
 (async function main() {
   const mi = process.argv.indexOf("--merge-logs");
   if (mi !== -1) {
@@ -3706,7 +3747,7 @@ Done. ${state.pages.length} pages, ${state.external.size} external links${state.
   const sites = cfg.startUrls.map((u, i) => ({ url: u, host: hostOf(u), state: null, partial: true, reportFile: sitePath(cfg.out, i, hostOf(u)), jsonFile: cfg.json ? sitePath(cfg.json, i, hostOf(u)) : "" }));
   const writeIndex = (partial) => {
     try {
-      fs.writeFileSync(cfg.out, buildIndexReport(sites, cfg, allow, partial, startedAt));
+      fs2.writeFileSync(cfg.out, buildIndexReport(sites, cfg, allow, partial, startedAt));
       if (cfg.json) writeCombinedJson(sites, cfg, allow);
     } catch {
     }

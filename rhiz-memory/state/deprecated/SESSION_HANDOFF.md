@@ -1,3 +1,16 @@
+# Session Handoff (DEPRECATED — superseded, preserved for history)
+
+> **This file is retired.** The hand-maintained session-handoff / resume-block model is
+> superseded by the context-window lifecycle ([rhizome AD-007](../../../../rhizome/rhiz-memory/decisions/AD-007_session-state-context-window-lifecycle.md); `rhiz-state.md` on the tools
+> channel): session "state" is now machine-written, git-tracked buckets at `rhiz-memory/state/`
+> — `session-summary.md` (steered working narrative; absorbs the handoff role),
+> `session-checkpoints.md` (checkpoint coordinates / next-action pointer), and
+> `session-cache.md` (un-losables) — written at each checkpoint and rehydrated on resume.
+> This file is **moved, not deleted** (`git mv` preserves lineage). **Do not extend it.**
+> The content below is the final hand-written version as it stood at retirement (2026-07-20).
+
+---
+
 # Session Handoff — Charlotte
 
 The durable, self-contained "what a cold reader needs to resume Charlotte's development" record. This page stays **short and current**; the blow-by-blow lives in the ADR log and the retrospective, which it points to (it is NOT a second copy of them).
@@ -11,7 +24,7 @@ The durable, self-contained "what a cold reader needs to resume Charlotte's deve
 - **where the detail lives** (do not duplicate it here):
   - **Decisions** — `state/decisions.md` is an ADR **index**; bodies live in five range files under `decisions/`: `AD-001-016` (migration + engine), `AD-017-034` / `AD-035-052` (report rendering, triage, sharing, report internals), `AD-053-065` (ergonomics), `AD-066-081` (theme → batch delegation → consolidation/migration → partitioning/charter). Every behavior change is one AD with its verification. (Re-partitioned 2026-06-27, AD-080 — the old `AD-017-onward.md` was 1,576 lines.)
   - **Retrospective** — `state/SYNTHESIS.md`: capability inventory (§2), what worked (§4), the **hard-won lessons** (§5, themed index up top — read before touching the relevant area), testing approach (§6), open threads (§7).
-  - **Reference docs** — the full suite reference is partitioned under `CRAWLER/` (a rhiz-Merkle DAG; **start at [`CRAWLER/CRAWLER_index.md`](../../CRAWLER/CRAWLER_index.md)** — root `CRAWLER.md` is a pointer stub; AD-080). `README.md` (quick start). Verify the DAG with `doc-graph.py verify CRAWLER/CRAWLER_index.json`; reassemble with `doc-graph.py merge`.
+  - **Reference docs** — the full suite reference is partitioned under `CRAWLER/` (a rhiz-Merkle DAG; **start at [`CRAWLER/CRAWLER_index.md`](../../../CRAWLER/CRAWLER_index.md)** — root `CRAWLER.md` is a pointer stub; AD-080). `README.md` (quick start). Verify the DAG with `doc-graph.py verify CRAWLER/CRAWLER_index.json`; reassemble with `doc-graph.py merge`.
 
 - **the two surfaces, in one line each**:
   - **Crawl report** (`report.js` + `report-templates.js`): broken-over-total stat matrix with a Referrer-pages-with-broken-links card + amber→green triage outlines; three triage tabs (Broken·internal/external + Blocked) with per-link **Broken/Working** verdicts; non-triage tabs (Internal/External/Out-of-scope) folder/host-grouped; every grouped table drag-resizable; one reused side-docked **satellite window** for testing any link; light/dark theme.
@@ -23,7 +36,7 @@ The durable, self-contained "what a cold reader needs to resume Charlotte's deve
 
 - **charter change (2026-06-27, AD-081)**: the "no build / zero-install" directive was relaxed — a **build-time roll-up is now permitted** (Vite/rollup, per rhizome DS-002) so source can be small modules while the deliverable stays a single zero-install file. Runtime invariants are unchanged (the shipped file still runs on Node built-ins; build tools are `devDependencies` only). See `_instance.md` charter MAY clause.
 
-- **build (AD-082)**: the source now lives in [`src/`](../../src/) and an **esbuild roll-up** (`npm run build`) bundles it into the single shipped root `crawl.js` (a generated artifact; runs zero-install). `report-templates.js` was split into `src/report-templates/`. **Edit `src/`, then `npm run build`** — never edit the root `crawl.js` (it's generated). Verify any change byte-identical (golden `--rebuild-from` is fully deterministic; see AD-082).
+- **build (AD-082)**: the source now lives in [`src/`](../../../src/) and an **esbuild roll-up** (`npm run build`) bundles it into the single shipped root `crawl.js` (a generated artifact; runs zero-install). `report-templates.js` was split into `src/report-templates/`. **Edit `src/`, then `npm run build`** — never edit the root `crawl.js` (it's generated). Verify any change byte-identical (golden `--rebuild-from` is fully deterministic; see AD-082).
 
 - **monolith partition complete (2026-07-19, DS-016)**: the three `src/` files over the census threshold at adoption were partitioned into ≤500-line modules via the build-roll-up modality, each kept alive as a thin facade/assembler so `build.mjs` and importers are untouched — **`report.js`** (1,136 L → 21-L facade + 8 modules under `src/report/`; prior run), **`src/crawl.js`** (664 L → 128-L CLI facade + `src/crawl/`: `engine`·`resume`·`allowlist`·`suggest`), **`src/report-templates/tracker-template.js`** (502 L → 78-L assembler + `tracker-css`·`tracker-script`). Pure code motion, no behavior change: verified byte-identical per file on the deterministic golden `--rebuild-from` and a live localhost-fixture crawl (JSON + report HTML, modulo run timestamps); root `crawl.js` regenerated, `crawl-render.js` untouched byte-identical. `.monolith-baseline.json` `keep_whole` is now **empty**; `rhiz_growth.py` reports **0 over / 0 stale** (3 files sit in the advisory "near" band). Every `src/` file is now ≤500 L and <50 KB.
 

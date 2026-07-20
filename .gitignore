@@ -34,3 +34,13 @@ crawl-report.json.bak
 # rhiz tooling channel — gitignored: resolved tools cache + generated search index
 .rhiz-tools/
 .rhiz-search/
+
+# rhiz session-state runtime pointers (container-specific; never committed).
+# NOTE: the NARRATIVE session buckets — session-cache / session-summary — are TRACKED
+# (Tier A) at rhiz-memory/state/ beside session-checkpoints.md, NOT ignored (rhizome AD-007).
+.rhiz/transcript-ptr
+.rhiz/channel-seen
+.rhiz/loaded-units.json
+.rhiz/context.*
+.rhiz/milestone.*
+.rhiz/session-start-shas.*

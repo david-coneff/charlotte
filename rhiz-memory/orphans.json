@@ -1,0 +1,12 @@
+{
+  "orphans": [
+    {
+      "path": "rhiz-memory/state/deprecated/SESSION_HANDOFF.md",
+      "reason": "Retired hand-maintained session-state artifact (rhizome AD-007: superseded by the tracked session buckets at state/). Moved-not-deleted to preserve lineage; deliberately unlinked."
+    },
+    {
+      "path": "rhiz-memory/state/deprecated/RESUME_BLOCK.md",
+      "reason": "Retired hand-maintained session-state artifact (rhizome AD-007: superseded by the tracked session buckets at state/). Moved-not-deleted to preserve lineage; deliberately unlinked."
+    }
+  ]
+}

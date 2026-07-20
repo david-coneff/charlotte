@@ -1,3 +1,16 @@
+# Resume Block (DEPRECATED — superseded, preserved for history)
+
+> **This file is retired.** The hand-maintained session-handoff / resume-block model is
+> superseded by the context-window lifecycle ([rhizome AD-007](../../../../rhizome/rhiz-memory/decisions/AD-007_session-state-context-window-lifecycle.md); `rhiz-state.md` on the tools
+> channel): session "state" is now machine-written, git-tracked buckets at `rhiz-memory/state/`
+> — `session-summary.md` (steered working narrative; absorbs the handoff role),
+> `session-checkpoints.md` (checkpoint coordinates / next-action pointer), and
+> `session-cache.md` (un-losables) — written at each checkpoint and rehydrated on resume.
+> This file is **moved, not deleted** (`git mv` preserves lineage). **Do not extend it.**
+> The content below is the final hand-written version as it stood at retirement (2026-07-20).
+
+---
+
 # Project Resume Block — Charlotte
 
 One-screen save-state for Charlotte's development continuity. (Detail lives in `SESSION_HANDOFF.md`, the ADR log `state/decisions.md`, and the retrospective `state/SYNTHESIS.md` — this page is the index card, not a copy.)
@@ -21,7 +34,7 @@ One-screen save-state for Charlotte's development continuity. (Detail lives in `
 
 - **2026-06-27 housekeeping** (AD-078–081): memory consolidated; the 12 universal principles **promoted into `david-coneff/rhizome`** (AD-079); the ADR log + `CRAWLER.md` **partitioned** via rhiz-Partition (AD-080 — ADR ranges + a `CRAWLER/` rhiz-Merkle DAG); and the **charter relaxed to permit a build-time roll-up** (AD-081, DS-002).
 
-- **build (AD-082)**: source is in [`src/`](../../src/); `npm run build` (esbuild) rolls it into the single shipped root `crawl.js` (generated; zero-install runtime). Edit `src/`, then build — never the root `crawl.js`. `report-templates.js` was split into `src/report-templates/`.
+- **build (AD-082)**: source is in [`src/`](../../../src/); `npm run build` (esbuild) rolls it into the single shipped root `crawl.js` (generated; zero-install runtime). Edit `src/`, then build — never the root `crawl.js`. `report-templates.js` was split into `src/report-templates/`.
 
 - **next_action**: split `report.js` (~1,136 L, the `buildReport` function) — **but restore the 244/0 test suite first** (it's not in the repo), since the tiny byte-identical fixture can't prove logic-level equivalence. Then browser-toolchain parity; SYNTHESIS §7. (ADR-log partition = done AD-080; build = done AD-082.)
 

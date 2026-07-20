@@ -11,7 +11,7 @@ When starting a session on Charlotte under the Rhizome methodology:
 1. `david-coneff/rhizome` — `protocol/core/rhiz-core.md` (always loaded)
 2. `david-coneff/rhizome` — `protocol/core/rhiz-core.manifest.yaml` (select modules for task)
 3. `rhiz-memory/_instance.md` (this file — project identity + startup)
-4. `rhiz-memory/state/SESSION_HANDOFF.md` (current work context and next action)
+4. `rhiz-memory/state/session-summary.md` (steered working narrative) + `state/session-checkpoints.md` (latest checkpoint coordinates / next-action pointer) + `state/session-cache.md` (un-losables). These are the machine-written, git-tracked session-state buckets — rehydrated automatically on resume. (The old hand-maintained `SESSION_HANDOFF.md` / `RESUME_BLOCK.md` are retired → `state/deprecated/`, per rhizome AD-007.)
 
 The Rhizome protocol specs live entirely in `david-coneff/rhizome`.
 
@@ -93,7 +93,7 @@ CRAWLER.md / README.md ──document──▶ all of the above
 | Governance | `rhiz-memory/_instance.md` (this file) |
 | Synthesis (features / architecture / lessons) | `rhiz-memory/state/SYNTHESIS.md` |
 | Decisions | `rhiz-memory/state/decisions.md` (index) → range files in `state/decisions/` (`AD-001-016`, `AD-017-034`, `AD-035-052`, `AD-053-065`, `AD-066-081`) |
-| Planning / State | `rhiz-memory/state/SESSION_HANDOFF.md`, `rhiz-memory/state/RESUME_BLOCK.md` |
+| Planning / State | the git-tracked session buckets: `rhiz-memory/state/session-summary.md`, `state/session-checkpoints.md`, `state/session-cache.md` (retired `SESSION_HANDOFF.md` / `RESUME_BLOCK.md` → `state/deprecated/`) |
 | Risk / Oversight | `rhiz-memory/audits/` |
 | Upstream candidates | `rhiz-memory/RHIZOME-CORE-CANDIDATES.md` (universal principles staged for promotion into `david-coneff/rhizome`) |
 | Contracts | `package.json` (bin entries, optional deps); crawl.js JSON report shape |
@@ -105,8 +105,10 @@ CRAWLER.md / README.md ──document──▶ all of the above
 
 Every article in this rhiz-memory tree is reachable from here:
 
-- [`state/SESSION_HANDOFF.md`](state/SESSION_HANDOFF.md) — current work context and next action.
-- [`state/RESUME_BLOCK.md`](state/RESUME_BLOCK.md) — fast-resume snapshot of in-flight state.
+- `state/session-summary.md` — steered working narrative (machine-written at checkpoints; absorbs the old handoff role; created at the first checkpoint).
+- `state/session-checkpoints.md` — latest checkpoint coordinates / next-action pointer (created at the first checkpoint).
+- `state/session-cache.md` — un-losables captured before compaction (created at the first checkpoint).
+- Retired: `SESSION_HANDOFF.md` / `RESUME_BLOCK.md` → [`state/deprecated/`](state/deprecated/) (rhizome AD-007).
 - [`state/SYNTHESIS.md`](state/SYNTHESIS.md) — features / architecture / lessons retrospective.
 - [`state/decisions.md`](state/decisions.md) — the ADR index → the `AD-*` range files under `state/decisions/`.
 - [`audits/2026-06-27-ergonomics-review.md`](audits/2026-06-27-ergonomics-review.md) — oversight / ergonomics audit.

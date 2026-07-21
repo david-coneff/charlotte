@@ -33,7 +33,8 @@ Subcommands (extra args are forwarded to the underlying tool):
   search [..]      rhiz-search.py  --root-repo <repo> [..]   (e.g. `search query "x"`)
   docs             doc-graph.py render-all --root <repo>
   verify <index>   doc-graph.py verify <index>
-  maintain         lint + search index + docs + ledger-check  (the mechanical loop, no LLM)
+  maintain         bare: lint + search index + docs + ledger-check (the mechanical loop, no LLM)
+  maintain [..]    with flags: rhiz-maintain.py --root <repo> [..]  (e.g. `maintain --fix`, `--check`)
   report           rhiz-maintain.py --report — classify findings auto vs judgment
   govern [--write] audit which repo-specific tool-types apply to THIS repo (build/defer/decline)
   census [--show B] monolith-growth census — nag rhiz-partition on oversized source (DS-016)
@@ -45,6 +46,9 @@ Subcommands (extra args are forwarded to the underlying tool):
   impact [--max-distance N]  transitive review cone: who a change reaches, incl. indirect callers
   equiv            differential old-vs-new execution of drifted pure fns — flags BEHAVIOR-DIVERGES (opt-in)
   apidiff OLD NEW sym  declarative surface-delta rules (additive/impacting/breaking, named)
+  emissions [--latest | --transcript P] [--markers]  audit AD-008 delta emission vs the real
+                   transcript: full-once-then-pointers per window, realized/missed savings,
+                   fallback-breadcrumb violations
   xref [--fix]     auto-link bare "§N" section cross-refs to their #anchor (resolves the xref-links lint)
   howto [topic]    print a fixed procedure + its version hash (records it in the ledger)
   ledger           diff the load-ledger vs current reference hashes (stale-and-loaded units)
@@ -154,6 +158,13 @@ def main() -> int:
     if sub == "verify":
         return _run([py, dg, "verify", *rest])
     if sub == "maintain":
+        # Flags belong to rhiz-maintain.py (the converge/fix tool): forward them
+        # together with --root instead of silently dropping them — `rhiz maintain
+        # --fix` must mean what `rhiz-maintain.py --fix --root <root>` means. The
+        # BARE form keeps the mechanical loop below (lint + index + docs + ledger).
+        if rest:
+            return _run([py, str(R / "tools" / "rhiz-maintain.py"),
+                         "--root", str(root), *rest])
         rc = _run([py, lint, "--root", str(root)])
         local = root / "tools" / "lint-local.py"
         if local.exists():
@@ -232,6 +243,11 @@ def main() -> int:
         # generated old-shape inputs in a sandboxed subprocess and flag BEHAVIOR-DIVERGES with
         # a witness. Only ever raises review; never prunes (bounded inputs don't prove equivalence).
         return _run([py, str(R / "tools" / "rhiz_equiv.py"), "--root", str(root), *rest])
+    if sub == "emissions":
+        # AD-008 delta-emission audit: verify against the REAL transcript that fixed
+        # hook boilerplate went out full-once-then-pointers per window; measure realized
+        # vs missed savings; flag compressed emissions missing their fallback breadcrumb.
+        return _run([py, str(R / "tools" / "rhiz_emissions.py"), "--root", str(root), *rest])
     if sub == "apidiff":
         # Declarative surface-diff rule catalog (cargo-semver-checks style): classify a
         # function's OLD→NEW signature delta into named additive/impacting/breaking findings

@@ -1,0 +1,72 @@
+# charlotte GOVERNANCE pipeline — R15: rhizome governance runs OUTSIDE the product CI.
+#
+# Checks out three roots (product + protocol + charlotte-memory) and runs the
+# mechanical maintenance loop against them. The product repo carries only a thin
+# .rhiz-binding.json; its curated notes and baselines live in charlotte-memory, so
+# this is the only pipeline that needs all three.
+name: governance
+
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  maintain:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: charlotte
+
+      # Both are PRIVATE, so these checkouts need a read credential: a
+      # fine-grained PAT with read access, stored as RHIZOME_TOOLS_TOKEN.
+      - name: Check out rhizome-protocol
+        uses: actions/checkout@v4
+        with:
+          repository: david-coneff/rhizome-protocol
+          ref: main
+          path: rhizome-protocol
+          token: ${{ secrets.RHIZOME_TOOLS_TOKEN || github.token }}
+
+      - name: Check out charlotte-memory
+        uses: actions/checkout@v4
+        with:
+          repository: david-coneff/charlotte-memory
+          ref: main
+          path: charlotte-memory
+          token: ${{ secrets.RHIZOME_TOOLS_TOKEN || github.token }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Protocol pin drift-guard
+        working-directory: charlotte
+        run: |
+          PINNED=$(python3 -c "import json;print(json.load(open('.rhiz-binding.json'))['protocol_sha'])")
+          ACTUAL=$(git -C ../rhizome-protocol rev-parse HEAD)
+          if [ "$PINNED" != "$ACTUAL" ]; then
+            echo "::notice::protocol pin $PINNED lags main $ACTUAL — bump .rhiz-binding.json when ready"
+          fi
+
+      - name: Mechanical maintenance (multi-root)
+        working-directory: charlotte
+        env:
+          RHIZ_TOOLS_PATH: ${{ github.workspace }}/rhizome-protocol
+          RHIZ_MEMORY_PATH: ${{ github.workspace }}/charlotte-memory
+        run: python3 tools/rhiz.py maintain
+
+      - name: Shareability gate on charlotte-memory
+        env:
+          RHIZ_TOOLS_PATH: ${{ github.workspace }}/rhizome-protocol
+        run: |
+          python3 rhizome-protocol/tools/rhiz_scope_audit.py --root charlotte-memory
+          if find charlotte-memory -type f ! -path '*/.git/*' \
+               | grep -iE '\.(png|jpg|jpeg|gif|webp|wasm|zip|bin|mp4|webm|pdf)$'; then
+            echo "::error::blob found in the shareable notes repo — must live in a private -lfs"
+            exit 1
+          fi

@@ -60,6 +60,16 @@ jobs:
           RHIZ_MEMORY_PATH: ${{ github.workspace }}/charlotte-memory
         run: python3 tools/rhiz.py maintain
 
+      # The memory repo lints on ITS OWN root — rhiz-lint stays product-local and
+      # never reaches across a repo boundary, so a clone without the sibling is not
+      # silently under-governed (EL-152). Reuses the checkout above rather than
+      # adding a workflow to charlotte-memory. Its .rhiz-lint.json declares
+      # knowledge_roots ["."], which is what this invocation expects.
+      - name: Lint charlotte-memory on its own root
+        env:
+          RHIZ_TOOLS_PATH: ${{ github.workspace }}/rhizome-protocol
+        run: python3 rhizome-protocol/tools/rhiz-lint.py --root charlotte-memory
+
       - name: Shareability gate on charlotte-memory
         env:
           RHIZ_TOOLS_PATH: ${{ github.workspace }}/rhizome-protocol

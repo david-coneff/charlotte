@@ -1,11 +1,14 @@
 {
-  "knowledge_roots": ["rhiz-memory", "CRAWLER"],
-  "index_names": ["index.md", "README.md", "_instance.md", "decisions.md", "lessons-learned-synthesis.md"],
+  "_comment": "charlotte's rhizome notes moved to charlotte-memory in the Phase-3 protocol-instance split (2026-08-11). That repo carries its own .rhiz-lint.json and is linted on its own root; declaring it HERE would make this lint depend on a sibling checkout a collaborator's clone does not carry (EL-152), and would double-lint a corpus that is already gated. What remains here is the product's own documentation. The removed `rhiz-memory` root and its entry point were SILENTLY SKIPPED by collect_articles and the reachability seeder, which is why this lint read `Result: clean` RC=0 while governing nothing that had moved; rhiz-lint now errors on a declared path that does not exist.",
+  "knowledge_roots": ["CRAWLER"],
+  "index_names": ["index.md", "README.md", "decisions.md", "lessons-learned-synthesis.md"],
   "line_warn": 1500,
   "entry_points": [
-    "rhiz-memory/_instance.md",
     "README.md",
     "CRAWLER.md",
     "SHAREPOINT-MERGE.md"
-  ]
+  ],
+  "frontmatter": {
+    "orphan_registry": ".rhiz-orphans.json"
+  }
 }

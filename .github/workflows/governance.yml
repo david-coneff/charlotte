@@ -22,21 +22,39 @@ jobs:
         with:
           path: charlotte
 
+      # Where the protocol and memory live is READ FROM THE COMMITTED BINDING, never
+      # written as a literal here (protocol-instance-split principle 3: a fork must be
+      # swappable by editing config, not code — a hardcoded `owner/repo` makes this
+      # workflow un-adoptable by anyone else). The binding is already on disk from the
+      # checkout above, and `.rhiz-binding.json` is the designated home for a coordinate.
+      - name: Resolve roots from the binding
+        id: binding
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, re
+          b = json.load(open("charlotte/.rhiz-binding.json"))
+          slug = lambda u: re.sub(r"^https?://[^/]+/|\.git$", "", u)
+          print(f"protocol_repo={slug(b['protocol_url'])}")
+          print(f"protocol_ref={b.get('protocol_ref', 'main')}")
+          print(f"memory_repo={slug(b['memory_url'])}")
+          print(f"memory_ref={b.get('memory_ref', 'main')}")
+          PY
+
       # Both are PRIVATE, so these checkouts need a read credential: a
       # fine-grained PAT with read access, stored as RHIZOME_TOOLS_TOKEN.
       - name: Check out rhizome-protocol
         uses: actions/checkout@v4
         with:
-          repository: david-coneff/rhizome-protocol
-          ref: main
+          repository: ${{ steps.binding.outputs.protocol_repo }}
+          ref: ${{ steps.binding.outputs.protocol_ref }}
           path: rhizome-protocol
           token: ${{ secrets.RHIZOME_TOOLS_TOKEN || github.token }}
 
       - name: Check out charlotte-memory
         uses: actions/checkout@v4
         with:
-          repository: david-coneff/charlotte-memory
-          ref: main
+          repository: ${{ steps.binding.outputs.memory_repo }}
+          ref: ${{ steps.binding.outputs.memory_ref }}
           path: charlotte-memory
           token: ${{ secrets.RHIZOME_TOOLS_TOKEN || github.token }}
 

@@ -92,6 +92,12 @@ jobs:
         env:
           RHIZ_TOOLS_PATH: ${{ github.workspace }}/rhizome-protocol
         run: |
+          # The PRODUCT root, audited first. Path is the checkout dir, not `.`:
+          # this step has no working-directory, so it runs from the workspace. This is where the coordinate leaks
+          # actually were — all 8 children hardcoded the protocol repo in this
+          # very file — and until now no pipeline anywhere scanned a product
+          # root, so the principle-3 guard was pointed away from its target.
+          python3 rhizome-protocol/tools/rhiz_scope_audit.py --root charlotte
           python3 rhizome-protocol/tools/rhiz_scope_audit.py --root charlotte-memory
           if find charlotte-memory -type f ! -path '*/.git/*' \
                | grep -iE '\.(png|jpg|jpeg|gif|webp|wasm|zip|bin|mp4|webm|pdf)$'; then

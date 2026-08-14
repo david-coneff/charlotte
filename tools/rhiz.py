@@ -124,8 +124,14 @@ CHANNEL_DEFAULT = "tools-stable"
 # This is the LAST-RESORT default: it applies only to a repo with neither
 # $RHIZ_TOOLS_PATH nor a binding `protocol_url`. Every governed repo now carries a
 # binding, so the change is inert for all of them today — which is exactly why it
-# was made now rather than later. The old rhizome@tools-stable stays published
-# until the monolith is archived, so a stale copied shim still resolves.
+# was made now rather than later.
+#
+# The line that used to sit here — "the old rhizome@tools-stable stays published
+# until the monolith is archived, so a stale copied shim still resolves" — stopped
+# being true when that branch was retired on 2026-08-13 (preserved as the annotated
+# tag `legacy-tools-stable`). It was load-bearing for EXISTING CACHES, not for fresh
+# clones, and nothing re-pointed them: see `resolve_rhizome`, which now reconciles a
+# cache's `origin` against the resolved URL for exactly that reason.
 RHIZOME_URL_DEFAULT = "https://github.com/david-coneff/rhizome-protocol.git"
 BINDING_NAME = ".rhiz-binding.json"
 
@@ -217,6 +223,25 @@ def resolve_rhizome(root: Path) -> Path:
             check=True,
         )
     else:
+        # The cache's `origin` is DERIVED from the resolved URL, so it has to be
+        # reconciled rather than trusted. A cache cloned before the channel moved
+        # repos keeps fetching the repo it was cloned from forever — and once the
+        # old channel is retired that fetch fails hard, so a checkout that worked
+        # for months breaks on a ref it never names. Re-point on disagreement; the
+        # resolved URL wins, because it is what every other path here already obeys.
+        want = tools_url(root)
+        have = subprocess.run(
+            ["git", "-C", str(cache), "remote", "get-url", "origin"],
+            capture_output=True, text=True,
+        ).stdout.strip()
+        if have and have != want:
+            print(
+                f"rhiz: cache origin moved — re-pointing {have} → {want}",
+                file=sys.stderr,
+            )
+            subprocess.run(
+                ["git", "-C", str(cache), "remote", "set-url", "origin", want], check=True
+            )
         subprocess.run(["git", "-C", str(cache), "fetch", "--depth", "1", "origin", ref], check=True)
         subprocess.run(["git", "-C", str(cache), "checkout", "-q", "FETCH_HEAD"], check=True)
     return cache

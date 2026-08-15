@@ -18,7 +18,7 @@ jobs:
   maintain:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           path: charlotte
 
@@ -43,7 +43,7 @@ jobs:
       # Both are PRIVATE, so these checkouts need a read credential: a
       # fine-grained PAT with read access, stored as RHIZOME_TOOLS_TOKEN.
       - name: Check out rhizome-protocol
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ steps.binding.outputs.protocol_repo }}
           ref: ${{ steps.binding.outputs.protocol_ref }}
@@ -51,14 +51,14 @@ jobs:
           token: ${{ secrets.RHIZOME_TOOLS_TOKEN || github.token }}
 
       - name: Check out charlotte-memory
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ steps.binding.outputs.memory_repo }}
           ref: ${{ steps.binding.outputs.memory_ref }}
           path: charlotte-memory
           token: ${{ secrets.RHIZOME_TOOLS_TOKEN || github.token }}
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 

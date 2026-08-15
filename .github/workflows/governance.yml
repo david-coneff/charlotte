@@ -92,6 +92,28 @@ jobs:
           RHIZ_TOOLS_PATH: ${{ github.workspace }}/rhizome-protocol
         run: python3 rhizome-protocol/tools/rhiz-lint.py --root charlotte-memory
 
+      # MERKLE INTEGRITY over the memory sibling — the hole this pipeline had.
+      # doc-graph is product-local like rhiz-lint: a `--root charlotte` walk cannot
+      # reach a sibling directory, so `rhiz maintain` (which now verifies partitions)
+      # still cannot see charlotte-memory's. Measured 2026-08-15: aether-memory carried 32
+      # sections whose stored content-hash did not match their body — scrubbed for
+      # shareability during Phase 3 and never re-hashed — and NOTHING in the fleet
+      # was watching, because verify ran in exactly two repos' workflows and neither
+      # was a child. A memory sibling gets its gates from the PRODUCT's pipeline, the
+      # same way its lint and scope-audit already do.
+      - name: Merkle verify charlotte-memory's partitions
+        run: |
+          set -e
+          found=0
+          for idx in $(find charlotte-memory -name '*_index.json' -not -path '*/.rhiz-tools/*'); do
+            if python3 -c "import json,sys; sys.exit(0 if 'sections' in json.load(open('$idx')) else 1)"; then
+              found=1
+              python3 rhizome-protocol/protocol/modules/rhiz-merkle/tools/doc-graph.py verify "$idx"
+            fi
+          done
+          [ "$found" = 1 ] && echo "charlotte-memory: all partitions verified" \
+                           || echo "::notice::charlotte-memory declares no doc-graph partitions — nothing to verify"
+
       # The reference half of the same boundary: lint validates charlotte-memory
       # INTERNALLY, this validates what it says about OTHER repos — protocol
       # paths against the live protocol tree, and `<repo>:<path>` coordinates

@@ -46,7 +46,8 @@ Subcommands (extra args are forwarded to the underlying tool):
   search [..]      rhiz-search.py  --root-repo <repo> [..]   (e.g. `search query "x"`)
   docs             doc-graph.py render-all --root <repo>
   verify <index>   doc-graph.py verify <index>
-  maintain         bare: lint + search index + docs + ledger-check (the mechanical loop, no LLM)
+  maintain         bare: lint + search index + docs + scope-audit + merkle verify + ledger-check
+                   (the mechanical loop, no LLM — the same gates CI runs, so local green means CI green)
   maintain [..]    with flags: rhiz-maintain.py --root <repo> [..]  (e.g. `maintain --fix`, `--check`)
   report           rhiz-maintain.py --report — classify findings auto vs judgment
   kb-usage [..]    rhiz_kb_usage.py — knowledge-usage ledger: `rollup [--write]` /
@@ -61,6 +62,7 @@ Subcommands (extra args are forwarded to the underlying tool):
                    curated scan; run on a deliberate beat, never on commit
   docsync [--record] bilateral code↔doc / prose↔prose drift — nag reconciliation (names which side moved)
   codesync [--record] code↔code behavioral drift — body changed, signature same; review the callers
+  twin [--gate]    is the byte-identical anchor twin actually identical? (declared exceptions in .rhiz-twin.json)
   doc-coverage [--show orphan|--bootstrap] code↔prose coverage census — which modules lack prose (DS-016)
   partition-note --status|--show P|--record …|--clear S  partition transition guidepost (partition-aware doc re-sync)
   usage index|query <sym>  static usage catalog — who references a scanned module's public symbols, and how
@@ -250,6 +252,47 @@ def resolve_rhizome(root: Path) -> Path:
 def _run(args) -> int:
     print("+ " + " ".join(str(a) for a in args), file=sys.stderr)
     return subprocess.run(args).returncode
+
+
+_VERIFY_SKIP = (".rhiz-tools", ".git", "node_modules", "dist", "build")
+
+
+def _verify_partitions(py: str, dg: str, root: Path) -> int:
+    """Merkle-verify every doc-graph partition under `root`. 0 if all pass.
+
+    Duplicates the loop the `rhiz-maintain` workflow has run for months, so that the
+    LOCAL command checks what CI checks. The workflow's filter is the meaningful part
+    and is reproduced exactly: a `*_index.json` counts as a partition only if it has a
+    `sections` key — other tools use the same suffix for unrelated manifests, and
+    handing one to `doc-graph verify` is a crash, not a finding.
+
+    PRODUCT-LOCAL by construction, like rhiz-lint: this walks `root` and cannot reach a
+    sibling memory repo. That is a real limit, not an oversight, and it is why the
+    32 stale hashes in `aether-memory` were invisible to `aether`'s own maintain — a
+    memory sibling is verified by a step in the PRODUCT's pipeline that names it, the
+    same way its lint and scope-audit already are.
+
+    Reports the DENOMINATOR (EL-124/EL-164): "no partitions here" and "every partition
+    verified" are different answers and must not print the same."""
+    idxs = []
+    for p in sorted(Path(root).rglob("*_index.json")):
+        if any(part in _VERIFY_SKIP for part in p.parts):
+            continue
+        try:
+            if "sections" in json.loads(p.read_text(encoding="utf-8")):
+                idxs.append(p)
+        except (OSError, json.JSONDecodeError, TypeError):
+            continue        # not a partition manifest; the workflow skips these too
+    if not idxs:
+        print("⟐ doc-graph verify: no partitions under this root — nothing to check "
+              "(not the same as a clean verify).", file=sys.stderr)
+        return 0
+    rc = 0
+    for p in idxs:
+        rc |= _run([py, dg, "verify", str(p)])
+    if rc == 0:
+        print(f"⟐ doc-graph verify: {len(idxs)} partition(s) verified.", file=sys.stderr)
+    return rc
 
 
 # ------------------------------------------------------------------ hook entrypoint
@@ -461,6 +504,19 @@ def main() -> int:
             rc |= _run([py, str(local)])   # repo-local extension (e.g. code-growth census)
         rc |= _run([py, search, "--root-repo", str(root), "index"])
         rc |= _run([py, dg, "render-all", "--root", str(root)])
+        # MERKLE INTEGRITY + the coordinate gate. Both were CI-only, and that asymmetry
+        # cost three failed pushes on 2026-08-15 alone: a content-hash desync in three
+        # edited sections, a coordinate literal in a new config, and a link that only
+        # breaks in the curated tree. `maintain` reported clean for all three, because
+        # local green and CI green were different predicates and nothing said so.
+        #
+        # Measured before adopting, across all 20 repos: scope-audit passes everywhere,
+        # and verify failed in exactly ONE repo (aether-memory, 32 entries Phase 3 left
+        # behind) which was resynced first. So this adds no red anywhere on the day it
+        # lands — deliberately, because a gate that arrives already failing gets
+        # disabled rather than fixed.
+        rc |= _run([py, str(R / "tools" / "rhiz_scope_audit.py"), "--root", str(root)])
+        rc |= _verify_partitions(py, dg, root)
         # Load-ledger diff: surface any relied-on unit whose reference moved since
         # this repo's agent loaded it ("re-read these"). INFORMATIONAL — deliberately
         # NOT OR'd into rc, so a stale local ledger never fails the mechanical loop /
@@ -502,6 +558,15 @@ def main() -> int:
         # re-stamps the per-doc backlink baseline. Drift ALSO surfaces in `rhiz maintain`
         # (a shared rhiz-lint check reads the same manifest/baseline + the backlink graph).
         return _run([py, str(R / "tools" / "rhiz_docsync.py"), "--root", str(root), *rest])
+    if sub == "twin":
+        # Cross-repo mirror check. The ONE relationship no single-repo verify step can
+        # see: `build-rollup --check` compares a rollup to its LOCAL fragments, so two
+        # twins can each be internally consistent and different from each other, and
+        # both report green (EL-153 — the anchor sat twelve files behind that way).
+        # Opt-in per repo via `.rhiz-twin.json`, which is also where a deliberate
+        # divergence is DECLARED with its reason; `--gate` makes drift exit 1. A twin
+        # that is not checked out is skipped, never reported clean.
+        return _run([py, str(R / "tools" / "rhiz_twin.py"), "--root", str(root), *rest])
     if sub == "codesync":
         # Code↔code behavioral drift (code-sync). Default: report functions whose
         # body changed since the recorded baseline while the signature stayed the

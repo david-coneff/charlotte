@@ -66,9 +66,13 @@ jobs:
         working-directory: charlotte
         run: |
           PINNED=$(python3 -c "import json;print(json.load(open('.rhiz-binding.json'))['protocol_sha'])")
+          REF=$(python3 -c "import json;print(json.load(open('.rhiz-binding.json')).get('protocol_ref','main'))")
           ACTUAL=$(git -C ../rhizome-protocol rev-parse HEAD)
+          # Name the ref we ACTUALLY track, not a literal. This said "lags main" while the
+          # binding pinned main, and stayed saying it after the fleet moved to tools-stable
+          # — a guard reporting drift against a branch it no longer follows.
           if [ "$PINNED" != "$ACTUAL" ]; then
-            echo "::notice::protocol pin $PINNED lags main $ACTUAL — bump .rhiz-binding.json when ready"
+            echo "::notice::protocol pin $PINNED lags $REF $ACTUAL — bump .rhiz-binding.json when ready"
           fi
 
       - name: Mechanical maintenance (multi-root)

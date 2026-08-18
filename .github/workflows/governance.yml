@@ -138,8 +138,12 @@ jobs:
           # root, so the principle-3 guard was pointed away from its target.
           python3 rhizome-protocol/tools/rhiz_scope_audit.py --root charlotte
           python3 rhizome-protocol/tools/rhiz_scope_audit.py --root charlotte-memory
-          if find charlotte-memory -type f ! -path '*/.git/*' \
-               | grep -iE '\.(png|jpg|jpeg|gif|webp|wasm|zip|bin|mp4|webm|pdf)$'; then
-            echo "::error::blob found in the shareable notes repo — must live in a private -lfs"
-            exit 1
-          fi
+          # The blob half, as a TOOL (D4). Was an inline `find | grep` that ten sites
+          # across nine repos each carried a byte-identical copy of. It classifies by
+          # .rhiz-identity.json's `storage` — a "notes" repo must carry none, an "lfs"
+          # one is exempt — and refuses to guess when it cannot classify, because both
+          # defaults are silently wrong. Extension denylist blocks (the same list this
+          # replaced); a binary-content sniff warns, covering .tar.gz/.sqlite/.woff2.
+          # Scans TRACKED files, not the filesystem: governance reasons about committed
+          # structure (EL-106). Edit the list in the tool, never here.
+          python3 rhizome-protocol/tools/rhiz_shareability.py --root charlotte-memory

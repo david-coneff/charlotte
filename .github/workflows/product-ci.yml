@@ -1,9 +1,14 @@
 # charlotte PRODUCT CI — build only (the repo declares no test script).
 # R15: governance runs in governance.yml against product + protocol + memory.
+#
+# Runs on BOTH branches of the two-branch model (rhiz-child-repo-convention.md#55):
+# rhiz-working, so real changes are validated before promotion, AND main, as the
+# safety net that the PROMOTED (artifact-stripped) tree still builds — a real check
+# that stripping never silently broke something, not just an assumption.
 name: product-ci
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: [main, rhiz-working, "claude/**"]
   pull_request:
   workflow_dispatch:
 jobs:

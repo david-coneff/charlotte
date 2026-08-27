@@ -35,6 +35,38 @@ crawl-report.json.bak
 .rhiz-tools/
 .rhiz-search/
 
+# rhiz-usage derived catalogs — local-only, rebuilt by `rhiz usage index`.
+.rhiz-usage-catalog.json
+.rhiz-doccoverage-stubs.json
+
+# The `.rhiz/` runtime-state set (container-specific, never committed) — mirrors the
+# anchor's canonical block (rhizome-memory:.gitignore). EL-148: a runtime-state file is
+# part of a tool's interface, and a channel bless cannot deliver child .gitignore
+# entries, so each child carries the list itself. Previously incomplete here — only
+# .rhiz/subagent-findings/ was covered below, which is why .rhiz/access-log.jsonl ended
+# up committed; corrected in the same change that untracked it.
+.rhiz/loaded-units.json
+.rhiz/read-mandate.json
+.rhiz/checkpoint-tail-marker.json
+.rhiz/expectations.*.json
+.rhiz/partition-transition.json
+.rhiz/model-windows.json
+.rhiz/window-gap.*
+.rhiz/channel-seen
+.rhiz/transcript-ptr
+.rhiz/context.*
+.rhiz/milestone.*
+.rhiz/session-start-shas.*
+.rhiz/sync-nudge.*.json
+.rhiz/census.*
+.rhiz/census-milestone.*
+.rhiz/refcapture.*.json
+.rhiz/context-dismiss
+.rhiz/access-log.jsonl
+.rhiz/setup-ack
+.rhiz/emission.*.json
+.rhiz/injection-stats.jsonl
+
 # Subagent durability checkpoints + the delegation ledger: per-session, per-agent partial
 # findings written by a subagent under the SubagentStart mandate, plus the SubagentStop
 # receipt/result record. Runtime state that exists to survive a SESSION, not to be

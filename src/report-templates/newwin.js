@@ -27,7 +27,14 @@ const NEWWIN = "<script>(function(){var SAT=null,Q=String.fromCharCode(34);"
 + "if(u){try{win.location.replace(u);setTimeout(function(){try{URL.revokeObjectURL(u);}catch(e){}},6000);return true;}catch(e){}}"
 + "try{win.location.replace(href);return true;}catch(e){}try{win.location.href=href;return true;}catch(e){}return false;}"
 + "function place(href){var sc=window.screen||{};var sw=sc.availWidth||1440,sh=sc.availHeight||900,slx=sc.availLeft||0,sty=sc.availTop||0;var rx=(typeof window.screenX==='number'?window.screenX:window.screenLeft)||0,rw=window.outerWidth||Math.round(sw*0.6);var right=(slx+sw)-(rx+rw),left=rx-slx,MIN=480,w,x;if(right>=left&&right>=MIN){w=right;x=rx+rw;}else if(left>=MIN){w=left;x=slx;}else{w=Math.min(Math.max(MIN,Math.round(sw*0.42)),sw);x=(right>=left)?(slx+sw-w):slx;}w=Math.round(Math.min(w,sw));x=Math.round(x);var h=Math.round(sh),y=Math.round(sty);"
-+ "if(SAT&&!SAT.closed){if(go(SAT,href)){try{SAT.focus();}catch(e){}return SAT;}SAT=null;}"
+// Reuse the one popup. If we still control it, navigate it (go). If go fails but the window is still
+// OPEN (a cross-origin page severed window.opener, so we lost the handle though .closed stays
+// readable), reuse it BY NAME — window.open(url,'charlotteLink') with NO features targets the
+// existing window instead of spawning a second one, which is what passing a features string would do.
+// Only when the popup is genuinely closed/absent do we open a fresh, sized + docked one.
++ "if(SAT&&!SAT.closed){if(go(SAT,href)){try{SAT.focus();}catch(e){}return SAT;}"
++ "if(!SAT.closed){var iu=null;try{iu=interURL(href);}catch(e){iu=null;}var rw=window.open(iu||href,'charlotteLink');if(rw){SAT=rw;if(iu)setTimeout(function(){try{URL.revokeObjectURL(iu);}catch(e){}},6000);try{rw.focus();}catch(e){}return rw;}}"
++ "SAT=null;}"
 + "var nw=window.open('','charlotteLink','popup=yes,scrollbars=yes,resizable=yes,width='+w+',height='+h+',left='+x+',top='+y);"
 + "if(nw){SAT=nw;try{nw.moveTo(x,y);nw.resizeTo(w,h);}catch(e){}go(nw,href);try{nw.focus();}catch(e){}return nw;}"
 + "nw=window.open(href,'charlotteLink');if(nw)SAT=nw;return nw;}"

@@ -106,17 +106,32 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     console.log(`Note: --seen ${cfg.seen} needs a bounded URL count; using ${storeCap.toLocaleString()}. Override with --max-urls.`);
   }
   const seen = makeSeenStore(cfg.seen, storeCap, cfg.seenFile);
-  seen.tryAdd(normalize(cfg.startUrl));
+  // --seeds (seedMode): start the frontier from every seed URL at depth 0 in one
+  // crawl (shared seen-set + one report). Otherwise it's the single start URL.
+  const seedUrls = (cfg.seedMode && Array.isArray(cfg.startUrls) && cfg.startUrls.length) ? cfg.startUrls : [cfg.startUrl];
+  for (const s of seedUrls) seen.tryAdd(normalize(s));
+
+  // Internal-host set: a --seeds combined crawl is ONE logical crawl over EVERY
+  // seed host (e.g. the main site + a sibling document repo), so all seed hosts
+  // are internal — not just startUrls[0]. Mirrors crawl-render.js discover
+  // (AD-088); without it a sibling seed host's links are misclassified external
+  // and never followed. A non-seed crawl keeps exactly the single start host.
+  const internalHosts = new Set();
+  for (const s of seedUrls) { try { internalHosts.add(new URL(s).hostname); } catch { /* skip a bad seed */ } }
+  const isInternalHost = (host) => { for (const h of internalHosts) { if (sameDomain(host, h, cfg.includeSubdomains)) return true; } return false; };
 
   const state = {
     startHost,
+    startUrl: cfg.startUrl,   // recorded in the JSON so a rebuild/re-check keeps this report's host
     pathPrefix,
-    queue: [{ url: cfg.startUrl, depth: 0, parent: "(start)" }],
+    queue: seedUrls.map((u) => ({ url: u, depth: 0, parent: "(start)" })),
     seen,
     pages: [],
     external: new Map(),
     outOfScope: new Map(),   // same domain, outside pathPrefix: recorded, never followed
     refs: new Map(),         // target URL -> Set of every distinct referrer page
+    docUrls: new Set(),      // URLs that were scanned as documents (PDF/Office) — for the doc-link tally
+    docLinkInstances: 0,     // running count of http(s) link instances found inside documents
     errors: [],
     blocked: [],             // links our automated check couldn't confirm (likely OK in a browser)
     retries: 0,
@@ -297,13 +312,13 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
       logLine(`${new Date().toISOString()} SKIP ${job.url} :: ${r.contentType || "non-HTML"}`);
       return;
     }
-    let internalFound = 0, externalFound = 0;
+    let internalFound = 0, externalFound = 0, oosFound = 0;
     // When journaling, collect this page's discovered link targets so a resume can
     // rebuild the frontier + referrers + external/oos maps without re-crawling it.
     const inT = [], exT = [], ooT = [];
     for (const link of links) {
       if (link.protocol !== "http:" && link.protocol !== "https:") continue;
-      if (sameDomain(link.hostname, startHost, cfg.includeSubdomains)) {
+      if (isInternalHost(link.hostname)) {
         if (inScope(link.pathname)) {
           // In-scope internal page. Record THIS page as a referrer of it (every
           // distinct referrer is kept — a broken page may need fixing on each),
@@ -315,6 +330,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
           if (job.depth < cfg.maxDepth && seen.tryAdd(norm)) state.queue.push({ url: norm, depth: job.depth + 1, parent: job.url });
         } else {
           // Same domain but outside the chosen subsection: record, never follow.
+          oosFound++;
           if (!state.outOfScope.has(link.href)) state.outOfScope.set(link.href, { url: link.href });
           addRef(link.href, job.url);
           if (journal.on) ooT.push(link.href);
@@ -332,6 +348,15 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     J({ t: "p", u: job.url, s: r.status, d: job.depth, ti: title, in: inT, ex: exT, oo: ooT });
     logLine(`${new Date().toISOString()} OK d${job.depth} ${r.status} ${job.url} int=${internalFound} ext=${externalFound} extTotal=${state.external.size}`);
     console.log(`  ok [d${job.depth}] ${job.url}  (${internalFound} int, ${externalFound} ext)`);
+    if (r.doc) {
+      // A scanned document, counted like a page: tally the link instances inside it
+      // (the GUI's Documents badge sums these live; the final # docsummary adds the
+      // broken/blocked verdicts once every link has been checked).
+      const inside = internalFound + externalFound + oosFound;
+      state.docUrls.add(job.url);
+      state.docLinkInstances += inside;
+      logLine(`# docscan links=${inside} int=${internalFound} ext=${externalFound}`);
+    }
   }
 
   // Pause control: while the pause file exists, workers idle instead of pulling
@@ -543,6 +568,22 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     const list = rf && rf.size ? [...rf] : (e.source ? [e.source] : []);
     for (const ref of list) logLine(`# brokenref ${e.kind || "internal"} ${e.url} <- ${ref}`);
   }
+  // Document-link tally (verdicts are final now): of the destinations found INSIDE
+  // scanned documents, how many are unique, broken, or blocked. A destination is
+  // "inside a document" if any of its referrers is a scanned-document URL.
+  if (state.docUrls.size) {
+    const errSet = new Set(state.errors.map((e) => e.url));
+    const blkSet = new Set(state.blocked.map((b) => b.url));
+    let uniq = 0, brk = 0, blk = 0;
+    for (const [target, refs] of state.refs) {
+      let inDoc = false;
+      for (const ref of refs) { if (state.docUrls.has(ref)) { inDoc = true; break; } }
+      if (!inDoc) continue;
+      uniq++;
+      if (errSet.has(target)) brk++; else if (blkSet.has(target)) blk++;
+    }
+    logLine(`# docsummary docs=${state.docUrls.size} instances=${state.docLinkInstances} unique=${uniq} broken=${brk} blocked=${blk}`);
+  }
   logLine(`# crawl done ${new Date().toISOString()} crawled=${state.crawled} pages=${state.pages.length} external=${state.external.size} errors=${state.errors.length}`);
   logger.finalize(!sharedLogger);   // shared logger is finalized once by the caller
   seen.close();
@@ -606,8 +647,8 @@ function sitePath(out, i, host) {
   // ---- re-check mode: re-probe only the flagged links from a prior report ----
   if (cfg.recheckFrom) { await runRecheck(cfg, allow); return; }
 
-  // ---- single site: report goes straight to --out (unchanged behavior) ----
-  if (cfg.startUrls.length === 1) {
+  // ---- single site (or a --seeds list = one combined crawl): report -> --out ----
+  if (cfg.startUrls.length === 1 || cfg.seedMode) {
     const state = await crawl(cfg, allow);
     const suppressed = [], active = [];
     for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);

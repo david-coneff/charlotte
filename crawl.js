@@ -14,7 +14,7 @@ var __commonJS = (cb, mod) => function __require() {
 var require_newwin = __commonJS({
   "src/report-templates/newwin.js"(exports2, module2) {
     "use strict";
-    var NEWWIN = "<script>(function(){var SAT=null,Q=String.fromCharCode(34);function esc(s){return String(s).split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;').split(Q).join('&quot;');}function interURL(href){var h=esc(href);var d='<!doctype html><html lang=en><head><meta charset=utf-8>'+'<meta http-equiv=refresh content='+Q+'0.6;url='+h+Q+'>'+'<title>Loading next link\u2026</title><style>'+'html,body{margin:0;height:100%}body{display:flex;align-items:center;justify-content:center;background:#0f1115;color:#e6e9ef;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}'+'.b{max-width:82%;text-align:center}'+'.s{width:34px;height:34px;margin:0 auto 18px;border:3px solid #2c3340;border-top-color:#5db0ff;border-radius:50%;animation:sp .8s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}'+'.t{color:#9aa4b2;font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 10px}'+'.u{color:#8ec5ff;word-break:break-all;font-size:15px;margin:0 0 16px}'+'.h{color:#9aa4b2;font-size:12px}.h a{color:#8ec5ff}'+'</style></head><body><div class=b><div class=s></div>'+'<p class=t>Loading next link\u2026</p>'+'<p class=u>'+h+'</p>'+'<p class=h>Not loading? <a href='+Q+h+Q+'>Open it directly</a></p>'+'</div></body></html>';try{return URL.createObjectURL(new Blob([d],{type:'text/html'}));}catch(e){return null;}}function go(win,href){var u=null;try{u=interURL(href);}catch(e){u=null;}if(u){try{win.location.replace(u);setTimeout(function(){try{URL.revokeObjectURL(u);}catch(e){}},6000);return true;}catch(e){}}try{win.location.replace(href);return true;}catch(e){}try{win.location.href=href;return true;}catch(e){}return false;}function place(href){var sc=window.screen||{};var sw=sc.availWidth||1440,sh=sc.availHeight||900,slx=sc.availLeft||0,sty=sc.availTop||0;var rx=(typeof window.screenX==='number'?window.screenX:window.screenLeft)||0,rw=window.outerWidth||Math.round(sw*0.6);var right=(slx+sw)-(rx+rw),left=rx-slx,MIN=480,w,x;if(right>=left&&right>=MIN){w=right;x=rx+rw;}else if(left>=MIN){w=left;x=slx;}else{w=Math.min(Math.max(MIN,Math.round(sw*0.42)),sw);x=(right>=left)?(slx+sw-w):slx;}w=Math.round(Math.min(w,sw));x=Math.round(x);var h=Math.round(sh),y=Math.round(sty);if(SAT&&!SAT.closed){if(go(SAT,href)){try{SAT.focus();}catch(e){}return SAT;}SAT=null;}var nw=window.open('','charlotteLink','popup=yes,scrollbars=yes,resizable=yes,width='+w+',height='+h+',left='+x+',top='+y);if(nw){SAT=nw;try{nw.moveTo(x,y);nw.resizeTo(w,h);}catch(e){}go(nw,href);try{nw.focus();}catch(e){}return nw;}nw=window.open(href,'charlotteLink');if(nw)SAT=nw;return nw;}document.addEventListener('click',function(e){if(e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target;while(a&&a.nodeName!=='A')a=a.parentNode;if(!a||!a.href||!/^https?:/i.test(a.href))return;e.preventDefault();place(a.href);},false);})();</script>";
+    var NEWWIN = "<script>(function(){var SAT=null,Q=String.fromCharCode(34);function esc(s){return String(s).split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;').split(Q).join('&quot;');}function interURL(href){var h=esc(href);var d='<!doctype html><html lang=en><head><meta charset=utf-8>'+'<meta http-equiv=refresh content='+Q+'0.6;url='+h+Q+'>'+'<title>Loading next link\u2026</title><style>'+'html,body{margin:0;height:100%}body{display:flex;align-items:center;justify-content:center;background:#0f1115;color:#e6e9ef;font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}'+'.b{max-width:82%;text-align:center}'+'.s{width:34px;height:34px;margin:0 auto 18px;border:3px solid #2c3340;border-top-color:#5db0ff;border-radius:50%;animation:sp .8s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}'+'.t{color:#9aa4b2;font-size:12px;letter-spacing:.06em;text-transform:uppercase;margin:0 0 10px}'+'.u{color:#8ec5ff;word-break:break-all;font-size:15px;margin:0 0 16px}'+'.h{color:#9aa4b2;font-size:12px}.h a{color:#8ec5ff}'+'</style></head><body><div class=b><div class=s></div>'+'<p class=t>Loading next link\u2026</p>'+'<p class=u>'+h+'</p>'+'<p class=h>Not loading? <a href='+Q+h+Q+'>Open it directly</a></p>'+'</div></body></html>';try{return URL.createObjectURL(new Blob([d],{type:'text/html'}));}catch(e){return null;}}function go(win,href){var u=null;try{u=interURL(href);}catch(e){u=null;}if(u){try{win.location.replace(u);setTimeout(function(){try{URL.revokeObjectURL(u);}catch(e){}},6000);return true;}catch(e){}}try{win.location.replace(href);return true;}catch(e){}try{win.location.href=href;return true;}catch(e){}return false;}function place(href){var sc=window.screen||{};var sw=sc.availWidth||1440,sh=sc.availHeight||900,slx=sc.availLeft||0,sty=sc.availTop||0;var rx=(typeof window.screenX==='number'?window.screenX:window.screenLeft)||0,rw=window.outerWidth||Math.round(sw*0.6);var right=(slx+sw)-(rx+rw),left=rx-slx,MIN=480,w,x;if(right>=left&&right>=MIN){w=right;x=rx+rw;}else if(left>=MIN){w=left;x=slx;}else{w=Math.min(Math.max(MIN,Math.round(sw*0.42)),sw);x=(right>=left)?(slx+sw-w):slx;}w=Math.round(Math.min(w,sw));x=Math.round(x);var h=Math.round(sh),y=Math.round(sty);if(SAT&&!SAT.closed){if(go(SAT,href)){try{SAT.focus();}catch(e){}return SAT;}if(!SAT.closed){var iu=null;try{iu=interURL(href);}catch(e){iu=null;}var rw=window.open(iu||href,'charlotteLink');if(rw){SAT=rw;if(iu)setTimeout(function(){try{URL.revokeObjectURL(iu);}catch(e){}},6000);try{rw.focus();}catch(e){}return rw;}}SAT=null;}var nw=window.open('','charlotteLink','popup=yes,scrollbars=yes,resizable=yes,width='+w+',height='+h+',left='+x+',top='+y);if(nw){SAT=nw;try{nw.moveTo(x,y);nw.resizeTo(w,h);}catch(e){}go(nw,href);try{nw.focus();}catch(e){}return nw;}nw=window.open(href,'charlotteLink');if(nw)SAT=nw;return nw;}document.addEventListener('click',function(e){if(e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;var a=e.target;while(a&&a.nodeName!=='A')a=a.parentNode;if(!a||!a.href||!/^https?:/i.test(a.href))return;e.preventDefault();place(a.href);},false);})();</script>";
     module2.exports = NEWWIN;
   }
 });
@@ -1449,6 +1449,11 @@ ${pagerScript}${NEWWIN}${THEME_JS}</body></html>`;
         crawledAt: state.startedAt,
         partial: !!partial,
         scope: state.pathPrefix || "(whole domain)",
+        // The ORIGINAL start URL, so a later --rebuild-from / --recheck-from keeps the report's
+        // identity (triage-namespace host + verdict-import gate) instead of re-deriving it from
+        // pages[0] — which an apex->www redirect would flip, orphaning every saved verdict.
+        startUrl: state.startUrl || cfg.startUrl || "",
+        startHost: state.startHost,
         // The crawl's settings (only when genuinely known), so a later --rebuild-from / --recheck-from
         // rewrite shows the ORIGINAL run's config line instead of CLI defaults (Infinity -> null). OMITTED
         // when this write is itself a rewrite of a JSON that never recorded them — so the rewrite process's
@@ -2115,6 +2120,7 @@ var require_fetch = __commonJS({
 var require_cli = __commonJS({
   "src/cli.js"(exports2, module2) {
     "use strict";
+    var fs2 = require("fs");
     var { URL: URL2 } = require("url");
     var { BROWSER_UA } = require_fetch();
     function parseArgs2(argv) {
@@ -2189,8 +2195,10 @@ var require_cli = __commonJS({
         // replay this journal, then continue ("" = fresh crawl)
         recheckFrom: "",
         // re-check the broken links in this JSON report, then rewrite --out/--json
-        rebuildFrom: ""
+        rebuildFrom: "",
         // rebuild the HTML report from this JSON (no crawl, no re-probe)
+        seedMode: false
+        // --seeds: treat all start URLs as ONE crawl's frontier (shared report), not N sites
       };
       const num = (v, name) => {
         const n = Number(v);
@@ -2362,6 +2370,25 @@ var require_cli = __commonJS({
           case "--rebuild-from":
             cfg.rebuildFrom = next();
             break;
+          case "--start-url":
+            cfg.startUrl = next();
+            break;
+          // explicit host for a rebuild/re-check of an older JSON (no recorded startUrl)
+          case "--seeds": {
+            const f = next();
+            let txt;
+            try {
+              txt = fs2.readFileSync(f, "utf8");
+            } catch {
+              die2("Can't read --seeds file: " + f);
+            }
+            for (const raw of txt.split(/\r?\n/)) {
+              const line = raw.replace(/#.*$/, "").trim();
+              if (line) cfg.startUrls.push(line);
+            }
+            cfg.seedMode = true;
+            break;
+          }
           default:
             if (arg.startsWith("-")) die2("Unknown option: " + arg);
             else cfg.startUrls.push(arg);
@@ -2375,7 +2402,7 @@ var require_cli = __commonJS({
           die2("Invalid start URL: " + u);
         }
       }
-      cfg.startUrl = cfg.startUrls[0];
+      if (cfg.startUrls.length) cfg.startUrl = cfg.startUrls[0];
       if (cfg.browser && !cfg.userAgentSet) cfg.userAgent = BROWSER_UA;
       return cfg;
     }
@@ -2389,9 +2416,13 @@ var require_cli = __commonJS({
 crawl.js \u2014 standalone domain crawler
 
   node crawl.js <start-url> [more-urls...] [options]
+  node crawl.js --seeds FILE [options]
 
   Multiple start URLs are crawled sequentially with the same settings; the
   report at --out becomes an index linking to a per-site report for each.
+  --seeds FILE adds start URLs from a file (one per line) \u2014 the hand-off from
+  'crawl-render.js --discover', which maps a JavaScript-built site that this
+  static crawler can't navigate on its own and writes the URLs it found there.
 
 Options:
   --max-pages N           Max pages to crawl, 'none' (or -1) = unlimited
@@ -2421,6 +2452,9 @@ Options:
                           version's report features \u2014 no crawl, no network. Use it to
                           regenerate an old report with new report features. Also
                           rebuilds a multi-site index from its per-site JSONs.
+  --seeds FILE            Add start URLs from a newline-delimited file ('#' comments
+                          and blank lines ignored). The hand-off from
+                          'crawl-render.js --discover' (JS-rendered sites).
   --log FILE              Live append-only progress log  (default crawl-progress.log)
   --log-max-bytes N       Roll to a new log part at this size, 0 = single file
                                                         (default 5242880 = 5 MB)
@@ -2665,12 +2699,13 @@ var require_recheck = __commonJS({
       const pages = j.internalPages || [];
       let startHost = "";
       try {
-        startHost = new URL2(pages[0] && pages[0].url || errors[0] && errors[0].url || "http://localhost/").hostname;
+        startHost = new URL2(j.startUrl || pages[0] && pages[0].url || errors[0] && errors[0].url || "http://localhost/").hostname;
       } catch {
       }
       const runtimeMs = j.summary && Number.isFinite(j.summary.runtimeMs) ? j.summary.runtimeMs : null;
       return {
         startHost,
+        startUrl: j.startUrl || "",
         pathPrefix: j.scope && j.scope !== "(whole domain)" ? j.scope : "",
         pages,
         external,
@@ -2801,6 +2836,13 @@ var require_recheck = __commonJS({
         return;
       }
       const state = loadStateFromJson(cfg.recheckFrom);
+      if (!j.startUrl && cfg.startUrl) {
+        try {
+          state.startHost = new URL2(cfg.startUrl).hostname;
+          state.startUrl = cfg.startUrl;
+        } catch {
+        }
+      }
       if (!cfg.startUrl) cfg.startUrl = "http://" + state.startHost + "/ (re-check)";
       const r = await reprobe(cfg, allow, state, ` from ${cfg.recheckFrom}`, logger);
       const sidecar = recheckSidecarPath(cfg.json || cfg.out);
@@ -2908,6 +2950,13 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
       }
       const state = loadStateFromJson(cfg.rebuildFrom);
       state.finishedMs = Date.now();
+      if (!j.startUrl && cfg.startUrl) {
+        try {
+          state.startHost = new URL2(cfg.startUrl).hostname;
+          state.startUrl = cfg.startUrl;
+        } catch {
+        }
+      }
       if (!cfg.startUrl) cfg.startUrl = "http://" + state.startHost + "/ (rebuild)";
       writeOutputs2(state, cfg, allow, false);
       console.log(`Rebuilt report from ${cfg.rebuildFrom}: ${state.pages.length} pages, ${state.external.size} external, ${state.errors.length} errors.`);
@@ -3029,11 +3078,27 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     console.log(`Note: --seen ${cfg.seen} needs a bounded URL count; using ${storeCap.toLocaleString()}. Override with --max-urls.`);
   }
   const seen = makeSeenStore(cfg.seen, storeCap, cfg.seenFile);
-  seen.tryAdd(normalize(cfg.startUrl));
+  const seedUrls = cfg.seedMode && Array.isArray(cfg.startUrls) && cfg.startUrls.length ? cfg.startUrls : [cfg.startUrl];
+  for (const s of seedUrls) seen.tryAdd(normalize(s));
+  const internalHosts = /* @__PURE__ */ new Set();
+  for (const s of seedUrls) {
+    try {
+      internalHosts.add(new URL(s).hostname);
+    } catch {
+    }
+  }
+  const isInternalHost = (host) => {
+    for (const h of internalHosts) {
+      if (sameDomain(host, h, cfg.includeSubdomains)) return true;
+    }
+    return false;
+  };
   const state = {
     startHost,
+    startUrl: cfg.startUrl,
+    // recorded in the JSON so a rebuild/re-check keeps this report's host
     pathPrefix,
-    queue: [{ url: cfg.startUrl, depth: 0, parent: "(start)" }],
+    queue: seedUrls.map((u) => ({ url: u, depth: 0, parent: "(start)" })),
     seen,
     pages: [],
     external: /* @__PURE__ */ new Map(),
@@ -3041,6 +3106,10 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     // same domain, outside pathPrefix: recorded, never followed
     refs: /* @__PURE__ */ new Map(),
     // target URL -> Set of every distinct referrer page
+    docUrls: /* @__PURE__ */ new Set(),
+    // URLs that were scanned as documents (PDF/Office) — for the doc-link tally
+    docLinkInstances: 0,
+    // running count of http(s) link instances found inside documents
     errors: [],
     blocked: [],
     // links our automated check couldn't confirm (likely OK in a browser)
@@ -3230,11 +3299,11 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
       logLine(`${(/* @__PURE__ */ new Date()).toISOString()} SKIP ${job.url} :: ${r.contentType || "non-HTML"}`);
       return;
     }
-    let internalFound = 0, externalFound = 0;
+    let internalFound = 0, externalFound = 0, oosFound = 0;
     const inT = [], exT = [], ooT = [];
     for (const link of links) {
       if (link.protocol !== "http:" && link.protocol !== "https:") continue;
-      if (sameDomain(link.hostname, startHost, cfg.includeSubdomains)) {
+      if (isInternalHost(link.hostname)) {
         if (inScope(link.pathname)) {
           internalFound++;
           const norm = normalize(link.href);
@@ -3242,6 +3311,7 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
           if (journal.on) inT.push(norm);
           if (job.depth < cfg.maxDepth && seen.tryAdd(norm)) state.queue.push({ url: norm, depth: job.depth + 1, parent: job.url });
         } else {
+          oosFound++;
           if (!state.outOfScope.has(link.href)) state.outOfScope.set(link.href, { url: link.href });
           addRef(link.href, job.url);
           if (journal.on) ooT.push(link.href);
@@ -3257,6 +3327,12 @@ async function crawl(cfg, allow, sharedLogger, onProgress) {
     J({ t: "p", u: job.url, s: r.status, d: job.depth, ti: title, in: inT, ex: exT, oo: ooT });
     logLine(`${(/* @__PURE__ */ new Date()).toISOString()} OK d${job.depth} ${r.status} ${job.url} int=${internalFound} ext=${externalFound} extTotal=${state.external.size}`);
     console.log(`  ok [d${job.depth}] ${job.url}  (${internalFound} int, ${externalFound} ext)`);
+    if (r.doc) {
+      const inside = internalFound + externalFound + oosFound;
+      state.docUrls.add(job.url);
+      state.docLinkInstances += inside;
+      logLine(`# docscan links=${inside} int=${internalFound} ext=${externalFound}`);
+    }
   }
   const isPaused = () => cfg.pauseFile && fs.existsSync(cfg.pauseFile);
   let inFlight = 0;
@@ -3539,6 +3615,25 @@ Re-checking ${toRecheck.length} failed link${toRecheck.length === 1 ? "" : "s"} 
     const list = rf && rf.size ? [...rf] : e.source ? [e.source] : [];
     for (const ref of list) logLine(`# brokenref ${e.kind || "internal"} ${e.url} <- ${ref}`);
   }
+  if (state.docUrls.size) {
+    const errSet = new Set(state.errors.map((e) => e.url));
+    const blkSet = new Set(state.blocked.map((b) => b.url));
+    let uniq = 0, brk = 0, blk = 0;
+    for (const [target, refs] of state.refs) {
+      let inDoc = false;
+      for (const ref of refs) {
+        if (state.docUrls.has(ref)) {
+          inDoc = true;
+          break;
+        }
+      }
+      if (!inDoc) continue;
+      uniq++;
+      if (errSet.has(target)) brk++;
+      else if (blkSet.has(target)) blk++;
+    }
+    logLine(`# docsummary docs=${state.docUrls.size} instances=${state.docLinkInstances} unique=${uniq} broken=${brk} blocked=${blk}`);
+  }
   logLine(`# crawl done ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} pages=${state.pages.length} external=${state.external.size} errors=${state.errors.length}`);
   logger.finalize(!sharedLogger);
   seen.close();
@@ -3598,7 +3693,7 @@ function sitePath(out, i, host) {
     await runRecheck(cfg, allow);
     return;
   }
-  if (cfg.startUrls.length === 1) {
+  if (cfg.startUrls.length === 1 || cfg.seedMode) {
     const state = await crawl(cfg, allow);
     const suppressed = [], active = [];
     for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);

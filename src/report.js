@@ -1045,6 +1045,11 @@ function buildReportJson(state, cfg, allow, partial) {
   const st = settingsAreKnown(state, cfg) ? effSettings(state, cfg) : null;
   return JSON.stringify({
     crawledAt: state.startedAt, partial: !!partial, scope: state.pathPrefix || "(whole domain)",
+    // The ORIGINAL start URL, so a later --rebuild-from / --recheck-from keeps the report's
+    // identity (triage-namespace host + verdict-import gate) instead of re-deriving it from
+    // pages[0] — which an apex->www redirect would flip, orphaning every saved verdict.
+    startUrl: state.startUrl || cfg.startUrl || "",
+    startHost: state.startHost,
     // The crawl's settings (only when genuinely known), so a later --rebuild-from / --recheck-from
     // rewrite shows the ORIGINAL run's config line instead of CLI defaults (Infinity -> null). OMITTED
     // when this write is itself a rewrite of a JSON that never recorded them — so the rewrite process's

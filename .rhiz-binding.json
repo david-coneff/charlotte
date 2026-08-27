@@ -4,7 +4,7 @@
   "protocol_url": "https://github.com/david-coneff/rhizome-protocol.git",
   "protocol_path": "../rhizome-protocol",
   "protocol_ref": "tools-stable",
-  "protocol_sha": "f6bcd8daceccb908371be5a48fb75dc5437c7797",
+  "protocol_sha": "03c8132fae9d260d55fd240c6e97243804e0fe40",
   "memory_name": "charlotte-memory",
   "memory_url": "https://github.com/david-coneff/charlotte-memory.git",
   "memory_path": "../charlotte-memory"

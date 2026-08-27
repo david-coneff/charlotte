@@ -2,6 +2,7 @@
   "name": "charlotte",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Domain crawler — maps a website's internal links plus first-tier external links, verifies them (including links inside PDFs/Office docs), and writes a self-contained HTML report.",
   "bin": {
     "crawl": "./crawl.js",

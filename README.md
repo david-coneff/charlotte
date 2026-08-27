@@ -61,3 +61,7 @@ never needed to *run* it, only to rebuild it after a source change. `crawl-rende
   install (`npm install`); without it, run with `--http-fallback` for plain HTTP checks.
 - **`crawl-gui.hta`** — Windows (mshta.exe) with Node on `PATH`.
 - **`web-crawler.html`** — any modern browser.
+
+## License
+
+[MIT](LICENSE)

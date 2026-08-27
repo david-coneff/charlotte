@@ -1,0 +1,15 @@
+{
+  "_comment": "Paths stripped from `main` when promoting this branch (rhiz-working) via `rhiz promote`. Read ONLY from rhiz-working, never from main — see rhizome-protocol:protocol/docs/rhiz-child-repo-convention.md#55--the-working-branch--promote-model-optional-per-child.",
+  "strip": [
+    { "path": ".rhiz-binding.json", "reason": "bootstrap pin, meaningless without the rest of the tooling" },
+    { "path": ".rhiz-lint.json", "reason": "rhiz-lint config for CRAWLER/; linted here pre-promotion, parity guarantees the promoted copy is identical" },
+    { "path": ".rhiz", "reason": "runtime state and subagent findings, regenerable" },
+    { "path": ".claude", "reason": "Claude Code hooks/commands, if adopted" },
+    { "path": "tools/rhiz.py", "reason": "bootstrap + hook entrypoint, needs the full tree to mean anything" },
+    { "path": ".github/workflows/governance.yml", "reason": "rhizome-only CI; would fail to bootstrap on a tree with no .rhiz-binding.json" },
+    { "path": ".gitattributes", "reason": "only exists to export-ignore the paths above from git-archive downloads of rhiz-working" },
+    { "path": "tools/strip-ai-artifacts.py", "reason": "local purge script for rhiz-working; unnecessary on main, which never carries these paths" },
+    { "path": "AI-ASSISTED-DEVELOPMENT.md", "reason": "documents rhiz-working's tooling files; not applicable to main" },
+    { "path": ".rhiz-artifacts.json", "reason": "withholds itself, same trick as rhizome-protocol's retired .rhiz-bless.json" }
+  ]
+}

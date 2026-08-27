@@ -4,13 +4,24 @@
 # mechanical maintenance loop against them. The product repo carries only a thin
 # .rhiz-binding.json; its curated notes and baselines live in charlotte-memory, so
 # this is the only pipeline that needs all three.
+#
+# charlotte runs the two-branch model (rhizome-protocol:protocol/docs/
+# rhiz-child-repo-convention.md#55): this workflow only ever runs on rhiz-working
+# (the full-artifact branch) — main carries none of this and only ever advances via
+# `rhiz promote`. The last job below verifies that invariant on a schedule.
 name: governance
 
 on:
   push:
-    branches: [main, "claude/**"]
+    # rhiz-working, not main: this workflow needs .rhiz-binding.json to bootstrap
+    # (checked out below), and main never carries it — main only ever advances via
+    # `rhiz promote`, never a direct push. See .rhiz-artifacts.json and
+    # rhizome-protocol:protocol/docs/rhiz-child-repo-convention.md#55.
+    branches: [rhiz-working, "claude/**"]
   pull_request:
   schedule:
+    # Doubles as the promotion parity/drift check now (rhiz promote --verify-only) —
+    # see the new step below. Unchanged cadence, new job added to it.
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
@@ -147,3 +158,42 @@ jobs:
           # Scans TRACKED files, not the filesystem: governance reasons about committed
           # structure (EL-106). Edit the list in the tool, never here.
           python3 rhizome-protocol/tools/rhiz_shareability.py --root charlotte-memory
+
+  promote-parity:
+    # Standing drift/tamper check (rhiz-child-repo-convention.md#55): main is defined
+    # as "only ever advances via `rhiz promote`", and that invariant is not enforced by
+    # branch protection alone — this is what actually catches a direct commit to main,
+    # or a `.rhiz-artifacts.json` that's gone stale relative to what's really tracked.
+    # Runs on the SAME triggers as `maintain` above so it rides the weekly schedule too,
+    # not just pushes.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: charlotte
+          fetch-depth: 0   # need both rhiz-working and main's history, not just the tip pushed
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Resolve rhizome-protocol from the binding
+        id: binding
+        working-directory: charlotte
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, re
+          b = json.load(open(".rhiz-binding.json"))
+          slug = lambda u: re.sub(r"^https?://[^/]+/|\.git$", "", u)
+          print(f"protocol_repo={slug(b['protocol_url'])}")
+          print(f"protocol_ref={b.get('protocol_ref', 'main')}")
+          PY
+      - uses: actions/checkout@v7
+        with:
+          repository: ${{ steps.binding.outputs.protocol_repo }}
+          ref: ${{ steps.binding.outputs.protocol_ref }}
+          path: rhizome-protocol
+          token: ${{ secrets.RHIZOME_TOOLS_TOKEN || github.token }}
+      - name: rhiz promote --verify-only (rhiz-working vs origin/main)
+        working-directory: charlotte
+        run: |
+          python3 ../rhizome-protocol/tools/rhiz_promote.py --root . \
+            --source rhiz-working --target origin/main --verify-only

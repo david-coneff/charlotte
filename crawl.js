@@ -10,6 +10,729 @@ var __commonJS = (cb, mod) => function __require() {
   }
 };
 
+// src/report/branding.js
+var require_branding = __commonJS({
+  "src/report/branding.js"(exports2, module2) {
+    "use strict";
+    var REF_PREVIEW = 3;
+    var RENDER_CAP = Infinity;
+    var PAGE_SIZE = 1e3;
+    var BRAND = "Charlotte";
+    var BRAND_ICON = "\u{1F578}\uFE0F";
+    var THEME_LIGHT_CSS = ` html[data-theme="light"]{--bg:#f4f6f9;--panel:#ffffff;--panel2:#eaeef3;--fg:#1c2230;--muted:#5b6675;--accent:#0969da;--link:#0a66c2;--good:#1a7f37;--warn:#9a6700;--bad:#cf222e;--border:#d0d7de;--accent-fg:#ffffff}
+ .themebtn{position:fixed;top:12px;right:16px;z-index:30;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;font-size:15px;line-height:1}.themebtn:hover{border-color:var(--accent);color:var(--accent)}`;
+    var THEME_HEAD = `<script>try{if(localStorage.getItem('charlotteTheme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>`;
+    var THEME_BTN = `<button id="themeToggle" class="themebtn" type="button" title="Toggle light / dark theme">\u{1F319}</button>`;
+    var LEGEND_HINT = `<div class="leghint" title="What the dashed outline around each broken / blocked card means"><span class="leglbl">Outline:</span><span class="legbox lg-g"></span>all triaged<span class="legbox lg-a"></span>some untriaged</div>`;
+    var THEME_JS = `<script>(function(){var b=document.getElementById('themeToggle');if(!b)return;function cur(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}function paint(){b.textContent=cur()==='light'?'\u2600\uFE0F':'\u{1F319}';b.title='Switch to '+(cur()==='light'?'dark':'light')+' theme';}paint();b.addEventListener('click',function(){if(cur()==='light'){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','light');}try{localStorage.setItem('charlotteTheme',cur());}catch(e){}paint();});})();</script>`;
+    var esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+    module2.exports = { REF_PREVIEW, RENDER_CAP, PAGE_SIZE, BRAND, BRAND_ICON, THEME_LIGHT_CSS, THEME_HEAD, THEME_BTN, LEGEND_HINT, THEME_JS, esc };
+  }
+});
+
+// src/report/settings.js
+var require_settings = __commonJS({
+  "src/report/settings.js"(exports2, module2) {
+    "use strict";
+    function effSettings(state, cfg) {
+      const s = state && state.settings || null;
+      const num = (v, d) => typeof v === "number" ? v : d;
+      const bool = (v, d) => typeof v === "boolean" ? v : d;
+      if (!s) return { concurrency: cfg.concurrency, delay: cfg.delay, rps: cfg.rps, maxPages: cfg.maxPages, maxDepth: cfg.maxDepth, includeSubdomains: cfg.includeSubdomains, checkExternal: cfg.checkExternal };
+      return {
+        concurrency: num(s.concurrency, cfg.concurrency),
+        delay: num(s.delay, cfg.delay),
+        rps: num(s.rps, cfg.rps),
+        maxPages: s.maxPages === null ? Infinity : num(s.maxPages, cfg.maxPages),
+        maxDepth: s.maxDepth === null ? Infinity : num(s.maxDepth, cfg.maxDepth),
+        includeSubdomains: bool(s.includeSubdomains, cfg.includeSubdomains),
+        checkExternal: bool(s.checkExternal, cfg.checkExternal)
+      };
+    }
+    function settingsAreKnown(state, cfg) {
+      return !!(state && state.settings) || !(cfg && (cfg.rebuildFrom || cfg.recheckFrom));
+    }
+    module2.exports = { effSettings, settingsAreKnown };
+  }
+});
+
+// src/report/page-css.js
+var require_page_css = __commonJS({
+  "src/report/page-css.js"(exports2, module2) {
+    "use strict";
+    var { THEME_LIGHT_CSS } = require_branding();
+    var REPORT_CSS = ` :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340;--accent-fg:#06121f}
+${THEME_LIGHT_CSS}
+ *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
+ header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
+ main{max-width:1500px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px}
+ /* Two rows of broken-over-total pairs (col 1\u20134) + Blocked in col 5. Fixed 5 columns so each broken
+    stat sits directly above its total; collapses to 2 columns on narrow screens. */
+ .stats{display:grid;gap:12px;grid-template-columns:repeat(5,minmax(0,1fr))}
+ @media (max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+ .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}.stat .n{font-size:26px;font-weight:700}.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+ .stat .n .pct{font-size:14px;font-weight:600;color:var(--muted)}
+ .stat.good .n{color:var(--good)}.stat.bad .n{color:var(--bad)}.stat.warn .n{color:var(--warn)}
+ /* Test-completeness outline on the three "broken" stats: green = every link in that category has a
+    verdict (count is final); amber = some still untriaged (count may change). Inset outline -> no shift. */
+ .stat.tested-all{outline:2px dashed var(--good);outline-offset:-1px}
+ .stat.tested-partial{outline:2px dashed var(--warn);outline-offset:-1px}
+ /* Outline-key legend, relocated to a compact fixed strip in the upper-right beside the theme toggle. */
+ .leghint{position:fixed;top:13px;right:62px;z-index:30;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
+ .leghint .leglbl{text-transform:uppercase;letter-spacing:.05em;font-size:10px}
+ .leghint .legbox{flex:none;width:16px;height:11px;border:2px dashed var(--border);border-radius:3px;margin-left:5px}
+ .leghint .legbox.lg-g{border-color:var(--good)}.leghint .legbox.lg-a{border-color:var(--warn)}
+ @media (max-width:720px){.leghint{display:none}}
+ table{width:100%;border-collapse:collapse;font-size:13px;min-width:820px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+ th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
+ /* URL and Found-on columns get real width; long URLs wrap at sensible points, not every character */
+ td{overflow-wrap:anywhere;word-break:normal}
+ th:first-child,td:first-child{min-width:360px}
+ td:last-child{min-width:300px}
+ /* Internal-pages table: a 1\u20132 digit Depth and the small Status/Int/Ext cells shouldn't
+    hog width \u2014 narrow them and give the space to URL + Title so those wrap far less. */
+ td a,a{color:var(--link);text-decoration:none}td a:hover,a:hover{text-decoration:underline}
+ /* Fixed-height scroll viewport. resize:vertical adds a bottom-right grip so the operator can drag the
+    pane taller/shorter to taste (min-height keeps it from collapsing). Applies to flat tables here and to
+    the grouped .groupview below. The triage groups' own .dombody is overflow:visible (no grip there). */
+ /* Flat tables (Suppressed, log, read-only/partial fallback) size to content up to a cap, so a short list
+    isn't a tall empty box; still drag-resizable. The big grouped lists use .groupview (definite height). */
+ .tablewrap{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:8px;resize:vertical}
+ /* Every tab's list lives in a FIXED-HEIGHT viewport that scrolls internally (consistent with the flat
+    .tablewrap tables) \u2014 so a long grouped list scrolls in place instead of stretching the whole page. */
+ .groupview{height:460px;min-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;resize:vertical}
+ .groupview .domgrp:last-child{margin-bottom:0}
+ .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}.pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.err{background:rgba(248,113,113,.15);color:var(--bad)}.pill.skip{background:rgba(251,191,36,.15);color:var(--warn)}
+ .muted{color:var(--muted)}h2{font-size:15px;margin:0 0 12px}details summary{cursor:pointer;font-weight:600;padding:6px 0}
+ .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+ .hidden{display:none}code{background:var(--panel2);padding:1px 5px;border-radius:4px}
+ .exptools{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+ /* Collapsible per-tab explanatory text \u2014 a muted, small disclosure so the (lengthy) help can be folded away. */
+ .helpbox{margin:0 0 10px}
+ .helpbox>summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;padding:4px 0}
+ .helpbox>summary:hover{color:var(--accent)}
+ .helpbox .helpbody{margin-top:4px}
+ /* Triage tables \u2014 columns sized by CLASS so the layout holds with or without the (opt-in)
+    allowlist pick column: .pickcol pick box \xB7 .tscell timestamp \xB7 .tcol Broken/Working \xB7 .urlcol URL. */
+ .pickcol{width:34px;text-align:center}
+ .tcol{width:80px;text-align:center}
+ .tscell{width:140px;white-space:nowrap}
+ td.tscell{font-size:13px;color:var(--muted)}
+ th.tscell{white-space:nowrap}
+ .urlcol{width:380px}
+ .reasoncol{width:180px}
+ /* Triage AND non-triage grouped tables (.grptbl) use a FIXED layout (predictable widths) and size to the
+    SUM of their column widths (width:max-content) rather than stretching to 100% \u2014 so no column is starved
+    and a very wide window no longer leaves a giant mid-table gap. Every column is RESIZABLE: drag the grip
+    on a header's right edge. There is NO enforced minimum width \u2014 drag a column as narrow as you like.
+    Widths persist per browser and broadcast across a tab's groups so they stay aligned; a "Reset column
+    widths" button restores the defaults. */
+ table.haspick,table.blkpick,table.grptbl{table-layout:fixed;width:max-content;min-width:0;max-width:none}
+ table.haspick th,table.haspick td,table.blkpick th,table.blkpick td,table.grptbl th,table.grptbl td{min-width:0}
+ /* Non-triage default column widths live in CSS (not inline) so "Reset column widths" \u2014 which clears the
+    inline width the drag writes \u2014 reverts to these, exactly as the triage tables revert to .urlcol/etc. */
+ #panel-internal .grptbl th:nth-child(1){width:64px}#panel-internal .grptbl th:nth-child(2){width:380px}#panel-internal .grptbl th:nth-child(3){width:320px}#panel-internal .grptbl th:nth-child(4){width:96px}#panel-internal .grptbl th:nth-child(5){width:64px}#panel-internal .grptbl th:nth-child(6){width:64px}
+ #panel-external .grptbl th:nth-child(1){width:460px}#panel-external .grptbl th:nth-child(2){width:120px}#panel-external .grptbl th:nth-child(3){width:420px}
+ #panel-outscope .grptbl th:nth-child(1){width:520px}#panel-outscope .grptbl th:nth-child(2){width:420px}
+ .haspick th,.blkpick th,.grptbl th{position:relative}
+ .colgrip{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
+ .colgrip:hover,.colgrip.drag{box-shadow:inset -2px 0 0 var(--accent)}
+ table.haspick .foundcol,table.blkpick .foundcol{width:236px}
+ .blkpick .kindcol{width:92px}
+ /* Errors\xB7external is grouped into collapsible per-domain sections. A custom collapsible (not
+    <details>): a .domtoggle button + the domain Broken/Working pair as siblings, so the checkbox
+    clicks aren't eaten by a <summary> and the script can collapse via a .collapsed class. */
+ .domgrp{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
+ .domhead{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--panel2);flex-wrap:wrap}
+ /* Domains with untested links get a dashed-amber header (inset outline: no clip from the group's
+    overflow:hidden, no layout shift); it clears once every link in the domain has a verdict. */
+ .domgrp.untested .domhead{outline:2px dashed var(--warn);outline-offset:-2px}
+ .domtoggle{flex:1;min-width:200px;background:none;border:none;color:var(--fg);font:inherit;font-weight:600;cursor:pointer;padding:4px 2px;text-align:left;overflow-wrap:anywhere}
+ .domtoggle:hover{color:var(--accent)}
+ .caret::before{content:"\u25BC";display:inline-block;width:1em;font-size:11px;color:var(--muted);font-weight:400}
+ .domgrp.collapsed .caret::before{content:"\u25B6"}
+ .domname{overflow-wrap:anywhere}
+ .domverdict{font-weight:400;font-size:12px;color:var(--muted);display:inline-flex;flex-wrap:wrap;align-items:center}
+ .domall{margin-right:2px}
+ .domprog{font-size:12px}
+ .domlbl{cursor:pointer;margin-left:14px;white-space:nowrap}
+ .domlbl input{cursor:pointer;vertical-align:middle;margin:0 4px 0 0}
+ /* Mixture + all-tested are read-only indicators (disabled); they go green when on. */
+ .domlbl.ind{cursor:default}.domlbl.ind input{cursor:default}.domlbl.ind.on{color:var(--good)}
+ .domgrp.collapsed .dombody{display:none}
+ /* The domain's OWN table wrapper shows in full (no inner scrollbar); scope this to .dombody so it does
+    NOT also hit the nested "Found on" <details> wrapper, whose inline max-height + scroll must stay. */
+ .domgrp .dombody{height:auto;max-height:none;min-height:0;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0;resize:none}
+ /* The drag-to-resize grip + min-height belong only to TOP-LEVEL viewports. Nested .tablewrap (the
+    "Found on" referrer sublists, error subtables) must size to content and never sprout their own grip. */
+ .tablewrap .tablewrap{height:auto;min-height:0;resize:none}
+ .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
+ .testbar{margin:0 0 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.tcount{color:var(--muted);font-size:12px}
+ .colreset,.grpcolreset{margin-left:auto;font-size:12px;padding:4px 10px}
+ tr.notbroken td:not(.tcol):not(.tscell):not(.pickcol){opacity:.45;text-decoration:line-through}
+ tr.confirmed td:not(.tcol):not(.tscell):not(.pickcol){color:var(--bad)}
+ .exportbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}.exportbar .grow{flex:1}
+ .sharebar{border-left:3px solid var(--accent);padding-top:12px;padding-bottom:12px}.sharebar .exportbar{margin:0}
+ .selcount{color:var(--muted);font-size:12px}
+ .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
+ .btn.exportbtn:not(:disabled){background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+ /* The fix-tracker export is the primary triage output \u2014 make the one share-bar button stand out. */
+ .sharebar .trackbtn{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}.sharebar .trackbtn:hover{color:var(--accent-fg);filter:brightness(1.08)}
+ .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}.toast.show{opacity:1}
+ .vsep{display:inline-block;width:1px;height:20px;background:var(--border);margin:0 2px;vertical-align:middle}
+ /* No-flash tab restore: a head script sets html.tab-NAME before first paint so
+    the correct tab/panel renders immediately, not the default then a swap. */
+ html[class*="tab-"] .panel{display:none}
+ html.tab-internal #panel-internal,html.tab-external #panel-external,html.tab-outscope #panel-outscope,html.tab-errint #panel-errint,html.tab-errext #panel-errext,html.tab-blockd #panel-blockd,html.tab-suppressed #panel-suppressed{display:block}
+ html[class*="tab-"] .tab{background:var(--panel2);color:var(--fg);border-color:var(--border)}
+ html.tab-internal .tab[data-tab="internal"],html.tab-external .tab[data-tab="external"],html.tab-outscope .tab[data-tab="outscope"],html.tab-errint .tab[data-tab="errint"],html.tab-errext .tab[data-tab="errext"],html.tab-blockd .tab[data-tab="blockd"],html.tab-suppressed .tab[data-tab="suppressed"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+ .subtable{width:100%;border-collapse:collapse}.subtable td{padding:4px 8px;border-bottom:1px solid var(--border)}
+ details summary{color:var(--accent)}
+ /* Client-side pagination bar (only present with --paginate, above any table over a page in size, incl. nested referrer lists). */
+ .pager{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}.pager .grow{flex:1}.pager .pglabel{font-size:12px}
+ .pager .pgjump{width:64px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font:inherit;font-size:12px}
+`;
+    module2.exports = { REPORT_CSS };
+  }
+});
+
+// src/report/page-scripts.js
+var require_page_scripts = __commonJS({
+  "src/report/page-scripts.js"(exports2, module2) {
+    "use strict";
+    var { PAGE_SIZE, BRAND } = require_branding();
+    var pagerScriptFor = (cfg) => cfg.paginate ? `<script>(function(){
+  var PAGE_SIZE=${Number(cfg.pageSize) > 0 ? Math.floor(Number(cfg.pageSize)) : PAGE_SIZE};
+  function rows(tb){ var o=[],c=tb.children,i; for(i=0;i<c.length;i++){ if(c[i].tagName==='TR') o.push(c[i]); } return o; }
+  function el(t,c,x){ var e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e; }
+  function setup(table){
+    var tb=table.tBodies[0]; if(!tb) return;
+    var rw=rows(tb); if(rw.length<=PAGE_SIZE) return;
+    var pages=Math.ceil(rw.length/PAGE_SIZE), cur=-1, tw=table.parentNode;
+    var bar=el('div','pager'), prev=el('button','btn','\\u2039 Prev'), next=el('button','btn','Next \\u203a');
+    prev.type='button'; next.type='button';
+    var label=el('span','muted pglabel'), grow=el('span','grow'), jl=el('span','muted','Go to'), jump=el('input','pgjump');
+    jump.type='number'; jump.min='1'; jump.max=String(pages);
+    bar.appendChild(prev); bar.appendChild(next); bar.appendChild(label); bar.appendChild(grow); bar.appendChild(jl); bar.appendChild(jump);
+    function show(p){
+      p=Math.max(0,Math.min(pages-1,p)); if(p===cur) return; cur=p;
+      var start=cur*PAGE_SIZE, end=Math.min(rw.length,start+PAGE_SIZE), i;
+      for(i=0;i<rw.length;i++){ rw[i].style.display=(i>=start&&i<end)?'':'none'; }
+      label.textContent='Page '+(cur+1)+' of '+pages+' \\u00b7 rows '+(start+1).toLocaleString()+'\\u2013'+end.toLocaleString()+' of '+rw.length.toLocaleString();
+      prev.disabled=(cur===0); next.disabled=(cur===pages-1); jump.value=String(cur+1);
+      if(tw) tw.scrollTop=0;
+    }
+    prev.addEventListener('click',function(){ show(cur-1); });
+    next.addEventListener('click',function(){ show(cur+1); });
+    jump.addEventListener('change',function(){ var v=parseInt(jump.value,10); if(!isNaN(v)) show(v-1); });
+    tw.parentNode.insertBefore(bar,tw);
+    show(0);
+  }
+  var t=document.querySelectorAll('.tablewrap > table'),i;
+  for(i=0;i<t.length;i++){ setup(t[i]); }
+})();</script>
+` : "";
+    var stateScript = (partial) => `<script>
+(function(){
+  var PARTIAL = ${partial ? "true" : "false"};
+  var TKEY='charlotteTab';
+  var tabs=document.querySelectorAll('.tab');
+  function L(){ try{ return window.localStorage; }catch(e){ return null; } }
+
+  // Active tab is driven by a class on <html> (html.tab-NAME) so the same CSS
+  // that prevents the first-paint flash also handles live switching.
+  function activate(name){
+    var first=tabs.length?tabs[0].getAttribute('data-tab'):'', found=false, i;
+    for(i=0;i<tabs.length;i++){ if(tabs[i].getAttribute('data-tab')===name) found=true; }
+    if(!found) name=first;
+    document.documentElement.className='tab-'+name;
+    var s=L(); if(s){ try{ s.setItem(TKEY,name); }catch(e){} }
+    try{ history.replaceState(null,'','#'+name); }catch(e){}
+    return name;
+  }
+  for(var i=0;i<tabs.length;i++){ tabs[i].addEventListener('click', function(){ activate(this.getAttribute('data-tab')); }); }
+
+  // ---- save/restore ALL in-tab state: every table's scroll, the page scroll,
+  //      and which collapsible sections are open ----
+  function allTW(){ return document.querySelectorAll('.tablewrap'); }
+  function panelOf(el){ while(el && el!==document){ if(el.className && (' '+el.className+' ').indexOf(' panel ')>=0) return el; el=el.parentNode; } return null; }
+  function twKey(tw){
+    var panel=panelOf(tw), pid=panel?panel.id:'p', idx=0;
+    var sibs=panel?panel.querySelectorAll('.tablewrap'):[tw];
+    for(var k=0;k<sibs.length;k++){ if(sibs[k]===tw){ idx=k; break; } }
+    return 'charlotteTW_'+pid+'_'+idx;
+  }
+  function saveState(){
+    var s=L(); if(!s) return;
+    try{
+      s.setItem('charlotteWinY', String(window.pageYOffset||document.documentElement.scrollTop||0));
+      var tw=allTW(); for(var i=0;i<tw.length;i++) s.setItem(twKey(tw[i]), String(tw[i].scrollTop));
+      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++) s.setItem('charlotteD_'+j, d[j].open?'1':'0');
+    }catch(e){}
+  }
+  function restoreState(){
+    var s=L(); if(!s) return;
+    try{
+      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++){ var dv=s.getItem('charlotteD_'+j); if(dv!==null) d[j].open=(dv==='1'); }
+      var tw=allTW(); for(var i=0;i<tw.length;i++){ var v=s.getItem(twKey(tw[i])); if(v!==null) tw[i].scrollTop=parseInt(v,10)||0; }
+      var wy=s.getItem('charlotteWinY'); if(wy!==null) window.scrollTo(0, parseInt(wy,10)||0);
+    }catch(e){}
+  }
+
+  // restore tab (hash, then storage) then state
+  var want=(location.hash||'').substring(1), s=L();
+  if(!want && s){ try{ want=s.getItem(TKEY)||''; }catch(e){} }
+  activate(want);
+  try{ if('scrollRestoration' in history) history.scrollRestoration='manual'; }catch(e){}
+  restoreState();
+
+  var tws=allTW(); for(var t=0;t<tws.length;t++) tws[t].addEventListener('scroll', saveState);
+  window.addEventListener('scroll', saveState);
+  var dets=document.querySelectorAll('details'); for(var dd=0;dd<dets.length;dd++) dets[dd].addEventListener('toggle', saveState);
+  window.addEventListener('beforeunload', saveState);
+
+  // ---- non-disruptive live refresh (partial reports only) ----
+  // Reload to pull new data, but NEVER while you're interacting: defer until
+  // there's been ~2.5s with no mouse/scroll/key activity and no text selected,
+  // then save state and reload (which restores it). So a refresh can't interrupt
+  // you mid-scroll, mid-read, or mid-selection.
+  if(PARTIAL){
+    var IDLE_MS=2500, lastAct=(new Date()).getTime();
+    function bump(){ lastAct=(new Date()).getTime(); }
+    var evs=['mousemove','mousedown','keydown','wheel','touchstart','scroll'];
+    for(var e=0;e<evs.length;e++) document.addEventListener(evs[e], bump, true);
+    function tick(){
+      var idle=(new Date()).getTime()-lastAct, sel='';
+      try{ sel=window.getSelection?String(window.getSelection()):''; }catch(_){}
+      if(idle<IDLE_MS || sel!==''){ setTimeout(tick, 600); return; }
+      saveState();
+      location.reload();
+    }
+    setTimeout(tick, 5000);
+  }
+})();
+</script>
+`;
+    var pickExportScript = (cfg, state) => `<script>
+/* Broken-link selection \u2192 allowlist appendage (final report only). Each ticked
+   row on the two Errors tabs becomes an allowlist line; Export downloads them as
+   a file to append to the allowlist, Copy puts them on the clipboard. */
+(function(){
+  var ALLOWLIST = ${JSON.stringify(cfg.allowlist)};
+  var HOST = ${JSON.stringify(state.startHost)};
+  var BRAND = ${JSON.stringify(BRAND)};
+  var SCOPES = ['errint','errext'];
+  function panel(scope){ return document.getElementById('panel-'+scope); }
+  function boxes(scope){ var p=panel(scope); return p? p.querySelectorAll('.pickbox') : []; }
+  function picked(scope){ var b=boxes(scope), o=[]; for(var i=0;i<b.length;i++){ if(b[i].checked) o.push(b[i]); } return o; }
+  function bar(scope){ var p=panel(scope); return p? p.querySelector('.exportbar') : null; }
+  function dlName(){ var b=ALLOWLIST.split('/').pop().replace(/\\.[^.]*$/,''); return (b||'crawl-allowlist')+'.append.txt'; }
+  function refresh(scope){
+    var all=boxes(scope), n=picked(scope).length, b=bar(scope); if(!b) return;
+    var c=b.querySelector('.selcount'); if(c){ c.textContent=n+' selected'; }
+    // Only the allowlist actions depend on a selection; the fix-tracker export always
+    // works (it exports every referrer -> broken-link pair, ticked or not).
+    var btns=b.querySelectorAll('.copybtn,.exportbtn'); for(var i=0;i<btns.length;i++){ btns[i].disabled=(n===0); }
+    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
+    if(pa){ pa.checked=(n>0&&n===all.length); pa.indeterminate=(n>0&&n<all.length); }
+  }
+  function text(scope){
+    var sel=picked(scope), out=[];
+    out.push('# '+BRAND+' \u2014 allowlist appendage from crawl of '+HOST);
+    out.push('# generated '+new Date().toISOString()+' \u2014 '+sel.length+' link(s)');
+    out.push('# append to '+ALLOWLIST+' to suppress these in future scans, e.g.:');
+    out.push('#   cat '+dlName()+' >> '+ALLOWLIST);
+    out.push('#   ( *=wildcard   #=comment   blank lines ignored )');
+    out.push('#');
+    for(var i=0;i<sel.length;i++){
+      out.push(sel[i].getAttribute('data-url')+'   # '+sel[i].getAttribute('data-reason')+' \u2014 found on: '+sel[i].getAttribute('data-source'));
+    }
+    return out.join('\\n')+'\\n';
+  }
+  function toast(msg){
+    var t=document.getElementById('cw-toast');
+    if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); }
+    t.textContent=msg; t.className='toast show';
+    setTimeout(function(){ t.className='toast'; }, 2400);
+  }
+  // dl + saveBlob duplicated here so this IIFE's exports (allowlist + fix-tracker) use the same Save-As
+  // picker as the share toolbar's IIFE below (the two scripts are separate scopes \u2014 like toast above).
+  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
+  function saveBlob(blob, name, okMsg){
+    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
+    // its own versioned file; the picker pre-fills it (the operator can still edit it).
+    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
+    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
+    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
+    if(window.showSaveFilePicker){
+      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
+      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
+      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
+        .then(function(h){ return h.createWritable(); })
+        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
+        .then(function(){ toast(okMsg); })
+        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
+      return;
+    }
+    fb();
+  }
+  function doExport(scope){
+    var txt=text(scope), name=dlName(), n=picked(scope).length;
+    saveBlob(new Blob([txt],{type:'text/plain;charset=utf-8'}), name, 'Exported '+n+' link(s) \u2192 '+name);
+  }
+  function doCopy(scope){
+    var txt=text(scope), n=picked(scope).length;
+    function ok(){ toast('Copied '+n+' line(s) to clipboard'); }
+    function legacy(){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); var good=false; try{ good=document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); good?ok():toast('Copy failed \u2014 use Export'); }
+    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok,legacy); } else { legacy(); }
+  }
+  function wire(scope){
+    var all=boxes(scope); if(!all.length) return;
+    for(var i=0;i<all.length;i++){ all[i].addEventListener('change', function(){ refresh(scope); }); }
+    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
+    if(pa){ pa.addEventListener('change', function(){ var b=boxes(scope); for(var k=0;k<b.length;k++){ b[k].checked=pa.checked; } refresh(scope); }); }
+    var b=bar(scope); if(b){ var ex=b.querySelector('.exportbtn'), cp=b.querySelector('.copybtn');
+      if(ex){ ex.addEventListener('click', function(){ doExport(scope); }); }
+      if(cp){ cp.addEventListener('click', function(){ doCopy(scope); }); } }
+    refresh(scope);
+  }
+  for(var i=0;i<SCOPES.length;i++){ wire(SCOPES[i]); }
+
+  // ---- standalone editable "fix tracker" export ----
+  var BS=String.fromCharCode(92);
+  function exportTracker(){
+    var tpl=window.__CW_TPL__; if(!tpl){ toast('Tracker template unavailable'); return; }
+    var data=JSON.parse(JSON.stringify(window.__CW_BROKEN__||{host:'',internal:[],external:[]}));
+    // A link belongs in the fix tracker UNLESS it's been manually marked "Working" \u2014 one uniform
+    // rule across Errors (assumed broken) AND Blocked (uncertain). So everything still untriaged is
+    // included by default and the tracker is a complete to-review list; marking Working is what
+    // drops a link. Scan the Working boxes on all three triage panels.
+    var excl={}, ob=document.querySelectorAll('#panel-errint .okbox, #panel-errext .okbox, #panel-blockd .okbox'), z, nx=0;
+    for(z=0;z<ob.length;z++){ if(ob[z].checked){ var du=ob[z].getAttribute('data-url'); if(!excl[du]){ nx++; } excl[du]=1; } }
+    function keep(list){ var out=[],q; for(q=0;q<(list||[]).length;q++){ if(!excl[list[q].url]) out.push(list[q]); } return out; }
+    // Blocked links are routed internal/external by kind, then merged into the same two tabs.
+    data.internal=keep(data.internal).concat(keep(data.blockedInt));
+    data.external=keep(data.external).concat(keep(data.blockedExt));
+    delete data.blockedInt; delete data.blockedExt;
+    // Carry each broken link's manual verdict (Broken/Working) + last-tested timestamp from the
+    // report's localStorage into the tracker, so the standalone file shows them and can keep editing.
+    function lg(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+    function annotate(list){ for(var q=0;q<list.length;q++){ var u=list[q].url; var vb=lg('cwbroken:'+HOST+':'+u)==='1', vo=lg('cwok:'+HOST+':'+u)==='1'; list[q].v=vb?'broken':(vo?'working':''); list[q].ts=lg('cwts:'+HOST+':'+u)||''; } }
+    annotate(data.internal); annotate(data.external);
+    data.ticked={};   // fix-tracking lives in the tracker now \u2014 nothing to seed from the report
+    var inj=JSON.stringify(data).split('</').join('<'+BS+'/');
+    var doc=tpl.replace('"__DATA__"', function(){ return inj; });
+    saveBlob(new Blob([doc],{type:'text/html;charset=utf-8'}), 'charlotte-fix-tracker.html', 'Exported fix tracker'+(nx?' ('+nx+' link'+(nx===1?'':'s')+' marked Working excluded)':''));
+  }
+  var tb=document.querySelectorAll('.trackbtn');
+  for(var ti=0;ti<tb.length;ti++){ tb[ti].addEventListener('click', exportTracker); }
+})();
+</script>
+`;
+    module2.exports = { pagerScriptFor, stateScript, pickExportScript };
+  }
+});
+
+// src/report/triage-script.js
+var require_triage_script = __commonJS({
+  "src/report/triage-script.js"(exports2, module2) {
+    "use strict";
+    var triageScript = (state, linkInstances) => `<script>(function(){
+  // Manual-testing triage for all three tabs (Errors \xB7 internal/external + Blocked). Two
+  // MUTUALLY-EXCLUSIVE boxes per link \u2014 "Broken" (confirms it's dead) and "Working"
+  // (confirms it loads). Ticking one unticks the other; clearing both returns the row to
+  // its default. "Tested" is implied by either box, so there's no separate Tested box.
+  // The Errors tabs default to BROKEN: every flagged link counts toward the header until
+  // you tick Working, which subtracts it and drops it from the fix tracker. The Blocked
+  // tab defaults to UNCERTAIN (not counted): ticking Broken adds it and routes it into the
+  // tracker by kind. A "Last triaged" cell auto-fills the date+time of the latest verdict.
+  // Ticks + timestamps persist in this browser (cwbroken: / cwok: / cwts: keys). Because that
+  // state lives in localStorage (not the file), a share toolbar can export/import the verdicts as
+  // JSON or bake them into a self-contained "shareable copy" (window.__CW_SEED__) for emailing.
+  // Partial (auto-refreshing) reports render read-only error rows \u2014 no per-row data-url and no
+  // triage boxes \u2014 so there is nothing to wire here, and running recomputeBroken() would wrongly
+  // zero the server-rendered "Broken hyperlink instances" header. Bail when no triage rows exist.
+  if(!document.querySelector('tr[data-url]')) return;
+  var HOST=${JSON.stringify(state.startHost)}, SCOPES=['errint','errext','blockd'], ERRS=['errint','errext'];
+  // Fixed row-2 totals \u2014 the denominators for each broken stat's live "(percent)".
+  var DENOM={inst:${linkInstances}, int:${state.pages.length}, ext:${state.external.size}, tot:${state.pages.length + state.external.size}};
+  // url -> its referrer pages (from the embedded broken-link data), memoized on first use \u2014 feeds the
+  // "Referrer pages with broken links" card: as triage changes which links still count as broken, the
+  // distinct spread of referrer pages is recomputed from the rows that still count.
+  var REFMAP=null;
+  function refMap(){ if(REFMAP) return REFMAP; REFMAP={}; var B=(typeof window!=='undefined')?window.__CW_BROKEN__:null; function add(a){ if(a) for(var i=0;i<a.length;i++) REFMAP[a[i].url]=a[i].refs||[]; } if(B){ add(B.internal); add(B.external); add(B.blockedInt); add(B.blockedExt); } return REFMAP; }
+  function L(){ try{ return localStorage; }catch(e){ return null; } }
+  function key(pfx,url){ return pfx+HOST+':'+url; }
+  // __CW_SEED__ carries verdicts baked into a "shareable copy" (see saveShareableCopy). When this
+  // browser exposes no localStorage (some file:// modes), getF/getS fall back to it so the copy
+  // still displays the sender's verdicts read-only.
+  function seedGet(k){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; return (sd&&sd.v&&sd.v.hasOwnProperty(k))?sd.v[k]:null; }
+  function getF(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null&&sv==='1'; } try{ return s.getItem(k)==='1'; }catch(e){ return false; } }
+  function setF(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,'1'); else s.removeItem(k); }catch(e){} }
+  function panel(scope){ return document.getElementById('panel-'+scope); }
+  function rowOf(el){ var n=el; while(n&&n.nodeName!=='TR') n=n.parentNode; return n; }
+  function hasCls(el,c){ return (' '+el.className+' ').indexOf(' '+c+' ')>=0; }
+  function addCls(el,c){ if(!hasCls(el,c)) el.className=(el.className?el.className+' ':'')+c; }
+  function rmCls(el,c){ el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^ +| +$/g,''); }
+  // String-valued persistence (for the "last tested" timestamp; getF/setF only do flags).
+  function getS(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null?sv:''; } try{ return s.getItem(k)||''; }catch(e){ return ''; } }
+  function setS(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,v); else s.removeItem(k); }catch(e){} }
+  // Auto-filled "Last triaged" stamp = local date+time the row's latest verdict was set.
+  // Updated whenever Broken or Working is ticked; cleared when the row returns to no verdict.
+  function nowStr(){ var d=new Date(); function p(x){ return (x<10?'0':'')+x; } return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
+  function tsCell(tr){ return tr?tr.querySelector('.tscell'):null; }
+  function setTs(tr,url){ var s=nowStr(), c=tsCell(tr); if(c) c.textContent=s; setS(key('cwts:',url), s); }
+  function clrTs(tr,url){ var c=tsCell(tr); if(c) c.textContent=''; setS(key('cwts:',url), ''); }
+  // ---- share testing verdicts (localStorage stays in THIS browser; the file doesn't carry it) ----
+  function toast(msg){ var t=document.getElementById('cw-toast'); if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); } t.textContent=msg; t.className='toast show'; setTimeout(function(){ t.className='toast'; }, 2600); }
+  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
+  // Save a blob through the File System Access "Save As" PICKER so the operator chooses the folder + name
+  // (instead of it landing in the default Downloads folder). Feature-detected: where the API is missing or
+  // restricted it falls back to a plain download (dl). Cancelling the picker is silent. This is the additive,
+  // download-as-fallback enhancement AD-034 left for "if revisited".
+  function saveBlob(blob, name, okMsg){
+    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
+    // its own versioned file; the picker pre-fills it (the operator can still edit it).
+    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
+    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
+    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
+    if(window.showSaveFilePicker){
+      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
+      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
+      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
+        .then(function(h){ return h.createWritable(); })
+        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
+        .then(function(){ toast(okMsg); })
+        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
+      return;
+    }
+    fb();
+  }
+  // Snapshot every saved verdict (cwbroken: / cwok: / cwts:) for THIS crawl's host.
+  function collectState(){ var out={app:'charlotte-verdicts', host:HOST, v:{}}, s=L(); if(!s) return out; var i,k,n=0; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0||k.indexOf('cwts:'+HOST+':')===0)) out.v[k]=s.getItem(k); } return out; }
+  function countVerdicts(st){ var links={}, k, pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', v=(st&&st.v)||{}; for(k in v){ if(!v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) links[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) links[k.slice(po.length)]=1; } var c=0,z; for(z in links){ if(links.hasOwnProperty(z)) c++; } return c; }
+  function exportVerdicts(){ var st=collectState(), c=countVerdicts(st); if(!c){ toast('No verdicts to export yet \u2014 mark some links Broken or Working first'); return; } saveBlob(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}), 'charlotte-verdicts-'+HOST+'.json', 'Exported '+c+' verdict'+(c===1?'':'s')); }
+  // Replace each url the file has an opinion on (clear its 3 keys, then set what the file holds);
+  // urls the file doesn't mention are left as-is, so several people's exports merge cleanly.
+  function applyState(obj){ var s=L(); if(!s||!obj||!obj.v) return 0; var pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', pt='cwts:'+HOST+':', urls={}, k; for(k in obj.v){ if(!obj.v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) urls[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) urls[k.slice(po.length)]=1; else if(k.indexOf(pt)===0) urls[k.slice(pt.length)]=1; } var u; for(u in urls){ if(urls.hasOwnProperty(u)){ try{ s.removeItem(pb+u); s.removeItem(po+u); s.removeItem(pt+u); }catch(e){} } } var c=0; for(k in obj.v){ if(obj.v.hasOwnProperty(k)){ try{ s.setItem(k,obj.v[k]); c++; }catch(e){} } } return c; }
+  function importVerdicts(file){ if(!file) return; if(!L()){ toast('This browser blocks storage for local files \u2014 serve the report over a local web server to import'); return; } var r=new FileReader(); r.onload=function(){ var obj; try{ obj=JSON.parse(String(r.result)); }catch(e){ obj=null; } if(!obj||obj.app!=='charlotte-verdicts'||!obj.v){ toast('That isn\\'t a Charlotte verdicts file'); return; } if(obj.host!==HOST){ toast('That file is for \u201C'+obj.host+'\u201D, not \u201C'+HOST+'\u201D \u2014 not applied'); return; } var c=countVerdicts(obj); applyState(obj); toast('Imported '+c+' verdict'+(c===1?'':'s')+' \u2014 reloading\u2026'); setTimeout(function(){ try{ location.reload(); }catch(e){} }, 700); }; r.onerror=function(){ toast('Could not read the file'); }; try{ r.readAsText(file); }catch(e){ toast('Could not read the file'); } }
+  // Bake the current verdicts into a fresh self-contained copy of this report: serialize the page,
+  // strip any prior seed, and inject window.__CW_SEED__ just before </head> so it runs first.
+  function saveShareableCopy(){ var st=collectState(), c=countVerdicts(st); var SO='<scr'+'ipt>window.__CW_SEED__=', SC='</scr'+'ipt>'; var seed=SO+JSON.stringify(st).replace(/</g,'\\\\u003c')+';'+SC; var src='<!doctype html>\\n'+document.documentElement.outerHTML, pos; while((pos=src.indexOf(SO))>=0){ var en=src.indexOf(SC,pos); if(en<0) break; src=src.slice(0,pos)+src.slice(en+SC.length); } if(src.indexOf('</head>')>=0) src=src.replace('</head>', seed+'</head>'); else src=seed+src; saveBlob(new Blob([src],{type:'text/html;charset=utf-8'}), 'charlotte-report-'+HOST+'-shared.html', 'Saved a shareable copy with '+c+' verdict'+(c===1?'':'s')+' baked in'); }
+  // On opening a shared copy: prime localStorage from the seed, but ONLY if this browser has no
+  // verdicts for this host yet \u2014 never clobber a recipient's own triage.
+  function seedFromCopy(){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; if(!sd||!sd.v||sd.host!==HOST) return; var s=L(); if(!s) return; var i,k,n=0,has=false; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0)){ has=true; break; } } if(has) return; for(k in sd.v){ if(sd.v.hasOwnProperty(k)){ try{ s.setItem(k,sd.v[k]); }catch(e){} } } }
+  function update(scope){
+    var p=panel(scope); if(!p) return;
+    var trs=p.querySelectorAll('tr[data-url]'), n=0, tested=0, broke=0, ok=0, i;
+    for(i=0;i<trs.length;i++){ n++; var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'); var ib=!!(b&&b.checked), io=!!(o&&o.checked); if(ib||io) tested++; if(ib) broke++; if(io) ok++; }
+    var el=p.querySelector('.tcount'); if(el) el.textContent='Manually triaged: '+tested+' / '+n+' \xB7 confirmed broken: '+broke+' \xB7 confirmed working: '+ok;
+    recomputeBroken();
+  }
+  // Percent with adaptive precision (mirrors report.js fmtPct): one decimal normally, more decimals if
+  // needed so a small-but-nonzero share still shows a significant digit (0.03% not 0.0%).
+  function fmtPct(p){ if(!(p>0)) return '0.0'; var d=1; while(d<10&&Number(p.toFixed(d))===0) d++; return p.toFixed(d); }
+  // Set a header stat number, refresh its "(percent of total)" sibling (when a denom is given), and
+  // keep its card's red "bad" highlight in sync with the count.
+  function setStat(el, v, denom){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var nDiv=el.parentNode; if(typeof denom==='number'&&nDiv){ var pe=nDiv.querySelector('.pct'); if(pe) pe.textContent = denom>0 ? '('+fmtPct((v/denom)*100)+'%)' : ''; } var card=nDiv&&nDiv.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').trim(); } }
+  // Test-completeness outline on a "broken" stat card: GREEN dashed when every triageable link in the
+  // category has a verdict (the count is final), AMBER dashed while any remain untested (the count may
+  // still change), none when there's nothing to test. (Independent of setStat's 'bad' class.)
+  function setTestState(el, tested, total){ if(!el) return; var card=el.parentNode&&el.parentNode.parentNode; if(!card||typeof card.className!=='string') return; var c=(' '+card.className+' ').split(' tested-all ').join(' ').split(' tested-partial ').join(' ').trim(); if(total>0) c+=(tested>=total?' tested-all':' tested-partial'); card.className=c; }
+  // Live header stats, recomputed on load and on every verdict change. Errors tabs: each flagged
+  // link counts (one unique destination + its referrer instances) UNLESS confirmed Working, so
+  // clearing a false positive drops it from the instances total AND its Broken\xB7internal/external
+  // destination count. Blocked tab: only links confirmed Broken count (default uncertain), routed
+  // internal/external by their kind. Keeps all three top-level broken stats accurate after triage.
+  function recomputeBroken(){
+    var inst=0, uInt=0, uExt=0, sc, p, trs, i, pset={};
+    // pset collects the referrer pages of every link that STILL counts as broken \u2014 its size is the
+    // "Referrer pages with broken links" card (distinct pages, so a page linking several broken URLs
+    // counts once). Refs come from refMap() (the embedded broken-link data), keyed by the row's url.
+    function addRefs(u){ var M=refMap(), r=u&&M[u]; if(r) for(var z=0;z<r.length;z++) pset[r[z]]=1; }
+    // Per-category triage completeness for the green/amber outline: a row is "triaged" if either box is
+    // ticked. Internal = errint rows + blocked-internal; External = errext rows + blocked-external;
+    // bT/bN = the Blocked\xB7uncertain card's own completeness (all blocked rows, regardless of kind).
+    var iT=0, iN=0, eT=0, eN=0, bT=0, bN=0;
+    for(sc=0;sc<ERRS.length;sc++){ p=panel(ERRS[sc]); if(!p) continue; trs=p.querySelectorAll('tr[data-url]'); var isInt=(ERRS[sc]==='errint');
+      for(i=0;i<trs.length;i++){ var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'), td=(b&&b.checked)||(o&&o.checked);
+        if(isInt){ iN++; if(td) iT++; } else { eN++; if(td) eT++; }
+        if(o&&o.checked) continue;
+        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
+        addRefs(trs[i].getAttribute('data-url'));
+        if(isInt) uInt++; else uExt++; } }
+    p=panel('blockd'); if(p){ trs=p.querySelectorAll('tr[data-url]');
+      for(i=0;i<trs.length;i++){ var bb=trs[i].querySelector('.brokenbox'), bo=trs[i].querySelector('.okbox'), ext=(trs[i].getAttribute('data-kind')==='external'), t2=(bb&&bb.checked)||(bo&&bo.checked);
+        bN++; if(t2) bT++;
+        if(ext){ eN++; if(t2) eT++; } else { iN++; if(t2) iT++; }
+        if(!(bb&&bb.checked)) continue;
+        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
+        addRefs(trs[i].getAttribute('data-url'));
+        if(ext) uExt++; else uInt++; } }
+    var pgN=0, pk; for(pk in pset){ if(pset.hasOwnProperty(pk)) pgN++; }
+    setStat(document.getElementById('brokenInstN'), inst, DENOM.inst);
+    setStat(document.getElementById('brokenIntN'), uInt, DENOM.int);
+    setStat(document.getElementById('brokenExtN'), uExt, DENOM.ext);
+    setStat(document.getElementById('brokenTotN'), uInt+uExt, DENOM.tot);   // total unique destinations broken
+    setStat(document.getElementById('brokenPgN'), pgN);                     // referrer pages with broken links (no %)
+    setTestState(document.getElementById('brokenIntN'), iT, iN);
+    setTestState(document.getElementById('brokenExtN'), eT, eN);
+    // Broken hyperlink instances, total unique destinations broken, AND referrer pages all span internal +
+    // external (+ blocked), so their outlines need EVERY triageable link triaged.
+    setTestState(document.getElementById('brokenInstN'), iT+eT, iN+eN);
+    setTestState(document.getElementById('brokenTotN'), iT+eT, iN+eN);
+    setTestState(document.getElementById('brokenPgN'), iT+eT, iN+eN);
+    setTestState(document.getElementById('blockedN'), bT, bN);   // Blocked\xB7uncertain: green once all reviewed
+  }
+  // Apply a verdict to ONE row: set its boxes, persist the keys, swap classes, stamp/clear the
+  // Last-tested time. want is 'broken' | 'working' | '' (clears it). Shared by the per-link change
+  // handlers and the domain-level bulk control so both behave identically.
+  function applyVerdict(tr, url, want){
+    var b=tr.querySelector('.brokenbox'), o=tr.querySelector('.okbox');
+    if(want==='broken'){ if(b)b.checked=true; if(o)o.checked=false; setF(key('cwbroken:',url),true); setF(key('cwok:',url),false); rmCls(tr,'notbroken'); addCls(tr,'confirmed'); setTs(tr,url); }
+    else if(want==='working'){ if(o)o.checked=true; if(b)b.checked=false; setF(key('cwok:',url),true); setF(key('cwbroken:',url),false); rmCls(tr,'confirmed'); addCls(tr,'notbroken'); setTs(tr,url); }
+    else { if(b)b.checked=false; if(o)o.checked=false; setF(key('cwbroken:',url),false); setF(key('cwok:',url),false); rmCls(tr,'confirmed'); rmCls(tr,'notbroken'); clrTs(tr,url); }
+  }
+  // Domain-level bulk control (Errors\xB7external only). A domain's Broken/Working box applies the
+  // verdict to every link in that domain; its checked state is DERIVED from the children (all broken
+  // -> Broken, all working -> Working, mixed -> neither), so it survives reload from the per-link
+  // verdicts with no extra storage.
+  function rowsInDomain(host, scope){ var p=panel(scope); if(!p) return []; var all=p.querySelectorAll('tr[data-url]'), out=[], i; for(i=0;i<all.length;i++){ if(all[i].getAttribute('data-domain')===host) out.push(all[i]); } return out; }
+  function domCtl(host, scope, cls){ var p=panel(scope); if(!p) return null; var xs=p.querySelectorAll(cls), i; for(i=0;i<xs.length;i++){ if(xs[i].getAttribute('data-domain')===host) return xs[i]; } return null; }
+  // Set a disabled indicator box + toggle an 'on' class on its label (so it can be highlighted).
+  function setInd(box, on){ if(!box) return; box.checked=on; var lbl=box.parentNode; if(lbl&&typeof lbl.className==='string'){ var has=(' '+lbl.className+' ').indexOf(' on ')>=0; if(on&&!has) lbl.className=lbl.className+' on'; else if(!on&&has) lbl.className=(' '+lbl.className+' ').split(' on ').join(' ').trim(); } }
+  // Derive a domain header from its rows: the bulk Broken/Working boxes (checked when ALL broken /
+  // ALL working), the Mixture indicator (both verdicts present), the all-tested indicator, and the
+  // "triaged K/N" counter. Runs on load and after any per-link or bulk verdict change.
+  function deriveDomain(host, scope){
+    var rs=rowsInDomain(host, scope), n=rs.length, br=0, wk=0, i;
+    for(i=0;i<n;i++){ var b=rs[i].querySelector('.brokenbox'), o=rs[i].querySelector('.okbox'); if(b&&b.checked) br++; if(o&&o.checked) wk++; }
+    var tested=br+wk, db=domCtl(host,scope,'.dombroken'), dw=domCtl(host,scope,'.domworking');
+    if(db) db.checked=(n>0&&br===n);
+    if(dw) dw.checked=(n>0&&wk===n);
+    setInd(domCtl(host,scope,'.dommixture'), (br>0&&wk>0));
+    setInd(domCtl(host,scope,'.domalltested'), (n>0&&tested===n));
+    var pg=domCtl(host,scope,'.domprog'); if(pg) pg.textContent='\xB7 tested '+tested+'/'+n+' \xB7 '+br+' broken \xB7 '+wk+' working';
+    // Dashed-amber the header while the domain still has untested links; clears once all are tested.
+    var grp=domCtl(host,scope,'.domgrp'); if(grp) setCls(grp,'untested',(n>0&&tested<n));
+  }
+  function syncDomain(tr){ if(!tr) return; var h=tr.getAttribute('data-domain'), sc=tr.getAttribute('data-scope'); if(h&&sc) deriveDomain(h, sc); }
+  function applyDomain(host, scope, want){ var rs=rowsInDomain(host, scope), i; for(i=0;i<rs.length;i++){ applyVerdict(rs[i], rs[i].getAttribute('data-url'), want); } deriveDomain(host, scope); update(scope); }
+  function hasCls(el,c){ return !!(el&&typeof el.className==='string'&&(' '+el.className+' ').indexOf(' '+c+' ')>=0); }
+  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
+  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
+  // Wire the domain controls on BOTH grouped tabs (Errors\xB7external + Blocked\xB7uncertain).
+  function wireDomains(){ var sc=['errint','errext','blockd'], k; for(k=0;k<sc.length;k++) wireDomainScope(sc[k]); }
+  function wireDomainScope(scope){
+    var p=panel(scope); if(!p) return;
+    var tgs=p.querySelectorAll('.domtoggle'), bs=p.querySelectorAll('.dombroken'), os=p.querySelectorAll('.domworking'), i;
+    // Collapse/expand is a .collapsed class on .domgrp \u2014 under our control (no native <details>), so
+    // Expand/Collapse all set every group with certainty.
+    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
+    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'broken':''); }); }
+    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'working':''); }); }
+    var seen={}, all=p.querySelectorAll('tr[data-url]'); for(i=0;i<all.length;i++){ var h=all[i].getAttribute('data-domain'); if(h&&!seen[h]){ seen[h]=1; deriveDomain(h, scope); } }
+    var grps=p.querySelectorAll('.domgrp');
+    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
+    var ex=document.getElementById(scope+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
+    var co=document.getElementById(scope+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
+  }
+  function wire(scope){
+    var p=panel(scope); if(!p) return;
+    var trs=p.querySelectorAll('tr[data-url]'), i;
+    // Restore saved ticks. Broken wins if both keys are somehow set (keeps exclusivity).
+    for(i=0;i<trs.length;i++){ var tr=trs[i], b=tr.querySelector('.brokenbox'), o=tr.querySelector('.okbox'); if(!b||!o) continue;
+      var u=b.getAttribute('data-url'), wb=getF(key('cwbroken:',u)), wo=getF(key('cwok:',u));
+      if(wb){ b.checked=true; addCls(tr,'confirmed'); if(wo){ setF(key('cwok:',u),false); } }
+      else if(wo){ o.checked=true; addCls(tr,'notbroken'); }
+      var c=tsCell(tr); if(c) c.textContent=getS(key('cwts:',u)); }
+    var bs=p.querySelectorAll('.brokenbox'), os=p.querySelectorAll('.okbox');
+    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ var tr=rowOf(this); applyVerdict(tr, this.getAttribute('data-url'), this.checked?'broken':''); syncDomain(tr); update(scope); }); }
+    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ var tr=rowOf(this); applyVerdict(tr, this.getAttribute('data-url'), this.checked?'working':''); syncDomain(tr); update(scope); }); }
+    update(scope);
+  }
+  seedFromCopy();
+  for(var s=0;s<SCOPES.length;s++){ wire(SCOPES[s]); }
+  wireDomains();   // domain-level Broken/Working controls on the Errors\xB7external tab
+  // ---- drag-resizable triage columns ----------------------------------------------------------
+  // A triage tab can render several tables (one per domain group on Errors\xB7external / Blocked), so a
+  // resize broadcasts the new width to that column index in EVERY table of the tab, keeping the groups
+  // aligned. Widths persist per tab in localStorage; "Reset column widths" clears them.
+  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
+  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
+  function triTables(scope){ var p=panel(scope); if(!p) return []; return p.querySelectorAll('table.haspick, table.blkpick'); }
+  function applyCol(scope, idx, px){ var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
+  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
+  function gripDown(scope, th, idx, grip, e){
+    e.preventDefault(); e.stopPropagation();
+    var startX=e.clientX, startW=th.offsetWidth, cur=startW; addCls(grip,'drag');
+    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
+    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); rmCls(grip,'drag'); saveCol(scope, idx, cur); }
+    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true);
+  }
+  function wireColResize(scope){
+    var ts=triTables(scope); if(!ts.length) return;
+    var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
+    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j;
+      for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } }
+  }
+  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
+  for(var cz=0;cz<SCOPES.length;cz++) wireColResize(SCOPES[cz]);
+  var crs=document.querySelectorAll('.colreset'); for(var cr=0;cr<crs.length;cr++){ crs[cr].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
+  // Wire the share toolbar (final report only; absent otherwise).
+  var bCopy=document.getElementById('cwSaveCopy'); if(bCopy) bCopy.addEventListener('click', saveShareableCopy);
+  var bExp=document.getElementById('cwExportV'); if(bExp) bExp.addEventListener('click', exportVerdicts);
+  var bImp=document.getElementById('cwImportV'), fImp=document.getElementById('cwImportFile');
+  if(bImp&&fImp){ bImp.addEventListener('click', function(){ fImp.click(); }); fImp.addEventListener('change', function(){ var f=this.files&&this.files[0]; importVerdicts(f); try{ this.value=''; }catch(e){} }); }
+})();</script>
+`;
+    var collapseScript = (state) => `<script>(function(){
+  // Non-triage tabs (External, Internal destinations, Out of scope) use the SAME .domgrp collapsibles as
+  // the triage tabs but without verdict controls \u2014 so this wires just the caret toggle + Expand/Collapse
+  // all. deriveDomain is deliberately NOT called here, so these groups never get the amber "untested" halo
+  // (that's a triage-only signal). Each .domtoggle toggles its group's .collapsed class; the buttons set
+  // every group at once (no state detection \u2014 a single toggle could desync and show the wrong label).
+  function hasCls(el,c){ return (' '+(el.className||'')+' ').indexOf(' '+c+' ')>=0; }
+  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
+  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
+  // ---- drag-resizable columns for the non-triage grouped tables (.grptbl) -----------------------------
+  // The triage tabs' resize lives in a triage-only IIFE that bails when there are no verdict rows, so the
+  // non-triage tables carry their own copy here. Same mechanic: a grip per header, the new width broadcast
+  // to that column index across EVERY group table in the tab (keeping the groups aligned), persisted per
+  // 'cwcol:host:scope'. No enforced minimum width \u2014 drag a column as narrow as you like.
+  var HOST=${JSON.stringify(state.startHost)};
+  function L(){ try{ return localStorage; }catch(e){ return null; } }
+  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
+  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
+  function grpTables(scope){ var P=document.getElementById('panel-'+scope); return P? P.querySelectorAll('table.grptbl') : []; }
+  function applyCol(scope, idx, px){ var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
+  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
+  function gripDown(scope, th, idx, grip, e){ e.preventDefault(); e.stopPropagation(); var startX=e.clientX, startW=th.offsetWidth, cur=startW; setCls(grip,'drag',true);
+    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
+    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); setCls(grip,'drag',false); saveCol(scope, idx, cur); }
+    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true); }
+  function wireResize(scope){ var ts=grpTables(scope); if(!ts.length) return; var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
+    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } } }
+  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
+  var TABS=[['panel-external','ext'],['panel-internal','int'],['panel-outscope','oos']], t;
+  for(t=0;t<TABS.length;t++){ (function(pid, pre){
+    var P=document.getElementById(pid); if(!P) return;
+    var scope=pid.replace('panel-','');
+    var tgs=P.querySelectorAll('.domtoggle'), i;
+    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
+    var grps=P.querySelectorAll('.domgrp');
+    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
+    var ex=document.getElementById(pre+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
+    var co=document.getElementById(pre+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
+    wireResize(scope);
+  })(TABS[t][0], TABS[t][1]); }
+  var rbs=document.querySelectorAll('.grpcolreset'); for(var r=0;r<rbs.length;r++){ rbs[r].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
+})();</script>
+`;
+    module2.exports = { triageScript, collapseScript };
+  }
+});
+
 // src/report-templates/newwin.js
 var require_newwin = __commonJS({
   "src/report-templates/newwin.js"(exports2, module2) {
@@ -509,41 +1232,15 @@ var require_report_templates = __commonJS({
   }
 });
 
-// src/report.js
-var require_report = __commonJS({
-  "src/report.js"(exports2, module2) {
+// src/report/report-page.js
+var require_report_page = __commonJS({
+  "src/report/report-page.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("fs");
-    var REF_PREVIEW = 3;
-    var RENDER_CAP = Infinity;
-    var PAGE_SIZE = 1e3;
-    var BRAND = "Charlotte";
-    var BRAND_ICON = "\u{1F578}\uFE0F";
-    var THEME_LIGHT_CSS = ` html[data-theme="light"]{--bg:#f4f6f9;--panel:#ffffff;--panel2:#eaeef3;--fg:#1c2230;--muted:#5b6675;--accent:#0969da;--link:#0a66c2;--good:#1a7f37;--warn:#9a6700;--bad:#cf222e;--border:#d0d7de;--accent-fg:#ffffff}
- .themebtn{position:fixed;top:12px;right:16px;z-index:30;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:8px;padding:6px 10px;cursor:pointer;font:inherit;font-size:15px;line-height:1}.themebtn:hover{border-color:var(--accent);color:var(--accent)}`;
-    var THEME_HEAD = `<script>try{if(localStorage.getItem('charlotteTheme')==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}</script>`;
-    var THEME_BTN = `<button id="themeToggle" class="themebtn" type="button" title="Toggle light / dark theme">\u{1F319}</button>`;
-    var LEGEND_HINT = `<div class="leghint" title="What the dashed outline around each broken / blocked card means"><span class="leglbl">Outline:</span><span class="legbox lg-g"></span>all triaged<span class="legbox lg-a"></span>some untriaged</div>`;
-    var THEME_JS = `<script>(function(){var b=document.getElementById('themeToggle');if(!b)return;function cur(){return document.documentElement.getAttribute('data-theme')==='light'?'light':'dark';}function paint(){b.textContent=cur()==='light'?'\u2600\uFE0F':'\u{1F319}';b.title='Switch to '+(cur()==='light'?'dark':'light')+' theme';}paint();b.addEventListener('click',function(){if(cur()==='light'){document.documentElement.removeAttribute('data-theme');}else{document.documentElement.setAttribute('data-theme','light');}try{localStorage.setItem('charlotteTheme',cur());}catch(e){}paint();});})();</script>`;
-    var esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-    function effSettings(state, cfg) {
-      const s = state && state.settings || null;
-      const num = (v, d) => typeof v === "number" ? v : d;
-      const bool = (v, d) => typeof v === "boolean" ? v : d;
-      if (!s) return { concurrency: cfg.concurrency, delay: cfg.delay, rps: cfg.rps, maxPages: cfg.maxPages, maxDepth: cfg.maxDepth, includeSubdomains: cfg.includeSubdomains, checkExternal: cfg.checkExternal };
-      return {
-        concurrency: num(s.concurrency, cfg.concurrency),
-        delay: num(s.delay, cfg.delay),
-        rps: num(s.rps, cfg.rps),
-        maxPages: s.maxPages === null ? Infinity : num(s.maxPages, cfg.maxPages),
-        maxDepth: s.maxDepth === null ? Infinity : num(s.maxDepth, cfg.maxDepth),
-        includeSubdomains: bool(s.includeSubdomains, cfg.includeSubdomains),
-        checkExternal: bool(s.checkExternal, cfg.checkExternal)
-      };
-    }
-    function settingsAreKnown(state, cfg) {
-      return !!(state && state.settings) || !(cfg && (cfg.rebuildFrom || cfg.recheckFrom));
-    }
+    var { REF_PREVIEW, RENDER_CAP, BRAND, BRAND_ICON, THEME_HEAD, THEME_BTN, LEGEND_HINT, THEME_JS, esc } = require_branding();
+    var { effSettings, settingsAreKnown } = require_settings();
+    var { REPORT_CSS } = require_page_css();
+    var { pagerScriptFor, stateScript, pickExportScript } = require_page_scripts();
+    var { triageScript, collapseScript } = require_triage_script();
     var { NEWWIN, TRACKER_TEMPLATE } = require_report_templates();
     function buildReport(state, cfg, allow, partial) {
       const suppressed = [], active = [];
@@ -739,173 +1436,13 @@ var require_report = __commonJS({
       const logCard = !state.logSingleFile && parts.length ? `<div class="card"><h2>Progress log \u2014 ${parts.length} part${parts.length === 1 ? "" : "s"} <span class="muted" style="font-weight:400">(run ${esc(state.runId || "")})</span></h2>
        <div class="tablewrap"><table><thead><tr><th>Part</th><th>File</th><th>Lines</th><th>Bytes</th></tr></thead><tbody>${parts.map((p) => `<tr><td>${p.part}</td><td>${esc(p.file)}</td><td>${(p.lines || 0).toLocaleString()}</td><td>${(p.bytes || 0).toLocaleString()}</td></tr>`).join("")}</tbody></table></div>
        <p class="muted">Reconstruct the full log: <code>node crawl.js --merge-logs ${esc(state.logManifest || "")}</code></p></div>` : "";
-      const pagerScript = cfg.paginate ? `<script>(function(){
-  var PAGE_SIZE=${Number(cfg.pageSize) > 0 ? Math.floor(Number(cfg.pageSize)) : PAGE_SIZE};
-  function rows(tb){ var o=[],c=tb.children,i; for(i=0;i<c.length;i++){ if(c[i].tagName==='TR') o.push(c[i]); } return o; }
-  function el(t,c,x){ var e=document.createElement(t); if(c)e.className=c; if(x!=null)e.textContent=x; return e; }
-  function setup(table){
-    var tb=table.tBodies[0]; if(!tb) return;
-    var rw=rows(tb); if(rw.length<=PAGE_SIZE) return;
-    var pages=Math.ceil(rw.length/PAGE_SIZE), cur=-1, tw=table.parentNode;
-    var bar=el('div','pager'), prev=el('button','btn','\\u2039 Prev'), next=el('button','btn','Next \\u203a');
-    prev.type='button'; next.type='button';
-    var label=el('span','muted pglabel'), grow=el('span','grow'), jl=el('span','muted','Go to'), jump=el('input','pgjump');
-    jump.type='number'; jump.min='1'; jump.max=String(pages);
-    bar.appendChild(prev); bar.appendChild(next); bar.appendChild(label); bar.appendChild(grow); bar.appendChild(jl); bar.appendChild(jump);
-    function show(p){
-      p=Math.max(0,Math.min(pages-1,p)); if(p===cur) return; cur=p;
-      var start=cur*PAGE_SIZE, end=Math.min(rw.length,start+PAGE_SIZE), i;
-      for(i=0;i<rw.length;i++){ rw[i].style.display=(i>=start&&i<end)?'':'none'; }
-      label.textContent='Page '+(cur+1)+' of '+pages+' \\u00b7 rows '+(start+1).toLocaleString()+'\\u2013'+end.toLocaleString()+' of '+rw.length.toLocaleString();
-      prev.disabled=(cur===0); next.disabled=(cur===pages-1); jump.value=String(cur+1);
-      if(tw) tw.scrollTop=0;
-    }
-    prev.addEventListener('click',function(){ show(cur-1); });
-    next.addEventListener('click',function(){ show(cur+1); });
-    jump.addEventListener('change',function(){ var v=parseInt(jump.value,10); if(!isNaN(v)) show(v-1); });
-    tw.parentNode.insertBefore(bar,tw);
-    show(0);
-  }
-  var t=document.querySelectorAll('.tablewrap > table'),i;
-  for(i=0;i<t.length;i++){ setup(t[i]); }
-})();</script>
-` : "";
+      const pagerScript = pagerScriptFor(cfg);
       return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} \xB7 Crawl report \u2014 ${esc(state.startHost)}</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'%3E%3Ctext%20y='.9em'%20font-size='90'%3E%F0%9F%95%B8%EF%B8%8F%3C/text%3E%3C/svg%3E">
 <style>
- :root{--bg:#0f1115;--panel:#1a1e26;--panel2:#222834;--fg:#e6e9ef;--muted:#9aa4b2;--accent:#5db0ff;--link:#8ec5ff;--good:#4ade80;--bad:#f87171;--warn:#fbbf24;--border:#2c3340;--accent-fg:#06121f}
-${THEME_LIGHT_CSS}
- *{box-sizing:border-box}body{margin:0;font:14px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--fg)}
- header{padding:20px 24px;border-bottom:1px solid var(--border);background:var(--panel)}header h1{margin:0 0 4px;font-size:18px}header p{margin:0;color:var(--muted);font-size:13px}
- main{max-width:1500px;margin:0 auto;padding:24px}.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px}
- /* Two rows of broken-over-total pairs (col 1\u20134) + Blocked in col 5. Fixed 5 columns so each broken
-    stat sits directly above its total; collapses to 2 columns on narrow screens. */
- .stats{display:grid;gap:12px;grid-template-columns:repeat(5,minmax(0,1fr))}
- @media (max-width:640px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
- .stat{background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}.stat .n{font-size:26px;font-weight:700}.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
- .stat .n .pct{font-size:14px;font-weight:600;color:var(--muted)}
- .stat.good .n{color:var(--good)}.stat.bad .n{color:var(--bad)}.stat.warn .n{color:var(--warn)}
- /* Test-completeness outline on the three "broken" stats: green = every link in that category has a
-    verdict (count is final); amber = some still untriaged (count may change). Inset outline -> no shift. */
- .stat.tested-all{outline:2px dashed var(--good);outline-offset:-1px}
- .stat.tested-partial{outline:2px dashed var(--warn);outline-offset:-1px}
- /* Outline-key legend, relocated to a compact fixed strip in the upper-right beside the theme toggle. */
- .leghint{position:fixed;top:13px;right:62px;z-index:30;display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 10px}
- .leghint .leglbl{text-transform:uppercase;letter-spacing:.05em;font-size:10px}
- .leghint .legbox{flex:none;width:16px;height:11px;border:2px dashed var(--border);border-radius:3px;margin-left:5px}
- .leghint .legbox.lg-g{border-color:var(--good)}.leghint .legbox.lg-a{border-color:var(--warn)}
- @media (max-width:720px){.leghint{display:none}}
- table{width:100%;border-collapse:collapse;font-size:13px;min-width:820px}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
- th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;position:sticky;top:0;background:var(--panel)}
- /* URL and Found-on columns get real width; long URLs wrap at sensible points, not every character */
- td{overflow-wrap:anywhere;word-break:normal}
- th:first-child,td:first-child{min-width:360px}
- td:last-child{min-width:300px}
- /* Internal-pages table: a 1\u20132 digit Depth and the small Status/Int/Ext cells shouldn't
-    hog width \u2014 narrow them and give the space to URL + Title so those wrap far less. */
- td a,a{color:var(--link);text-decoration:none}td a:hover,a:hover{text-decoration:underline}
- /* Fixed-height scroll viewport. resize:vertical adds a bottom-right grip so the operator can drag the
-    pane taller/shorter to taste (min-height keeps it from collapsing). Applies to flat tables here and to
-    the grouped .groupview below. The triage groups' own .dombody is overflow:visible (no grip there). */
- /* Flat tables (Suppressed, log, read-only/partial fallback) size to content up to a cap, so a short list
-    isn't a tall empty box; still drag-resizable. The big grouped lists use .groupview (definite height). */
- .tablewrap{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:8px;resize:vertical}
- /* Every tab's list lives in a FIXED-HEIGHT viewport that scrolls internally (consistent with the flat
-    .tablewrap tables) \u2014 so a long grouped list scrolls in place instead of stretching the whole page. */
- .groupview{height:460px;min-height:160px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;resize:vertical}
- .groupview .domgrp:last-child{margin-bottom:0}
- .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:600}.pill.ok{background:rgba(74,222,128,.15);color:var(--good)}.pill.err{background:rgba(248,113,113,.15);color:var(--bad)}.pill.skip{background:rgba(251,191,36,.15);color:var(--warn)}
- .muted{color:var(--muted)}h2{font-size:15px;margin:0 0 12px}details summary{cursor:pointer;font-weight:600;padding:6px 0}
- .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}.tab{padding:7px 14px;border-radius:7px;background:var(--panel2);border:1px solid var(--border);cursor:pointer;font-size:13px}.tab.active{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
- .hidden{display:none}code{background:var(--panel2);padding:1px 5px;border-radius:4px}
- .exptools{display:flex;align-items:center;gap:10px;margin:0 0 12px}
- /* Collapsible per-tab explanatory text \u2014 a muted, small disclosure so the (lengthy) help can be folded away. */
- .helpbox{margin:0 0 10px}
- .helpbox>summary{cursor:pointer;color:var(--muted);font-size:12px;font-weight:600;padding:4px 0}
- .helpbox>summary:hover{color:var(--accent)}
- .helpbox .helpbody{margin-top:4px}
- /* Triage tables \u2014 columns sized by CLASS so the layout holds with or without the (opt-in)
-    allowlist pick column: .pickcol pick box \xB7 .tscell timestamp \xB7 .tcol Broken/Working \xB7 .urlcol URL. */
- .pickcol{width:34px;text-align:center}
- .tcol{width:80px;text-align:center}
- .tscell{width:140px;white-space:nowrap}
- td.tscell{font-size:13px;color:var(--muted)}
- th.tscell{white-space:nowrap}
- .urlcol{width:380px}
- .reasoncol{width:180px}
- /* Triage AND non-triage grouped tables (.grptbl) use a FIXED layout (predictable widths) and size to the
-    SUM of their column widths (width:max-content) rather than stretching to 100% \u2014 so no column is starved
-    and a very wide window no longer leaves a giant mid-table gap. Every column is RESIZABLE: drag the grip
-    on a header's right edge. There is NO enforced minimum width \u2014 drag a column as narrow as you like.
-    Widths persist per browser and broadcast across a tab's groups so they stay aligned; a "Reset column
-    widths" button restores the defaults. */
- table.haspick,table.blkpick,table.grptbl{table-layout:fixed;width:max-content;min-width:0;max-width:none}
- table.haspick th,table.haspick td,table.blkpick th,table.blkpick td,table.grptbl th,table.grptbl td{min-width:0}
- /* Non-triage default column widths live in CSS (not inline) so "Reset column widths" \u2014 which clears the
-    inline width the drag writes \u2014 reverts to these, exactly as the triage tables revert to .urlcol/etc. */
- #panel-internal .grptbl th:nth-child(1){width:64px}#panel-internal .grptbl th:nth-child(2){width:380px}#panel-internal .grptbl th:nth-child(3){width:320px}#panel-internal .grptbl th:nth-child(4){width:96px}#panel-internal .grptbl th:nth-child(5){width:64px}#panel-internal .grptbl th:nth-child(6){width:64px}
- #panel-external .grptbl th:nth-child(1){width:460px}#panel-external .grptbl th:nth-child(2){width:120px}#panel-external .grptbl th:nth-child(3){width:420px}
- #panel-outscope .grptbl th:nth-child(1){width:520px}#panel-outscope .grptbl th:nth-child(2){width:420px}
- .haspick th,.blkpick th,.grptbl th{position:relative}
- .colgrip{position:absolute;top:0;right:0;width:8px;height:100%;cursor:col-resize;user-select:none}
- .colgrip:hover,.colgrip.drag{box-shadow:inset -2px 0 0 var(--accent)}
- table.haspick .foundcol,table.blkpick .foundcol{width:236px}
- .blkpick .kindcol{width:92px}
- /* Errors\xB7external is grouped into collapsible per-domain sections. A custom collapsible (not
-    <details>): a .domtoggle button + the domain Broken/Working pair as siblings, so the checkbox
-    clicks aren't eaten by a <summary> and the script can collapse via a .collapsed class. */
- .domgrp{border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
- .domhead{display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--panel2);flex-wrap:wrap}
- /* Domains with untested links get a dashed-amber header (inset outline: no clip from the group's
-    overflow:hidden, no layout shift); it clears once every link in the domain has a verdict. */
- .domgrp.untested .domhead{outline:2px dashed var(--warn);outline-offset:-2px}
- .domtoggle{flex:1;min-width:200px;background:none;border:none;color:var(--fg);font:inherit;font-weight:600;cursor:pointer;padding:4px 2px;text-align:left;overflow-wrap:anywhere}
- .domtoggle:hover{color:var(--accent)}
- .caret::before{content:"\u25BC";display:inline-block;width:1em;font-size:11px;color:var(--muted);font-weight:400}
- .domgrp.collapsed .caret::before{content:"\u25B6"}
- .domname{overflow-wrap:anywhere}
- .domverdict{font-weight:400;font-size:12px;color:var(--muted);display:inline-flex;flex-wrap:wrap;align-items:center}
- .domall{margin-right:2px}
- .domprog{font-size:12px}
- .domlbl{cursor:pointer;margin-left:14px;white-space:nowrap}
- .domlbl input{cursor:pointer;vertical-align:middle;margin:0 4px 0 0}
- /* Mixture + all-tested are read-only indicators (disabled); they go green when on. */
- .domlbl.ind{cursor:default}.domlbl.ind input{cursor:default}.domlbl.ind.on{color:var(--good)}
- .domgrp.collapsed .dombody{display:none}
- /* The domain's OWN table wrapper shows in full (no inner scrollbar); scope this to .dombody so it does
-    NOT also hit the nested "Found on" <details> wrapper, whose inline max-height + scroll must stay. */
- .domgrp .dombody{height:auto;max-height:none;min-height:0;overflow:visible;border:none;border-top:1px solid var(--border);border-radius:0;resize:none}
- /* The drag-to-resize grip + min-height belong only to TOP-LEVEL viewports. Nested .tablewrap (the
-    "Found on" referrer sublists, error subtables) must size to content and never sprout their own grip. */
- .tablewrap .tablewrap{height:auto;min-height:0;resize:none}
- .haspick input[type=checkbox],.blkpick input[type=checkbox]{cursor:pointer;width:15px;height:15px}
- .testbar{margin:0 0 12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.tcount{color:var(--muted);font-size:12px}
- .colreset,.grpcolreset{margin-left:auto;font-size:12px;padding:4px 10px}
- tr.notbroken td:not(.tcol):not(.tscell):not(.pickcol){opacity:.45;text-decoration:line-through}
- tr.confirmed td:not(.tcol):not(.tscell):not(.pickcol){color:var(--bad)}
- .exportbar{display:flex;align-items:center;gap:10px;margin:0 0 10px;flex-wrap:wrap}.exportbar .grow{flex:1}
- .sharebar{border-left:3px solid var(--accent);padding-top:12px;padding-bottom:12px}.sharebar .exportbar{margin:0}
- .selcount{color:var(--muted);font-size:12px}
- .btn{background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:7px;padding:6px 12px;font-size:13px;cursor:pointer}.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
- .btn.exportbtn:not(:disabled){background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
- /* The fix-tracker export is the primary triage output \u2014 make the one share-bar button stand out. */
- .sharebar .trackbtn{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}.sharebar .trackbtn:hover{color:var(--accent-fg);filter:brightness(1.08)}
- .toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--fg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}.toast.show{opacity:1}
- .vsep{display:inline-block;width:1px;height:20px;background:var(--border);margin:0 2px;vertical-align:middle}
- /* No-flash tab restore: a head script sets html.tab-NAME before first paint so
-    the correct tab/panel renders immediately, not the default then a swap. */
- html[class*="tab-"] .panel{display:none}
- html.tab-internal #panel-internal,html.tab-external #panel-external,html.tab-outscope #panel-outscope,html.tab-errint #panel-errint,html.tab-errext #panel-errext,html.tab-blockd #panel-blockd,html.tab-suppressed #panel-suppressed{display:block}
- html[class*="tab-"] .tab{background:var(--panel2);color:var(--fg);border-color:var(--border)}
- html.tab-internal .tab[data-tab="internal"],html.tab-external .tab[data-tab="external"],html.tab-outscope .tab[data-tab="outscope"],html.tab-errint .tab[data-tab="errint"],html.tab-errext .tab[data-tab="errext"],html.tab-blockd .tab[data-tab="blockd"],html.tab-suppressed .tab[data-tab="suppressed"]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
- .subtable{width:100%;border-collapse:collapse}.subtable td{padding:4px 8px;border-bottom:1px solid var(--border)}
- details summary{color:var(--accent)}
- /* Client-side pagination bar (only present with --paginate, above any table over a page in size, incl. nested referrer lists). */
- .pager{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}.pager .grow{flex:1}.pager .pglabel{font-size:12px}
- .pager .pgjump{width:64px;background:var(--panel2);color:var(--fg);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font:inherit;font-size:12px}
-</style>
+${REPORT_CSS}</style>
 <script>(function(){try{var n=(location.hash||'').substring(1);if(!n){try{n=localStorage.getItem('charlotteTab')||'';}catch(e){}}if(n)document.documentElement.className='tab-'+n;}catch(e){}})();</script>
 ${THEME_HEAD}</head><body>${THEME_BTN}${hasTriage ? LEGEND_HINT : ""}
 <header><h1>${partial ? "[crawling] " : ""}${BRAND_ICON} ${BRAND} <span class="muted" style="font-weight:400">\xB7 Crawl report</span> \u2014 ${esc(state.startHost)}</h1>
@@ -948,494 +1485,18 @@ ${THEME_HEAD}</head><body>${THEME_BTN}${hasTriage ? LEGEND_HINT : ""}
  </div>
  ${logCard}
 </main>
-<script>
-(function(){
-  var PARTIAL = ${partial ? "true" : "false"};
-  var TKEY='charlotteTab';
-  var tabs=document.querySelectorAll('.tab');
-  function L(){ try{ return window.localStorage; }catch(e){ return null; } }
-
-  // Active tab is driven by a class on <html> (html.tab-NAME) so the same CSS
-  // that prevents the first-paint flash also handles live switching.
-  function activate(name){
-    var first=tabs.length?tabs[0].getAttribute('data-tab'):'', found=false, i;
-    for(i=0;i<tabs.length;i++){ if(tabs[i].getAttribute('data-tab')===name) found=true; }
-    if(!found) name=first;
-    document.documentElement.className='tab-'+name;
-    var s=L(); if(s){ try{ s.setItem(TKEY,name); }catch(e){} }
-    try{ history.replaceState(null,'','#'+name); }catch(e){}
-    return name;
-  }
-  for(var i=0;i<tabs.length;i++){ tabs[i].addEventListener('click', function(){ activate(this.getAttribute('data-tab')); }); }
-
-  // ---- save/restore ALL in-tab state: every table's scroll, the page scroll,
-  //      and which collapsible sections are open ----
-  function allTW(){ return document.querySelectorAll('.tablewrap'); }
-  function panelOf(el){ while(el && el!==document){ if(el.className && (' '+el.className+' ').indexOf(' panel ')>=0) return el; el=el.parentNode; } return null; }
-  function twKey(tw){
-    var panel=panelOf(tw), pid=panel?panel.id:'p', idx=0;
-    var sibs=panel?panel.querySelectorAll('.tablewrap'):[tw];
-    for(var k=0;k<sibs.length;k++){ if(sibs[k]===tw){ idx=k; break; } }
-    return 'charlotteTW_'+pid+'_'+idx;
-  }
-  function saveState(){
-    var s=L(); if(!s) return;
-    try{
-      s.setItem('charlotteWinY', String(window.pageYOffset||document.documentElement.scrollTop||0));
-      var tw=allTW(); for(var i=0;i<tw.length;i++) s.setItem(twKey(tw[i]), String(tw[i].scrollTop));
-      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++) s.setItem('charlotteD_'+j, d[j].open?'1':'0');
-    }catch(e){}
-  }
-  function restoreState(){
-    var s=L(); if(!s) return;
-    try{
-      var d=document.querySelectorAll('details'); for(var j=0;j<d.length;j++){ var dv=s.getItem('charlotteD_'+j); if(dv!==null) d[j].open=(dv==='1'); }
-      var tw=allTW(); for(var i=0;i<tw.length;i++){ var v=s.getItem(twKey(tw[i])); if(v!==null) tw[i].scrollTop=parseInt(v,10)||0; }
-      var wy=s.getItem('charlotteWinY'); if(wy!==null) window.scrollTo(0, parseInt(wy,10)||0);
-    }catch(e){}
-  }
-
-  // restore tab (hash, then storage) then state
-  var want=(location.hash||'').substring(1), s=L();
-  if(!want && s){ try{ want=s.getItem(TKEY)||''; }catch(e){} }
-  activate(want);
-  try{ if('scrollRestoration' in history) history.scrollRestoration='manual'; }catch(e){}
-  restoreState();
-
-  var tws=allTW(); for(var t=0;t<tws.length;t++) tws[t].addEventListener('scroll', saveState);
-  window.addEventListener('scroll', saveState);
-  var dets=document.querySelectorAll('details'); for(var dd=0;dd<dets.length;dd++) dets[dd].addEventListener('toggle', saveState);
-  window.addEventListener('beforeunload', saveState);
-
-  // ---- non-disruptive live refresh (partial reports only) ----
-  // Reload to pull new data, but NEVER while you're interacting: defer until
-  // there's been ~2.5s with no mouse/scroll/key activity and no text selected,
-  // then save state and reload (which restores it). So a refresh can't interrupt
-  // you mid-scroll, mid-read, or mid-selection.
-  if(PARTIAL){
-    var IDLE_MS=2500, lastAct=(new Date()).getTime();
-    function bump(){ lastAct=(new Date()).getTime(); }
-    var evs=['mousemove','mousedown','keydown','wheel','touchstart','scroll'];
-    for(var e=0;e<evs.length;e++) document.addEventListener(evs[e], bump, true);
-    function tick(){
-      var idle=(new Date()).getTime()-lastAct, sel='';
-      try{ sel=window.getSelection?String(window.getSelection()):''; }catch(_){}
-      if(idle<IDLE_MS || sel!==''){ setTimeout(tick, 600); return; }
-      saveState();
-      location.reload();
+${stateScript(partial)}${trackerEmbed}
+${pickExportScript(cfg, state)}${triageScript(state, linkInstances)}${collapseScript(state)}${pagerScript}${NEWWIN}${THEME_JS}</body></html>`;
     }
-    setTimeout(tick, 5000);
+    module2.exports = { buildReport };
   }
-})();
-</script>
-${trackerEmbed}
-<script>
-/* Broken-link selection \u2192 allowlist appendage (final report only). Each ticked
-   row on the two Errors tabs becomes an allowlist line; Export downloads them as
-   a file to append to the allowlist, Copy puts them on the clipboard. */
-(function(){
-  var ALLOWLIST = ${JSON.stringify(cfg.allowlist)};
-  var HOST = ${JSON.stringify(state.startHost)};
-  var BRAND = ${JSON.stringify(BRAND)};
-  var SCOPES = ['errint','errext'];
-  function panel(scope){ return document.getElementById('panel-'+scope); }
-  function boxes(scope){ var p=panel(scope); return p? p.querySelectorAll('.pickbox') : []; }
-  function picked(scope){ var b=boxes(scope), o=[]; for(var i=0;i<b.length;i++){ if(b[i].checked) o.push(b[i]); } return o; }
-  function bar(scope){ var p=panel(scope); return p? p.querySelector('.exportbar') : null; }
-  function dlName(){ var b=ALLOWLIST.split('/').pop().replace(/\\.[^.]*$/,''); return (b||'crawl-allowlist')+'.append.txt'; }
-  function refresh(scope){
-    var all=boxes(scope), n=picked(scope).length, b=bar(scope); if(!b) return;
-    var c=b.querySelector('.selcount'); if(c){ c.textContent=n+' selected'; }
-    // Only the allowlist actions depend on a selection; the fix-tracker export always
-    // works (it exports every referrer -> broken-link pair, ticked or not).
-    var btns=b.querySelectorAll('.copybtn,.exportbtn'); for(var i=0;i<btns.length;i++){ btns[i].disabled=(n===0); }
-    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
-    if(pa){ pa.checked=(n>0&&n===all.length); pa.indeterminate=(n>0&&n<all.length); }
-  }
-  function text(scope){
-    var sel=picked(scope), out=[];
-    out.push('# '+BRAND+' \u2014 allowlist appendage from crawl of '+HOST);
-    out.push('# generated '+new Date().toISOString()+' \u2014 '+sel.length+' link(s)');
-    out.push('# append to '+ALLOWLIST+' to suppress these in future scans, e.g.:');
-    out.push('#   cat '+dlName()+' >> '+ALLOWLIST);
-    out.push('#   ( *=wildcard   #=comment   blank lines ignored )');
-    out.push('#');
-    for(var i=0;i<sel.length;i++){
-      out.push(sel[i].getAttribute('data-url')+'   # '+sel[i].getAttribute('data-reason')+' \u2014 found on: '+sel[i].getAttribute('data-source'));
-    }
-    return out.join('\\n')+'\\n';
-  }
-  function toast(msg){
-    var t=document.getElementById('cw-toast');
-    if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); }
-    t.textContent=msg; t.className='toast show';
-    setTimeout(function(){ t.className='toast'; }, 2400);
-  }
-  // dl + saveBlob duplicated here so this IIFE's exports (allowlist + fix-tracker) use the same Save-As
-  // picker as the share toolbar's IIFE below (the two scripts are separate scopes \u2014 like toast above).
-  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
-  function saveBlob(blob, name, okMsg){
-    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
-    // its own versioned file; the picker pre-fills it (the operator can still edit it).
-    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
-    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
-    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
-    if(window.showSaveFilePicker){
-      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
-      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
-      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
-        .then(function(h){ return h.createWritable(); })
-        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
-        .then(function(){ toast(okMsg); })
-        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
-      return;
-    }
-    fb();
-  }
-  function doExport(scope){
-    var txt=text(scope), name=dlName(), n=picked(scope).length;
-    saveBlob(new Blob([txt],{type:'text/plain;charset=utf-8'}), name, 'Exported '+n+' link(s) \u2192 '+name);
-  }
-  function doCopy(scope){
-    var txt=text(scope), n=picked(scope).length;
-    function ok(){ toast('Copied '+n+' line(s) to clipboard'); }
-    function legacy(){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.focus(); ta.select(); var good=false; try{ good=document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); good?ok():toast('Copy failed \u2014 use Export'); }
-    if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok,legacy); } else { legacy(); }
-  }
-  function wire(scope){
-    var all=boxes(scope); if(!all.length) return;
-    for(var i=0;i<all.length;i++){ all[i].addEventListener('change', function(){ refresh(scope); }); }
-    var pa=document.querySelector('.pickall[data-scope="'+scope+'"]');
-    if(pa){ pa.addEventListener('change', function(){ var b=boxes(scope); for(var k=0;k<b.length;k++){ b[k].checked=pa.checked; } refresh(scope); }); }
-    var b=bar(scope); if(b){ var ex=b.querySelector('.exportbtn'), cp=b.querySelector('.copybtn');
-      if(ex){ ex.addEventListener('click', function(){ doExport(scope); }); }
-      if(cp){ cp.addEventListener('click', function(){ doCopy(scope); }); } }
-    refresh(scope);
-  }
-  for(var i=0;i<SCOPES.length;i++){ wire(SCOPES[i]); }
+});
 
-  // ---- standalone editable "fix tracker" export ----
-  var BS=String.fromCharCode(92);
-  function exportTracker(){
-    var tpl=window.__CW_TPL__; if(!tpl){ toast('Tracker template unavailable'); return; }
-    var data=JSON.parse(JSON.stringify(window.__CW_BROKEN__||{host:'',internal:[],external:[]}));
-    // A link belongs in the fix tracker UNLESS it's been manually marked "Working" \u2014 one uniform
-    // rule across Errors (assumed broken) AND Blocked (uncertain). So everything still untriaged is
-    // included by default and the tracker is a complete to-review list; marking Working is what
-    // drops a link. Scan the Working boxes on all three triage panels.
-    var excl={}, ob=document.querySelectorAll('#panel-errint .okbox, #panel-errext .okbox, #panel-blockd .okbox'), z, nx=0;
-    for(z=0;z<ob.length;z++){ if(ob[z].checked){ var du=ob[z].getAttribute('data-url'); if(!excl[du]){ nx++; } excl[du]=1; } }
-    function keep(list){ var out=[],q; for(q=0;q<(list||[]).length;q++){ if(!excl[list[q].url]) out.push(list[q]); } return out; }
-    // Blocked links are routed internal/external by kind, then merged into the same two tabs.
-    data.internal=keep(data.internal).concat(keep(data.blockedInt));
-    data.external=keep(data.external).concat(keep(data.blockedExt));
-    delete data.blockedInt; delete data.blockedExt;
-    // Carry each broken link's manual verdict (Broken/Working) + last-tested timestamp from the
-    // report's localStorage into the tracker, so the standalone file shows them and can keep editing.
-    function lg(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
-    function annotate(list){ for(var q=0;q<list.length;q++){ var u=list[q].url; var vb=lg('cwbroken:'+HOST+':'+u)==='1', vo=lg('cwok:'+HOST+':'+u)==='1'; list[q].v=vb?'broken':(vo?'working':''); list[q].ts=lg('cwts:'+HOST+':'+u)||''; } }
-    annotate(data.internal); annotate(data.external);
-    data.ticked={};   // fix-tracking lives in the tracker now \u2014 nothing to seed from the report
-    var inj=JSON.stringify(data).split('</').join('<'+BS+'/');
-    var doc=tpl.replace('"__DATA__"', function(){ return inj; });
-    saveBlob(new Blob([doc],{type:'text/html;charset=utf-8'}), 'charlotte-fix-tracker.html', 'Exported fix tracker'+(nx?' ('+nx+' link'+(nx===1?'':'s')+' marked Working excluded)':''));
-  }
-  var tb=document.querySelectorAll('.trackbtn');
-  for(var ti=0;ti<tb.length;ti++){ tb[ti].addEventListener('click', exportTracker); }
-})();
-</script>
-<script>(function(){
-  // Manual-testing triage for all three tabs (Errors \xB7 internal/external + Blocked). Two
-  // MUTUALLY-EXCLUSIVE boxes per link \u2014 "Broken" (confirms it's dead) and "Working"
-  // (confirms it loads). Ticking one unticks the other; clearing both returns the row to
-  // its default. "Tested" is implied by either box, so there's no separate Tested box.
-  // The Errors tabs default to BROKEN: every flagged link counts toward the header until
-  // you tick Working, which subtracts it and drops it from the fix tracker. The Blocked
-  // tab defaults to UNCERTAIN (not counted): ticking Broken adds it and routes it into the
-  // tracker by kind. A "Last triaged" cell auto-fills the date+time of the latest verdict.
-  // Ticks + timestamps persist in this browser (cwbroken: / cwok: / cwts: keys). Because that
-  // state lives in localStorage (not the file), a share toolbar can export/import the verdicts as
-  // JSON or bake them into a self-contained "shareable copy" (window.__CW_SEED__) for emailing.
-  // Partial (auto-refreshing) reports render read-only error rows \u2014 no per-row data-url and no
-  // triage boxes \u2014 so there is nothing to wire here, and running recomputeBroken() would wrongly
-  // zero the server-rendered "Broken hyperlink instances" header. Bail when no triage rows exist.
-  if(!document.querySelector('tr[data-url]')) return;
-  var HOST=${JSON.stringify(state.startHost)}, SCOPES=['errint','errext','blockd'], ERRS=['errint','errext'];
-  // Fixed row-2 totals \u2014 the denominators for each broken stat's live "(percent)".
-  var DENOM={inst:${linkInstances}, int:${state.pages.length}, ext:${state.external.size}, tot:${state.pages.length + state.external.size}};
-  // url -> its referrer pages (from the embedded broken-link data), memoized on first use \u2014 feeds the
-  // "Referrer pages with broken links" card: as triage changes which links still count as broken, the
-  // distinct spread of referrer pages is recomputed from the rows that still count.
-  var REFMAP=null;
-  function refMap(){ if(REFMAP) return REFMAP; REFMAP={}; var B=(typeof window!=='undefined')?window.__CW_BROKEN__:null; function add(a){ if(a) for(var i=0;i<a.length;i++) REFMAP[a[i].url]=a[i].refs||[]; } if(B){ add(B.internal); add(B.external); add(B.blockedInt); add(B.blockedExt); } return REFMAP; }
-  function L(){ try{ return localStorage; }catch(e){ return null; } }
-  function key(pfx,url){ return pfx+HOST+':'+url; }
-  // __CW_SEED__ carries verdicts baked into a "shareable copy" (see saveShareableCopy). When this
-  // browser exposes no localStorage (some file:// modes), getF/getS fall back to it so the copy
-  // still displays the sender's verdicts read-only.
-  function seedGet(k){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; return (sd&&sd.v&&sd.v.hasOwnProperty(k))?sd.v[k]:null; }
-  function getF(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null&&sv==='1'; } try{ return s.getItem(k)==='1'; }catch(e){ return false; } }
-  function setF(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,'1'); else s.removeItem(k); }catch(e){} }
-  function panel(scope){ return document.getElementById('panel-'+scope); }
-  function rowOf(el){ var n=el; while(n&&n.nodeName!=='TR') n=n.parentNode; return n; }
-  function hasCls(el,c){ return (' '+el.className+' ').indexOf(' '+c+' ')>=0; }
-  function addCls(el,c){ if(!hasCls(el,c)) el.className=(el.className?el.className+' ':'')+c; }
-  function rmCls(el,c){ el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').replace(/^ +| +$/g,''); }
-  // String-valued persistence (for the "last tested" timestamp; getF/setF only do flags).
-  function getS(k){ var s=L(); if(!s){ var sv=seedGet(k); return sv!=null?sv:''; } try{ return s.getItem(k)||''; }catch(e){ return ''; } }
-  function setS(k,v){ var s=L(); if(!s) return; try{ if(v) s.setItem(k,v); else s.removeItem(k); }catch(e){} }
-  // Auto-filled "Last triaged" stamp = local date+time the row's latest verdict was set.
-  // Updated whenever Broken or Working is ticked; cleared when the row returns to no verdict.
-  function nowStr(){ var d=new Date(); function p(x){ return (x<10?'0':'')+x; } return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes()); }
-  function tsCell(tr){ return tr?tr.querySelector('.tscell'):null; }
-  function setTs(tr,url){ var s=nowStr(), c=tsCell(tr); if(c) c.textContent=s; setS(key('cwts:',url), s); }
-  function clrTs(tr,url){ var c=tsCell(tr); if(c) c.textContent=''; setS(key('cwts:',url), ''); }
-  // ---- share testing verdicts (localStorage stays in THIS browser; the file doesn't carry it) ----
-  function toast(msg){ var t=document.getElementById('cw-toast'); if(!t){ t=document.createElement('div'); t.id='cw-toast'; t.className='toast'; document.body.appendChild(t); } t.textContent=msg; t.className='toast show'; setTimeout(function(){ t.className='toast'; }, 2600); }
-  function dl(blob,name){ try{ var url=URL.createObjectURL(blob), a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 0); return true; }catch(e){ return false; } }
-  // Save a blob through the File System Access "Save As" PICKER so the operator chooses the folder + name
-  // (instead of it landing in the default Downloads folder). Feature-detected: where the API is missing or
-  // restricted it falls back to a plain download (dl). Cancelling the picker is silent. This is the additive,
-  // download-as-fallback enhancement AD-034 left for "if revisited".
-  function saveBlob(blob, name, okMsg){
-    // Auto-append a filesystem-safe timestamp (YYYY-MM-DD_HH-MM_SS) before the extension so each export is
-    // its own versioned file; the picker pre-fills it (the operator can still edit it).
-    var td=new Date(), tz=function(x){return (x<10?'0':'')+x;}, ts=td.getFullYear()+'-'+tz(td.getMonth()+1)+'-'+tz(td.getDate())+'_'+tz(td.getHours())+'-'+tz(td.getMinutes())+'_'+tz(td.getSeconds()), tdot=name.lastIndexOf('.');
-    name=(tdot<0)?(name+'_'+ts):(name.slice(0,tdot)+'_'+ts+name.slice(tdot));
-    function fb(){ toast(dl(blob, name) ? okMsg : 'Save failed'); }
-    if(window.showSaveFilePicker){
-      var dot=name.lastIndexOf('.'), ext=dot>=0?name.slice(dot):'.txt', acc={};
-      acc[ext==='.json'?'application/json':ext==='.html'?'text/html':'text/plain']=[ext];
-      window.showSaveFilePicker({suggestedName:name, types:[{description:'File', accept:acc}]})
-        .then(function(h){ return h.createWritable(); })
-        .then(function(w){ return w.write(blob).then(function(){ return w.close(); }); })
-        .then(function(){ toast(okMsg); })
-        .catch(function(e){ if(e&&e.name==='AbortError') return; fb(); });
-      return;
-    }
-    fb();
-  }
-  // Snapshot every saved verdict (cwbroken: / cwok: / cwts:) for THIS crawl's host.
-  function collectState(){ var out={app:'charlotte-verdicts', host:HOST, v:{}}, s=L(); if(!s) return out; var i,k,n=0; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0||k.indexOf('cwts:'+HOST+':')===0)) out.v[k]=s.getItem(k); } return out; }
-  function countVerdicts(st){ var links={}, k, pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', v=(st&&st.v)||{}; for(k in v){ if(!v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) links[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) links[k.slice(po.length)]=1; } var c=0,z; for(z in links){ if(links.hasOwnProperty(z)) c++; } return c; }
-  function exportVerdicts(){ var st=collectState(), c=countVerdicts(st); if(!c){ toast('No verdicts to export yet \u2014 mark some links Broken or Working first'); return; } saveBlob(new Blob([JSON.stringify(st,null,2)],{type:'application/json'}), 'charlotte-verdicts-'+HOST+'.json', 'Exported '+c+' verdict'+(c===1?'':'s')); }
-  // Replace each url the file has an opinion on (clear its 3 keys, then set what the file holds);
-  // urls the file doesn't mention are left as-is, so several people's exports merge cleanly.
-  function applyState(obj){ var s=L(); if(!s||!obj||!obj.v) return 0; var pb='cwbroken:'+HOST+':', po='cwok:'+HOST+':', pt='cwts:'+HOST+':', urls={}, k; for(k in obj.v){ if(!obj.v.hasOwnProperty(k)) continue; if(k.indexOf(pb)===0) urls[k.slice(pb.length)]=1; else if(k.indexOf(po)===0) urls[k.slice(po.length)]=1; else if(k.indexOf(pt)===0) urls[k.slice(pt.length)]=1; } var u; for(u in urls){ if(urls.hasOwnProperty(u)){ try{ s.removeItem(pb+u); s.removeItem(po+u); s.removeItem(pt+u); }catch(e){} } } var c=0; for(k in obj.v){ if(obj.v.hasOwnProperty(k)){ try{ s.setItem(k,obj.v[k]); c++; }catch(e){} } } return c; }
-  function importVerdicts(file){ if(!file) return; if(!L()){ toast('This browser blocks storage for local files \u2014 serve the report over a local web server to import'); return; } var r=new FileReader(); r.onload=function(){ var obj; try{ obj=JSON.parse(String(r.result)); }catch(e){ obj=null; } if(!obj||obj.app!=='charlotte-verdicts'||!obj.v){ toast('That isn\\'t a Charlotte verdicts file'); return; } if(obj.host!==HOST){ toast('That file is for \u201C'+obj.host+'\u201D, not \u201C'+HOST+'\u201D \u2014 not applied'); return; } var c=countVerdicts(obj); applyState(obj); toast('Imported '+c+' verdict'+(c===1?'':'s')+' \u2014 reloading\u2026'); setTimeout(function(){ try{ location.reload(); }catch(e){} }, 700); }; r.onerror=function(){ toast('Could not read the file'); }; try{ r.readAsText(file); }catch(e){ toast('Could not read the file'); } }
-  // Bake the current verdicts into a fresh self-contained copy of this report: serialize the page,
-  // strip any prior seed, and inject window.__CW_SEED__ just before </head> so it runs first.
-  function saveShareableCopy(){ var st=collectState(), c=countVerdicts(st); var SO='<scr'+'ipt>window.__CW_SEED__=', SC='</scr'+'ipt>'; var seed=SO+JSON.stringify(st).replace(/</g,'\\\\u003c')+';'+SC; var src='<!doctype html>\\n'+document.documentElement.outerHTML, pos; while((pos=src.indexOf(SO))>=0){ var en=src.indexOf(SC,pos); if(en<0) break; src=src.slice(0,pos)+src.slice(en+SC.length); } if(src.indexOf('</head>')>=0) src=src.replace('</head>', seed+'</head>'); else src=seed+src; saveBlob(new Blob([src],{type:'text/html;charset=utf-8'}), 'charlotte-report-'+HOST+'-shared.html', 'Saved a shareable copy with '+c+' verdict'+(c===1?'':'s')+' baked in'); }
-  // On opening a shared copy: prime localStorage from the seed, but ONLY if this browser has no
-  // verdicts for this host yet \u2014 never clobber a recipient's own triage.
-  function seedFromCopy(){ var sd=(typeof window!=='undefined'&&window)?window.__CW_SEED__:null; if(!sd||!sd.v||sd.host!==HOST) return; var s=L(); if(!s) return; var i,k,n=0,has=false; try{ n=s.length; }catch(e){ n=0; } for(i=0;i<n;i++){ try{ k=s.key(i); }catch(e){ k=null; } if(k&&(k.indexOf('cwbroken:'+HOST+':')===0||k.indexOf('cwok:'+HOST+':')===0)){ has=true; break; } } if(has) return; for(k in sd.v){ if(sd.v.hasOwnProperty(k)){ try{ s.setItem(k,sd.v[k]); }catch(e){} } } }
-  function update(scope){
-    var p=panel(scope); if(!p) return;
-    var trs=p.querySelectorAll('tr[data-url]'), n=0, tested=0, broke=0, ok=0, i;
-    for(i=0;i<trs.length;i++){ n++; var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'); var ib=!!(b&&b.checked), io=!!(o&&o.checked); if(ib||io) tested++; if(ib) broke++; if(io) ok++; }
-    var el=p.querySelector('.tcount'); if(el) el.textContent='Manually triaged: '+tested+' / '+n+' \xB7 confirmed broken: '+broke+' \xB7 confirmed working: '+ok;
-    recomputeBroken();
-  }
-  // Percent with adaptive precision (mirrors report.js fmtPct): one decimal normally, more decimals if
-  // needed so a small-but-nonzero share still shows a significant digit (0.03% not 0.0%).
-  function fmtPct(p){ if(!(p>0)) return '0.0'; var d=1; while(d<10&&Number(p.toFixed(d))===0) d++; return p.toFixed(d); }
-  // Set a header stat number, refresh its "(percent of total)" sibling (when a denom is given), and
-  // keep its card's red "bad" highlight in sync with the count.
-  function setStat(el, v, denom){ if(!el) return; el.textContent=(v.toLocaleString?v.toLocaleString():(''+v)); var nDiv=el.parentNode; if(typeof denom==='number'&&nDiv){ var pe=nDiv.querySelector('.pct'); if(pe) pe.textContent = denom>0 ? '('+fmtPct((v/denom)*100)+'%)' : ''; } var card=nDiv&&nDiv.parentNode; if(card&&typeof card.className==='string'){ var has=(' '+card.className+' ').indexOf(' bad ')>=0; if(v>0&&!has) card.className=card.className+' bad'; else if(v<=0&&has) card.className=(' '+card.className+' ').split(' bad ').join(' ').trim(); } }
-  // Test-completeness outline on a "broken" stat card: GREEN dashed when every triageable link in the
-  // category has a verdict (the count is final), AMBER dashed while any remain untested (the count may
-  // still change), none when there's nothing to test. (Independent of setStat's 'bad' class.)
-  function setTestState(el, tested, total){ if(!el) return; var card=el.parentNode&&el.parentNode.parentNode; if(!card||typeof card.className!=='string') return; var c=(' '+card.className+' ').split(' tested-all ').join(' ').split(' tested-partial ').join(' ').trim(); if(total>0) c+=(tested>=total?' tested-all':' tested-partial'); card.className=c; }
-  // Live header stats, recomputed on load and on every verdict change. Errors tabs: each flagged
-  // link counts (one unique destination + its referrer instances) UNLESS confirmed Working, so
-  // clearing a false positive drops it from the instances total AND its Broken\xB7internal/external
-  // destination count. Blocked tab: only links confirmed Broken count (default uncertain), routed
-  // internal/external by their kind. Keeps all three top-level broken stats accurate after triage.
-  function recomputeBroken(){
-    var inst=0, uInt=0, uExt=0, sc, p, trs, i, pset={};
-    // pset collects the referrer pages of every link that STILL counts as broken \u2014 its size is the
-    // "Referrer pages with broken links" card (distinct pages, so a page linking several broken URLs
-    // counts once). Refs come from refMap() (the embedded broken-link data), keyed by the row's url.
-    function addRefs(u){ var M=refMap(), r=u&&M[u]; if(r) for(var z=0;z<r.length;z++) pset[r[z]]=1; }
-    // Per-category triage completeness for the green/amber outline: a row is "triaged" if either box is
-    // ticked. Internal = errint rows + blocked-internal; External = errext rows + blocked-external;
-    // bT/bN = the Blocked\xB7uncertain card's own completeness (all blocked rows, regardless of kind).
-    var iT=0, iN=0, eT=0, eN=0, bT=0, bN=0;
-    for(sc=0;sc<ERRS.length;sc++){ p=panel(ERRS[sc]); if(!p) continue; trs=p.querySelectorAll('tr[data-url]'); var isInt=(ERRS[sc]==='errint');
-      for(i=0;i<trs.length;i++){ var b=trs[i].querySelector('.brokenbox'), o=trs[i].querySelector('.okbox'), td=(b&&b.checked)||(o&&o.checked);
-        if(isInt){ iN++; if(td) iT++; } else { eN++; if(td) eT++; }
-        if(o&&o.checked) continue;
-        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
-        addRefs(trs[i].getAttribute('data-url'));
-        if(isInt) uInt++; else uExt++; } }
-    p=panel('blockd'); if(p){ trs=p.querySelectorAll('tr[data-url]');
-      for(i=0;i<trs.length;i++){ var bb=trs[i].querySelector('.brokenbox'), bo=trs[i].querySelector('.okbox'), ext=(trs[i].getAttribute('data-kind')==='external'), t2=(bb&&bb.checked)||(bo&&bo.checked);
-        bN++; if(t2) bT++;
-        if(ext){ eN++; if(t2) eT++; } else { iN++; if(t2) iT++; }
-        if(!(bb&&bb.checked)) continue;
-        inst+=(parseInt(trs[i].getAttribute('data-inst'),10)||0);
-        addRefs(trs[i].getAttribute('data-url'));
-        if(ext) uExt++; else uInt++; } }
-    var pgN=0, pk; for(pk in pset){ if(pset.hasOwnProperty(pk)) pgN++; }
-    setStat(document.getElementById('brokenInstN'), inst, DENOM.inst);
-    setStat(document.getElementById('brokenIntN'), uInt, DENOM.int);
-    setStat(document.getElementById('brokenExtN'), uExt, DENOM.ext);
-    setStat(document.getElementById('brokenTotN'), uInt+uExt, DENOM.tot);   // total unique destinations broken
-    setStat(document.getElementById('brokenPgN'), pgN);                     // referrer pages with broken links (no %)
-    setTestState(document.getElementById('brokenIntN'), iT, iN);
-    setTestState(document.getElementById('brokenExtN'), eT, eN);
-    // Broken hyperlink instances, total unique destinations broken, AND referrer pages all span internal +
-    // external (+ blocked), so their outlines need EVERY triageable link triaged.
-    setTestState(document.getElementById('brokenInstN'), iT+eT, iN+eN);
-    setTestState(document.getElementById('brokenTotN'), iT+eT, iN+eN);
-    setTestState(document.getElementById('brokenPgN'), iT+eT, iN+eN);
-    setTestState(document.getElementById('blockedN'), bT, bN);   // Blocked\xB7uncertain: green once all reviewed
-  }
-  // Apply a verdict to ONE row: set its boxes, persist the keys, swap classes, stamp/clear the
-  // Last-tested time. want is 'broken' | 'working' | '' (clears it). Shared by the per-link change
-  // handlers and the domain-level bulk control so both behave identically.
-  function applyVerdict(tr, url, want){
-    var b=tr.querySelector('.brokenbox'), o=tr.querySelector('.okbox');
-    if(want==='broken'){ if(b)b.checked=true; if(o)o.checked=false; setF(key('cwbroken:',url),true); setF(key('cwok:',url),false); rmCls(tr,'notbroken'); addCls(tr,'confirmed'); setTs(tr,url); }
-    else if(want==='working'){ if(o)o.checked=true; if(b)b.checked=false; setF(key('cwok:',url),true); setF(key('cwbroken:',url),false); rmCls(tr,'confirmed'); addCls(tr,'notbroken'); setTs(tr,url); }
-    else { if(b)b.checked=false; if(o)o.checked=false; setF(key('cwbroken:',url),false); setF(key('cwok:',url),false); rmCls(tr,'confirmed'); rmCls(tr,'notbroken'); clrTs(tr,url); }
-  }
-  // Domain-level bulk control (Errors\xB7external only). A domain's Broken/Working box applies the
-  // verdict to every link in that domain; its checked state is DERIVED from the children (all broken
-  // -> Broken, all working -> Working, mixed -> neither), so it survives reload from the per-link
-  // verdicts with no extra storage.
-  function rowsInDomain(host, scope){ var p=panel(scope); if(!p) return []; var all=p.querySelectorAll('tr[data-url]'), out=[], i; for(i=0;i<all.length;i++){ if(all[i].getAttribute('data-domain')===host) out.push(all[i]); } return out; }
-  function domCtl(host, scope, cls){ var p=panel(scope); if(!p) return null; var xs=p.querySelectorAll(cls), i; for(i=0;i<xs.length;i++){ if(xs[i].getAttribute('data-domain')===host) return xs[i]; } return null; }
-  // Set a disabled indicator box + toggle an 'on' class on its label (so it can be highlighted).
-  function setInd(box, on){ if(!box) return; box.checked=on; var lbl=box.parentNode; if(lbl&&typeof lbl.className==='string'){ var has=(' '+lbl.className+' ').indexOf(' on ')>=0; if(on&&!has) lbl.className=lbl.className+' on'; else if(!on&&has) lbl.className=(' '+lbl.className+' ').split(' on ').join(' ').trim(); } }
-  // Derive a domain header from its rows: the bulk Broken/Working boxes (checked when ALL broken /
-  // ALL working), the Mixture indicator (both verdicts present), the all-tested indicator, and the
-  // "triaged K/N" counter. Runs on load and after any per-link or bulk verdict change.
-  function deriveDomain(host, scope){
-    var rs=rowsInDomain(host, scope), n=rs.length, br=0, wk=0, i;
-    for(i=0;i<n;i++){ var b=rs[i].querySelector('.brokenbox'), o=rs[i].querySelector('.okbox'); if(b&&b.checked) br++; if(o&&o.checked) wk++; }
-    var tested=br+wk, db=domCtl(host,scope,'.dombroken'), dw=domCtl(host,scope,'.domworking');
-    if(db) db.checked=(n>0&&br===n);
-    if(dw) dw.checked=(n>0&&wk===n);
-    setInd(domCtl(host,scope,'.dommixture'), (br>0&&wk>0));
-    setInd(domCtl(host,scope,'.domalltested'), (n>0&&tested===n));
-    var pg=domCtl(host,scope,'.domprog'); if(pg) pg.textContent='\xB7 tested '+tested+'/'+n+' \xB7 '+br+' broken \xB7 '+wk+' working';
-    // Dashed-amber the header while the domain still has untested links; clears once all are tested.
-    var grp=domCtl(host,scope,'.domgrp'); if(grp) setCls(grp,'untested',(n>0&&tested<n));
-  }
-  function syncDomain(tr){ if(!tr) return; var h=tr.getAttribute('data-domain'), sc=tr.getAttribute('data-scope'); if(h&&sc) deriveDomain(h, sc); }
-  function applyDomain(host, scope, want){ var rs=rowsInDomain(host, scope), i; for(i=0;i<rs.length;i++){ applyVerdict(rs[i], rs[i].getAttribute('data-url'), want); } deriveDomain(host, scope); update(scope); }
-  function hasCls(el,c){ return !!(el&&typeof el.className==='string'&&(' '+el.className+' ').indexOf(' '+c+' ')>=0); }
-  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
-  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
-  // Wire the domain controls on BOTH grouped tabs (Errors\xB7external + Blocked\xB7uncertain).
-  function wireDomains(){ var sc=['errint','errext','blockd'], k; for(k=0;k<sc.length;k++) wireDomainScope(sc[k]); }
-  function wireDomainScope(scope){
-    var p=panel(scope); if(!p) return;
-    var tgs=p.querySelectorAll('.domtoggle'), bs=p.querySelectorAll('.dombroken'), os=p.querySelectorAll('.domworking'), i;
-    // Collapse/expand is a .collapsed class on .domgrp \u2014 under our control (no native <details>), so
-    // Expand/Collapse all set every group with certainty.
-    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
-    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'broken':''); }); }
-    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ applyDomain(this.getAttribute('data-domain'), this.getAttribute('data-scope'), this.checked?'working':''); }); }
-    var seen={}, all=p.querySelectorAll('tr[data-url]'); for(i=0;i<all.length;i++){ var h=all[i].getAttribute('data-domain'); if(h&&!seen[h]){ seen[h]=1; deriveDomain(h, scope); } }
-    var grps=p.querySelectorAll('.domgrp');
-    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
-    var ex=document.getElementById(scope+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
-    var co=document.getElementById(scope+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
-  }
-  function wire(scope){
-    var p=panel(scope); if(!p) return;
-    var trs=p.querySelectorAll('tr[data-url]'), i;
-    // Restore saved ticks. Broken wins if both keys are somehow set (keeps exclusivity).
-    for(i=0;i<trs.length;i++){ var tr=trs[i], b=tr.querySelector('.brokenbox'), o=tr.querySelector('.okbox'); if(!b||!o) continue;
-      var u=b.getAttribute('data-url'), wb=getF(key('cwbroken:',u)), wo=getF(key('cwok:',u));
-      if(wb){ b.checked=true; addCls(tr,'confirmed'); if(wo){ setF(key('cwok:',u),false); } }
-      else if(wo){ o.checked=true; addCls(tr,'notbroken'); }
-      var c=tsCell(tr); if(c) c.textContent=getS(key('cwts:',u)); }
-    var bs=p.querySelectorAll('.brokenbox'), os=p.querySelectorAll('.okbox');
-    for(i=0;i<bs.length;i++){ bs[i].addEventListener('change', function(){ var tr=rowOf(this); applyVerdict(tr, this.getAttribute('data-url'), this.checked?'broken':''); syncDomain(tr); update(scope); }); }
-    for(i=0;i<os.length;i++){ os[i].addEventListener('change', function(){ var tr=rowOf(this); applyVerdict(tr, this.getAttribute('data-url'), this.checked?'working':''); syncDomain(tr); update(scope); }); }
-    update(scope);
-  }
-  seedFromCopy();
-  for(var s=0;s<SCOPES.length;s++){ wire(SCOPES[s]); }
-  wireDomains();   // domain-level Broken/Working controls on the Errors\xB7external tab
-  // ---- drag-resizable triage columns ----------------------------------------------------------
-  // A triage tab can render several tables (one per domain group on Errors\xB7external / Blocked), so a
-  // resize broadcasts the new width to that column index in EVERY table of the tab, keeping the groups
-  // aligned. Widths persist per tab in localStorage; "Reset column widths" clears them.
-  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
-  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
-  function triTables(scope){ var p=panel(scope); if(!p) return []; return p.querySelectorAll('table.haspick, table.blkpick'); }
-  function applyCol(scope, idx, px){ var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
-  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
-  function gripDown(scope, th, idx, grip, e){
-    e.preventDefault(); e.stopPropagation();
-    var startX=e.clientX, startW=th.offsetWidth, cur=startW; addCls(grip,'drag');
-    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
-    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); rmCls(grip,'drag'); saveCol(scope, idx, cur); }
-    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true);
-  }
-  function wireColResize(scope){
-    var ts=triTables(scope); if(!ts.length) return;
-    var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
-    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j;
-      for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } }
-  }
-  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
-  for(var cz=0;cz<SCOPES.length;cz++) wireColResize(SCOPES[cz]);
-  var crs=document.querySelectorAll('.colreset'); for(var cr=0;cr<crs.length;cr++){ crs[cr].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
-  // Wire the share toolbar (final report only; absent otherwise).
-  var bCopy=document.getElementById('cwSaveCopy'); if(bCopy) bCopy.addEventListener('click', saveShareableCopy);
-  var bExp=document.getElementById('cwExportV'); if(bExp) bExp.addEventListener('click', exportVerdicts);
-  var bImp=document.getElementById('cwImportV'), fImp=document.getElementById('cwImportFile');
-  if(bImp&&fImp){ bImp.addEventListener('click', function(){ fImp.click(); }); fImp.addEventListener('change', function(){ var f=this.files&&this.files[0]; importVerdicts(f); try{ this.value=''; }catch(e){} }); }
-})();</script>
-<script>(function(){
-  // Non-triage tabs (External, Internal destinations, Out of scope) use the SAME .domgrp collapsibles as
-  // the triage tabs but without verdict controls \u2014 so this wires just the caret toggle + Expand/Collapse
-  // all. deriveDomain is deliberately NOT called here, so these groups never get the amber "untested" halo
-  // (that's a triage-only signal). Each .domtoggle toggles its group's .collapsed class; the buttons set
-  // every group at once (no state detection \u2014 a single toggle could desync and show the wrong label).
-  function hasCls(el,c){ return (' '+(el.className||'')+' ').indexOf(' '+c+' ')>=0; }
-  function setCls(el,c,on){ if(!el||typeof el.className!=='string') return; var has=hasCls(el,c); if(on&&!has) el.className=(el.className+' '+c).trim(); else if(!on&&has) el.className=(' '+el.className+' ').split(' '+c+' ').join(' ').trim(); }
-  function grpOf(el){ var n=el; while(n){ if(hasCls(n,'domgrp')) return n; n=n.parentNode; } return null; }
-  // ---- drag-resizable columns for the non-triage grouped tables (.grptbl) -----------------------------
-  // The triage tabs' resize lives in a triage-only IIFE that bails when there are no verdict rows, so the
-  // non-triage tables carry their own copy here. Same mechanic: a grip per header, the new width broadcast
-  // to that column index across EVERY group table in the tab (keeping the groups aligned), persisted per
-  // 'cwcol:host:scope'. No enforced minimum width \u2014 drag a column as narrow as you like.
-  var HOST=${JSON.stringify(state.startHost)};
-  function L(){ try{ return localStorage; }catch(e){ return null; } }
-  function colKey(scope){ return 'cwcol:'+HOST+':'+scope; }
-  function loadCols(scope){ var s=L(); if(!s) return null; try{ var v=s.getItem(colKey(scope)); return v?JSON.parse(v):null; }catch(e){ return null; } }
-  function grpTables(scope){ var P=document.getElementById('panel-'+scope); return P? P.querySelectorAll('table.grptbl') : []; }
-  function applyCol(scope, idx, px){ var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'); if(hs[idx]) hs[idx].style.width=px+'px'; } }
-  function saveCol(scope, idx, px){ var s=L(); if(!s) return; var a=loadCols(scope)||[]; a[idx]=px; try{ s.setItem(colKey(scope), JSON.stringify(a)); }catch(e){} }
-  function gripDown(scope, th, idx, grip, e){ e.preventDefault(); e.stopPropagation(); var startX=e.clientX, startW=th.offsetWidth, cur=startW; setCls(grip,'drag',true);
-    function mv(ev){ cur=Math.max(16, startW+(ev.clientX-startX)); applyCol(scope, idx, cur); }
-    function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); setCls(grip,'drag',false); saveCol(scope, idx, cur); }
-    document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true); }
-  function wireResize(scope){ var ts=grpTables(scope); if(!ts.length) return; var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
-    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } } }
-  function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
-  var TABS=[['panel-external','ext'],['panel-internal','int'],['panel-outscope','oos']], t;
-  for(t=0;t<TABS.length;t++){ (function(pid, pre){
-    var P=document.getElementById(pid); if(!P) return;
-    var scope=pid.replace('panel-','');
-    var tgs=P.querySelectorAll('.domtoggle'), i;
-    for(i=0;i<tgs.length;i++){ tgs[i].addEventListener('click', function(){ var g=grpOf(this); if(g) setCls(g,'collapsed',!hasCls(g,'collapsed')); }); }
-    var grps=P.querySelectorAll('.domgrp');
-    function setAll(yes){ for(var j=0;j<grps.length;j++) setCls(grps[j],'collapsed',yes); }
-    var ex=document.getElementById(pre+'Expand'); if(ex) ex.addEventListener('click', function(){ setAll(false); });
-    var co=document.getElementById(pre+'Collapse'); if(co) co.addEventListener('click', function(){ setAll(true); });
-    wireResize(scope);
-  })(TABS[t][0], TABS[t][1]); }
-  var rbs=document.querySelectorAll('.grpcolreset'); for(var r=0;r<rbs.length;r++){ rbs[r].addEventListener('click', function(){ resetCols(this.getAttribute('data-scope')); }); }
-})();</script>
-${pagerScript}${NEWWIN}${THEME_JS}</body></html>`;
-    }
+// src/report/json-report.js
+var require_json_report = __commonJS({
+  "src/report/json-report.js"(exports2, module2) {
+    "use strict";
+    var { effSettings, settingsAreKnown } = require_settings();
     function buildReportJson(state, cfg, allow, partial) {
       const suppressed = [], active = [];
       for (const e of state.errors) (allow.some((re) => re.test(e.url)) ? suppressed : active).push(e);
@@ -1469,10 +1530,17 @@ ${pagerScript}${NEWWIN}${THEME_JS}</body></html>`;
         blocked: (state.blocked || []).map((e) => ({ url: e.url, reason: e.reason, kind: e.kind || "internal", foundOn: refsOf(e.url).length ? refsOf(e.url) : e.source ? [e.source] : [] }))
       }, null, 2);
     }
-    function writeOutputs2(state, cfg, allow, partial) {
-      fs2.writeFileSync(cfg.out, buildReport(state, cfg, allow, partial));
-      if (cfg.json) fs2.writeFileSync(cfg.json, buildReportJson(state, cfg, allow, partial));
-    }
+    module2.exports = { buildReportJson };
+  }
+});
+
+// src/report/index-report.js
+var require_index_report = __commonJS({
+  "src/report/index-report.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    var { THEME_LIGHT_CSS, THEME_HEAD, THEME_BTN, THEME_JS } = require_branding();
+    var { NEWWIN } = require_report_templates();
     function buildIndexReport2(sites, cfg, allow, partial, startedAt) {
       const esc2 = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
       const done = sites.filter((s) => s.state && !s.partial).length;
@@ -1555,7 +1623,23 @@ ${THEME_JS}</body></html>`;
           };
         })
       };
-      fs2.writeFileSync(cfg.json, JSON.stringify(data, null, 2));
+      fs3.writeFileSync(cfg.json, JSON.stringify(data, null, 2));
+    }
+    module2.exports = { buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 };
+  }
+});
+
+// src/report.js
+var require_report = __commonJS({
+  "src/report.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    var { buildReport } = require_report_page();
+    var { buildReportJson } = require_json_report();
+    var { buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 } = require_index_report();
+    function writeOutputs2(state, cfg, allow, partial) {
+      fs3.writeFileSync(cfg.out, buildReport(state, cfg, allow, partial));
+      if (cfg.json) fs3.writeFileSync(cfg.json, buildReportJson(state, cfg, allow, partial));
     }
     module2.exports = { buildReport, buildReportJson, writeOutputs: writeOutputs2, buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 };
   }
@@ -1565,22 +1649,22 @@ ${THEME_JS}</body></html>`;
 var require_log = __commonJS({
   "src/log.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("fs");
-    var path2 = require("path");
+    var fs3 = require("fs");
+    var path = require("path");
     function makeLogWriter2(cfg, meta) {
       if (!cfg.log) return { line() {
       }, finalize() {
       }, parts: [], manifestPath: "", singleFile: true };
-      const dir = path2.dirname(cfg.log);
-      const ext = path2.extname(cfg.log) || ".log";
-      const stem = path2.basename(cfg.log, ext);
+      const dir = path.dirname(cfg.log);
+      const ext = path.extname(cfg.log) || ".log";
+      const stem = path.basename(cfg.log, ext);
       const maxBytes = cfg.logMaxBytes;
       const single = maxBytes <= 0;
-      const manifestPath = single ? "" : path2.join(dir, stem + ".manifest.json");
+      const manifestPath = single ? "" : path.join(dir, stem + ".manifest.json");
       const parts = [];
       const nowIso = () => (/* @__PURE__ */ new Date()).toISOString();
       let idx = 0, curPath = null, curBytes = 0, curLines = 0;
-      const partPath = (n) => single ? cfg.log : path2.join(dir, stem + ".part" + String(n).padStart(3, "0") + ext);
+      const partPath = (n) => single ? cfg.log : path.join(dir, stem + ".part" + String(n).padStart(3, "0") + ext);
       function writeManifest(complete) {
         if (single) return;
         if (parts.length) {
@@ -1589,7 +1673,7 @@ var require_log = __commonJS({
         }
         const m = { run: meta.run, startUrl: meta.startUrl, startedAt: meta.startedAt, base: stem, ext, maxBytes, parts, complete: !!complete, updatedAt: nowIso() };
         try {
-          fs2.writeFileSync(manifestPath, JSON.stringify(m, null, 2));
+          fs3.writeFileSync(manifestPath, JSON.stringify(m, null, 2));
         } catch {
         }
       }
@@ -1605,17 +1689,17 @@ var require_log = __commonJS({
         if (!single) {
           const header = "#META " + JSON.stringify({ run: meta.run, part: idx, base: stem, ext, startUrl: meta.startUrl, partStarted: nowIso() }) + "\n";
           try {
-            fs2.writeFileSync(curPath, header);
+            fs3.writeFileSync(curPath, header);
           } catch {
           }
           curBytes += Buffer.byteLength(header);
         } else {
           try {
-            fs2.writeFileSync(curPath, "");
+            fs3.writeFileSync(curPath, "");
           } catch {
           }
         }
-        parts.push({ part: idx, file: path2.basename(curPath), started: nowIso(), bytes: curBytes, lines: 0 });
+        parts.push({ part: idx, file: path.basename(curPath), started: nowIso(), bytes: curBytes, lines: 0 });
         writeManifest(false);
       }
       function line(s) {
@@ -1624,7 +1708,7 @@ var require_log = __commonJS({
         if (curPath === null) roll();
         else if (!single && curBytes + len > maxBytes) roll();
         try {
-          fs2.appendFileSync(curPath, buf);
+          fs3.appendFileSync(curPath, buf);
         } catch {
         }
         curBytes += len;
@@ -1632,12 +1716,12 @@ var require_log = __commonJS({
       }
       return { line, finalize: writeManifest, parts, manifestPath, singleFile: single };
     }
-    function makeJournal2(file) {
+    function makeJournal(file) {
       if (!file) return { ev() {
       }, on: false };
       const ev = (obj) => {
         try {
-          fs2.appendFileSync(file, JSON.stringify(obj) + "\n");
+          fs3.appendFileSync(file, JSON.stringify(obj) + "\n");
         } catch {
         }
       };
@@ -1645,50 +1729,50 @@ var require_log = __commonJS({
     }
     function mergeLogs2(target, outFile) {
       let manifest = null, dir = ".", stem = "", ext = ".log";
-      if (target && fs2.existsSync(target) && fs2.statSync(target).isFile() && target.endsWith(".json")) {
-        manifest = JSON.parse(fs2.readFileSync(target, "utf8"));
-        dir = path2.dirname(target);
+      if (target && fs3.existsSync(target) && fs3.statSync(target).isFile() && target.endsWith(".json")) {
+        manifest = JSON.parse(fs3.readFileSync(target, "utf8"));
+        dir = path.dirname(target);
         stem = manifest.base;
         ext = manifest.ext || ".log";
       } else {
-        const isDir = fs2.existsSync(target) && fs2.statSync(target).isDirectory();
-        dir = isDir ? target : path2.dirname(target);
-        const baseGuess = isDir ? "" : path2.basename(target, path2.extname(target) || "");
-        ext = isDir ? ".log" : path2.extname(target) || ".log";
-        const mp = path2.join(dir, (baseGuess || "crawl-progress") + ".manifest.json");
-        if (fs2.existsSync(mp)) {
-          manifest = JSON.parse(fs2.readFileSync(mp, "utf8"));
+        const isDir = fs3.existsSync(target) && fs3.statSync(target).isDirectory();
+        dir = isDir ? target : path.dirname(target);
+        const baseGuess = isDir ? "" : path.basename(target, path.extname(target) || "");
+        ext = isDir ? ".log" : path.extname(target) || ".log";
+        const mp = path.join(dir, (baseGuess || "crawl-progress") + ".manifest.json");
+        if (fs3.existsSync(mp)) {
+          manifest = JSON.parse(fs3.readFileSync(mp, "utf8"));
           stem = manifest.base;
           ext = manifest.ext || ".log";
         } else stem = baseGuess;
       }
       let orderedFiles;
       if (manifest && Array.isArray(manifest.parts) && manifest.parts.length) {
-        orderedFiles = manifest.parts.slice().sort((a, b) => a.part - b.part).map((p) => path2.join(dir, p.file));
+        orderedFiles = manifest.parts.slice().sort((a, b) => a.part - b.part).map((p) => path.join(dir, p.file));
       } else {
         const re = new RegExp("^" + stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\.part(\\d+)" + ext.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "$");
         const found = [];
-        for (const f of fs2.readdirSync(dir)) {
+        for (const f of fs3.readdirSync(dir)) {
           const m = f.match(re);
-          if (m) found.push({ n: Number(m[1]), file: path2.join(dir, f) });
+          if (m) found.push({ n: Number(m[1]), file: path.join(dir, f) });
         }
         found.sort((a, b) => a.n - b.n);
         orderedFiles = found.map((x) => x.file);
       }
       if (!orderedFiles.length) throw new Error("No log parts found for: " + target);
-      const sink = outFile ? fs2.createWriteStream(outFile) : process.stdout;
+      const sink = outFile ? fs3.createWriteStream(outFile) : process.stdout;
       const head = `# composite log reconstructed from ${orderedFiles.length} part(s)${manifest ? ` (run ${manifest.run}${manifest.complete ? "" : ", INCOMPLETE"})` : ""}
 `;
       sink.write(head);
       for (const file of orderedFiles) {
-        const text = fs2.readFileSync(file, "utf8");
+        const text = fs3.readFileSync(file, "utf8");
         const body = text.replace(/^#META [^\n]*\n?/, "");
         sink.write(body);
       }
       if (outFile) sink.end();
       return orderedFiles.length;
     }
-    module2.exports = { makeLogWriter: makeLogWriter2, makeJournal: makeJournal2, mergeLogs: mergeLogs2 };
+    module2.exports = { makeLogWriter: makeLogWriter2, makeJournal, mergeLogs: mergeLogs2 };
   }
 });
 
@@ -1696,8 +1780,8 @@ var require_log = __commonJS({
 var require_parse = __commonJS({
   "src/parse.js"(exports2, module2) {
     "use strict";
-    var zlib2 = require("zlib");
-    var { URL: URL2 } = require("url");
+    var zlib = require("zlib");
+    var { URL } = require("url");
     var TITLE_CAP = 300;
     function decodeEntities(s) {
       return s.replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (whole, ent) => {
@@ -1709,7 +1793,7 @@ var require_parse = __commonJS({
         return map[ent.toLowerCase()] || whole;
       });
     }
-    function extractLinks2(html, pageUrl) {
+    function extractLinks(html, pageUrl) {
       const src = html.replace(/<!--[\s\S]*?-->/g, "");
       let base = pageUrl;
       const bm = src.match(/<base\b[^>]*\bhref\s*=\s*("([^"]*)"|'([^']*)'|([^\s">]+))/i);
@@ -1717,7 +1801,7 @@ var require_parse = __commonJS({
         const href = decodeEntities((bm[2] ?? bm[3] ?? bm[4] ?? "").trim());
         if (href) {
           try {
-            base = new URL2(href, pageUrl).href;
+            base = new URL(href, pageUrl).href;
           } catch {
           }
         }
@@ -1729,7 +1813,7 @@ var require_parse = __commonJS({
         const raw = decodeEntities((m[2] ?? m[3] ?? m[4] ?? "").trim());
         if (!raw || raw.startsWith("#") || /^(javascript:|mailto:|tel:|data:)/i.test(raw)) continue;
         try {
-          links.push(new URL2(raw, base));
+          links.push(new URL(raw, base));
         } catch {
         }
       }
@@ -1745,7 +1829,7 @@ var require_parse = __commonJS({
       if (c.indexOf("msword") >= 0 || c.indexOf("ms-excel") >= 0 || c.indexOf("ms-powerpoint") >= 0 || c.indexOf("vnd.ms-") >= 0 || /\.(doc|xls|ppt)(\?|$)/.test(p)) return "ole";
       return null;
     }
-    function sniffMagic2(buf) {
+    function sniffMagic(buf) {
       if (!buf || buf.length < 4) return null;
       if (buf[0] === 37 && buf[1] === 80 && buf[2] === 68 && buf[3] === 70) return "pdf";
       if (buf[0] === 80 && buf[1] === 75) return "ooxml";
@@ -1781,7 +1865,7 @@ var require_parse = __commonJS({
         const dataStart = lhOff + 30 + lhNameLen + lhExtraLen;
         const comp = buf.slice(dataStart, dataStart + compSize);
         try {
-          out.push({ name, data: method === 0 ? comp : zlib2.inflateRawSync(comp) });
+          out.push({ name, data: method === 0 ? comp : zlib.inflateRawSync(comp) });
         } catch {
         }
       }
@@ -1818,9 +1902,9 @@ var require_parse = __commonJS({
       while (m = re.exec(s2)) urls.push(m[0]);
       return urls;
     }
-    function extractDocLinks2(buf, docType, baseUrl) {
+    function extractDocLinks(buf, docType, baseUrl) {
       let type = docType;
-      if (!type || type === "sniff") type = sniffMagic2(buf) || type;
+      if (!type || type === "sniff") type = sniffMagic(buf) || type;
       let raws;
       if (type === "ooxml") raws = ooxmlLinks(buf);
       else if (type === "pdf") raws = pdfLinks(buf);
@@ -1830,7 +1914,7 @@ var require_parse = __commonJS({
         let s = String(r).trim().replace(/[).,;'">]+$/, "");
         if (!s || /^(mailto:|tel:|javascript:)/i.test(s)) continue;
         try {
-          const u = new URL2(s, baseUrl);
+          const u = new URL(s, baseUrl);
           if ((u.protocol === "http:" || u.protocol === "https:") && !seen.has(u.href)) {
             seen.add(u.href);
             out.push(u);
@@ -1840,113 +1924,7 @@ var require_parse = __commonJS({
       }
       return out;
     }
-    module2.exports = { extractLinks: extractLinks2, extractDocLinks: extractDocLinks2, docTypeOf, sniffMagic: sniffMagic2 };
-  }
-});
-
-// src/seen.js
-var require_seen = __commonJS({
-  "src/seen.js"(exports2, module2) {
-    "use strict";
-    var fs2 = require("fs");
-    function fnv1a64(str) {
-      const prime = 0x100000001b3n, mask = 0xffffffffffffffffn;
-      let h = 0xcbf29ce484222325n;
-      for (let i = 0; i < str.length; i++) {
-        const c = str.charCodeAt(i);
-        h = (h ^ BigInt(c & 255)) * prime & mask;
-        if (c > 255) h = (h ^ BigInt(c >> 8 & 255)) * prime & mask;
-      }
-      return h === 0n ? 1n : h;
-    }
-    function makeSeenStore2(mode, maxItems, seenFile) {
-      if (mode === "memory" || !Number.isFinite(maxItems)) {
-        const s = /* @__PURE__ */ new Set();
-        return {
-          mode: "memory",
-          tryAdd(k) {
-            if (s.has(k)) return false;
-            if (s.size >= maxItems) return false;
-            s.add(k);
-            return true;
-          },
-          get size() {
-            return s.size;
-          },
-          close() {
-          }
-        };
-      }
-      const slots = Math.max(1024, Math.ceil(maxItems / 0.7) + 1);
-      const slotsBig = BigInt(slots);
-      let count = 0;
-      if (mode === "disk") {
-        const fd = fs2.openSync(seenFile, "w+");
-        fs2.ftruncateSync(fd, slots * 8);
-        const buf = Buffer.alloc(8);
-        const read = (i) => {
-          fs2.readSync(fd, buf, 0, 8, i * 8);
-          return buf.readBigUInt64BE(0);
-        };
-        const write = (i, h) => {
-          buf.writeBigUInt64BE(h, 0);
-          fs2.writeSync(fd, buf, 0, 8, i * 8);
-        };
-        return {
-          mode: "disk",
-          tryAdd(k) {
-            const h = fnv1a64(k);
-            let i = Number(h % slotsBig);
-            for (; ; ) {
-              const v = read(i);
-              if (v === 0n) {
-                if (count >= maxItems) return false;
-                write(i, h);
-                count++;
-                return true;
-              }
-              if (v === h) return false;
-              i = (i + 1) % slots;
-            }
-          },
-          get size() {
-            return count;
-          },
-          close() {
-            try {
-              fs2.closeSync(fd);
-              fs2.unlinkSync(seenFile);
-            } catch {
-            }
-          }
-        };
-      }
-      const table = new BigUint64Array(slots);
-      return {
-        mode: "compact",
-        tryAdd(k) {
-          const h = fnv1a64(k);
-          let i = Number(h % slotsBig);
-          for (; ; ) {
-            const v = table[i];
-            if (v === 0n) {
-              if (count >= maxItems) return false;
-              table[i] = h;
-              count++;
-              return true;
-            }
-            if (v === h) return false;
-            i = (i + 1) % slots;
-          }
-        },
-        get size() {
-          return count;
-        },
-        close() {
-        }
-      };
-    }
-    module2.exports = { makeSeenStore: makeSeenStore2 };
+    module2.exports = { extractLinks, extractDocLinks, docTypeOf, sniffMagic };
   }
 });
 
@@ -1954,11 +1932,11 @@ var require_seen = __commonJS({
 var require_fetch = __commonJS({
   "src/fetch.js"(exports2, module2) {
     "use strict";
-    var http2 = require("http");
-    var https2 = require("https");
-    var zlib2 = require("zlib");
-    var { URL: URL2 } = require("url");
-    var { docTypeOf, sniffMagic: sniffMagic2 } = require_parse();
+    var http = require("http");
+    var https = require("https");
+    var zlib = require("zlib");
+    var { URL } = require("url");
+    var { docTypeOf, sniffMagic } = require_parse();
     var MAX_REDIRECTS = 5;
     var MAX_BYTES = 5 * 1024 * 1024;
     var BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -1976,12 +1954,12 @@ var require_fetch = __commonJS({
       return new Promise((resolve) => {
         let u;
         try {
-          u = new URL2(target);
+          u = new URL(target);
         } catch {
           return resolve({ status: 0, err: "bad URL" });
         }
         if (u.protocol !== "http:" && u.protocol !== "https:") return resolve({ status: 0, err: "unsupported protocol" });
-        const lib = u.protocol === "https:" ? https2 : http2;
+        const lib = u.protocol === "https:" ? https : http;
         let done = false;
         const finish = (v) => {
           if (!done) {
@@ -1995,7 +1973,7 @@ var require_fetch = __commonJS({
             res.resume();
             let nextUrl;
             try {
-              nextUrl = new URL2(res.headers.location, u).href;
+              nextUrl = new URL(res.headers.location, u).href;
             } catch {
               return finish({ status: 0, err: "bad redirect" });
             }
@@ -2009,7 +1987,7 @@ var require_fetch = __commonJS({
         req.end();
       });
     }
-    async function probe2(target, cfg) {
+    async function probe(target, cfg) {
       let { status, err } = await rawStatus(target, "HEAD", cfg);
       const headInconclusive = !!err || status === 0 || status === 400 || status === 403 || status === 405 || status === 406 || status === 429 || status === 501 || status >= 500;
       if (headInconclusive) {
@@ -2023,7 +2001,7 @@ var require_fetch = __commonJS({
       }
       return { status, err };
     }
-    function linkDisposition2(status, err) {
+    function linkDisposition(status, err) {
       if (status >= 200 && status < 400) return "ok";
       if (status === 404 || status === 410) return "broken";
       if (status === 401 || status === 403 || status === 405 || status === 406 || status === 408 || status === 409 || status === 429 || status === 451 || status === 999 || status >= 500 && status <= 599) return "blocked";
@@ -2031,27 +2009,27 @@ var require_fetch = __commonJS({
       if (status === 400) return "broken";
       return "broken";
     }
-    function request2(target, method, cfg, redirects = 0) {
+    function request(target, method, cfg, redirects = 0) {
       return new Promise((resolve, reject) => {
         let u;
         try {
-          u = new URL2(target);
+          u = new URL(target);
         } catch {
           return reject(new Error("bad URL"));
         }
         if (u.protocol !== "http:" && u.protocol !== "https:") return reject(new Error("unsupported protocol"));
-        const lib = u.protocol === "https:" ? https2 : http2;
+        const lib = u.protocol === "https:" ? https : http;
         const req = lib.request(u, { method, headers: requestHeaders(cfg) }, (res) => {
           const code = res.statusCode || 0;
           if ([301, 302, 303, 307, 308].includes(code) && res.headers.location && redirects < MAX_REDIRECTS) {
             res.resume();
             let nextUrl;
             try {
-              nextUrl = new URL2(res.headers.location, u).href;
+              nextUrl = new URL(res.headers.location, u).href;
             } catch {
               return reject(new Error("bad redirect"));
             }
-            return resolve(request2(nextUrl, method, cfg, redirects + 1));
+            return resolve(request(nextUrl, method, cfg, redirects + 1));
           }
           const ct = res.headers["content-type"] || "";
           const retryAfter = res.headers["retry-after"] || null;
@@ -2087,7 +2065,7 @@ var require_fetch = __commonJS({
           res.on("data", (d) => {
             if (aborted) return;
             if (!knownDoc && bufs.length === 0) {
-              if (!sniffMagic2(d)) {
+              if (!sniffMagic(d)) {
                 aborted = true;
                 res.destroy();
                 resolve({ status: code, contentType: ct, html: null, retryAfter });
@@ -2112,7 +2090,7 @@ var require_fetch = __commonJS({
         req.end();
       });
     }
-    module2.exports = { request: request2, probe: probe2, linkDisposition: linkDisposition2, BROWSER_UA };
+    module2.exports = { request, probe, linkDisposition, BROWSER_UA };
   }
 });
 
@@ -2120,8 +2098,8 @@ var require_fetch = __commonJS({
 var require_cli = __commonJS({
   "src/cli.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("fs");
-    var { URL: URL2 } = require("url");
+    var fs3 = require("fs");
+    var { URL } = require("url");
     var { BROWSER_UA } = require_fetch();
     function parseArgs2(argv) {
       const cfg = {
@@ -2378,7 +2356,7 @@ var require_cli = __commonJS({
             const f = next();
             let txt;
             try {
-              txt = fs2.readFileSync(f, "utf8");
+              txt = fs3.readFileSync(f, "utf8");
             } catch {
               die2("Can't read --seeds file: " + f);
             }
@@ -2397,7 +2375,7 @@ var require_cli = __commonJS({
       if (!cfg.startUrls.length && !cfg.recheckFrom && !cfg.rebuildFrom) die2("Missing start URL.\n");
       for (const u of cfg.startUrls) {
         try {
-          new URL2(u);
+          new URL(u);
         } catch {
           die2("Invalid start URL: " + u);
         }
@@ -2523,12 +2501,12 @@ Reconstruct a partitioned log into one composite stream:
 var require_netutil = __commonJS({
   "src/netutil.js"(exports2, module2) {
     "use strict";
-    var { URL: URL2 } = require("url");
-    var { request: request2 } = require_fetch();
-    var sleep2 = (ms) => new Promise((r) => setTimeout(r, ms));
-    function normalize2(u) {
+    var { URL } = require("url");
+    var { request } = require_fetch();
+    var sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    function normalize(u) {
       try {
-        const x = new URL2(u);
+        const x = new URL(u);
         x.hash = "";
         let s = x.href;
         if (s.endsWith("/") && x.pathname !== "/") s = s.slice(0, -1);
@@ -2537,12 +2515,12 @@ var require_netutil = __commonJS({
         return u;
       }
     }
-    function sameDomain2(host, startHost, includeSub) {
+    function sameDomain(host, startHost, includeSub) {
       if (host === startHost) return true;
       if (includeSub) return host.endsWith("." + startHost) || startHost.endsWith("." + host);
       return false;
     }
-    function makeRateLimiter2(minGap) {
+    function makeRateLimiter(minGap) {
       const getGap = typeof minGap === "function" ? minGap : () => minGap;
       let next = 0;
       return async function acquire() {
@@ -2552,10 +2530,10 @@ var require_netutil = __commonJS({
         const slot = Math.max(now, next);
         next = slot + gap;
         const wait = slot - now;
-        if (wait > 0) await sleep2(wait);
+        if (wait > 0) await sleep(wait);
       };
     }
-    function parseRetryAfter2(value, maxMs) {
+    function parseRetryAfter(value, maxMs) {
       if (!value) return 0;
       const secs = Number(value);
       let ms;
@@ -2566,7 +2544,7 @@ var require_netutil = __commonJS({
       }
       return Math.max(0, Math.min(ms, maxMs));
     }
-    function makeThrottle2(maxBackoffMs) {
+    function makeThrottle(maxBackoffMs) {
       const BASE = 5e3;
       let backoffUntil = 0, streak = 0;
       return {
@@ -2574,7 +2552,7 @@ var require_netutil = __commonJS({
           for (; ; ) {
             const wait = backoffUntil - Date.now();
             if (wait <= 0) return;
-            await sleep2(Math.min(wait, 2e3));
+            await sleep(Math.min(wait, 2e3));
           }
         },
         noteThrottle(retryMs) {
@@ -2595,10 +2573,10 @@ var require_netutil = __commonJS({
         }
       };
     }
-    async function fetchCrawlDelay2(cfg) {
+    async function fetchCrawlDelay(cfg) {
       try {
-        const u = new URL2(cfg.startUrl);
-        const r = await request2(`${u.protocol}//${u.host}/robots.txt`, "GET", cfg);
+        const u = new URL(cfg.startUrl);
+        const r = await request(`${u.protocol}//${u.host}/robots.txt`, "GET", cfg);
         if (!r.html || r.status >= 400) return 0;
         return parseCrawlDelay(r.html, cfg.userAgent);
       } catch {
@@ -2641,7 +2619,7 @@ var require_netutil = __commonJS({
       }
       return specificDelay != null ? specificDelay : starDelay != null ? starDelay : 0;
     }
-    module2.exports = { sleep: sleep2, normalize: normalize2, sameDomain: sameDomain2, makeRateLimiter: makeRateLimiter2, parseRetryAfter: parseRetryAfter2, makeThrottle: makeThrottle2, fetchCrawlDelay: fetchCrawlDelay2 };
+    module2.exports = { sleep, normalize, sameDomain, makeRateLimiter, parseRetryAfter, makeThrottle, fetchCrawlDelay };
   }
 });
 
@@ -2649,30 +2627,30 @@ var require_netutil = __commonJS({
 var require_recheck = __commonJS({
   "src/recheck.js"(exports2, module2) {
     "use strict";
-    var fs2 = require("fs");
-    var path2 = require("path");
-    var { URL: URL2 } = require("url");
-    var { makeRateLimiter: makeRateLimiter2, makeThrottle: makeThrottle2, sleep: sleep2 } = require_netutil();
-    var { request: request2, probe: probe2, linkDisposition: linkDisposition2 } = require_fetch();
+    var fs3 = require("fs");
+    var path = require("path");
+    var { URL } = require("url");
+    var { makeRateLimiter, makeThrottle, sleep } = require_netutil();
+    var { request, probe, linkDisposition } = require_fetch();
     var { writeOutputs: writeOutputs2, buildReportJson, buildIndexReport: buildIndexReport2, writeCombinedJson: writeCombinedJson2 } = require_report();
     var { makeLogWriter: makeLogWriter2 } = require_log();
     function recheckSidecarPath(p) {
       if (!p) return "";
-      const ext = path2.extname(p);
+      const ext = path.extname(p);
       return ext ? p.slice(0, -ext.length) + ".recheck.json" : p + ".recheck.json";
     }
     function cleanupControlFiles(cfg) {
       try {
-        if (cfg.stopFile && fs2.existsSync(cfg.stopFile)) fs2.unlinkSync(cfg.stopFile);
+        if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) fs3.unlinkSync(cfg.stopFile);
       } catch {
       }
       try {
-        if (cfg.pauseFile && fs2.existsSync(cfg.pauseFile)) fs2.unlinkSync(cfg.pauseFile);
+        if (cfg.pauseFile && fs3.existsSync(cfg.pauseFile)) fs3.unlinkSync(cfg.pauseFile);
       } catch {
       }
     }
     function loadStateFromJson(file) {
-      const j = JSON.parse(fs2.readFileSync(file, "utf8"));
+      const j = JSON.parse(fs3.readFileSync(file, "utf8"));
       const refs = /* @__PURE__ */ new Map();
       const addRefs = (url, foundOn) => {
         if (Array.isArray(foundOn) && foundOn.length) refs.set(url, new Set(foundOn));
@@ -2699,7 +2677,7 @@ var require_recheck = __commonJS({
       const pages = j.internalPages || [];
       let startHost = "";
       try {
-        startHost = new URL2(j.startUrl || pages[0] && pages[0].url || errors[0] && errors[0].url || "http://localhost/").hostname;
+        startHost = new URL(j.startUrl || pages[0] && pages[0].url || errors[0] && errors[0].url || "http://localhost/").hostname;
       } catch {
       }
       const runtimeMs = j.summary && Number.isFinite(j.summary.runtimeMs) ? j.summary.runtimeMs : null;
@@ -2740,21 +2718,21 @@ var require_recheck = __commonJS({
       const flagged = [...flaggedMap.values()];
       console.log(`Re-checking ${flagged.length} flagged link${flagged.length === 1 ? "" : "s"}${srcLabel || ""} (rate: ${cfg.rps ? cfg.rps + "/s" : "uncapped"}, ${cfg.concurrency} concurrent${cfg.browser ? ", browser UA" : ""})\u2026`);
       log(`# recheck-start total=${flagged.length} host=${state.startHost || "?"}`);
-      const limiter = makeRateLimiter2(cfg.rps > 0 ? 1e3 / cfg.rps : 0);
-      const throttle = makeThrottle2(cfg.maxBackoff * 1e3);
+      const limiter = makeRateLimiter(cfg.rps > 0 ? 1e3 / cfg.rps : 0);
+      const throttle = makeThrottle(cfg.maxBackoff * 1e3);
       const newErrors = [], newBlocked = [];
       let i = 0, nowOk = 0, nowBlk = 0, stillBad = 0, stopped = false;
       async function control() {
-        if (cfg.stopFile && fs2.existsSync(cfg.stopFile)) {
+        if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) {
           stopped = true;
           return;
         }
-        while (cfg.pauseFile && fs2.existsSync(cfg.pauseFile)) {
-          if (cfg.stopFile && fs2.existsSync(cfg.stopFile)) {
+        while (cfg.pauseFile && fs3.existsSync(cfg.pauseFile)) {
+          if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) {
             stopped = true;
             return;
           }
-          await sleep2(400);
+          await sleep(400);
         }
       }
       async function worker() {
@@ -2768,17 +2746,17 @@ var require_recheck = __commonJS({
           await limiter();
           let disp, detail;
           if (f.kind === "external") {
-            const { status, err } = await probe2(f.url, cfg);
-            disp = linkDisposition2(status, err);
+            const { status, err } = await probe(f.url, cfg);
+            disp = linkDisposition(status, err);
             detail = status > 0 ? "HTTP " + status : err || "no response";
           } else {
             try {
-              const r = await request2(f.url, "GET", cfg);
-              disp = linkDisposition2(r.status, null);
+              const r = await request(f.url, "GET", cfg);
+              disp = linkDisposition(r.status, null);
               detail = "HTTP " + r.status;
             } catch (err) {
               const m = String(err && err.message || err);
-              disp = linkDisposition2(0, m);
+              disp = linkDisposition(0, m);
               detail = m;
             }
           }
@@ -2803,7 +2781,7 @@ var require_recheck = __commonJS({
             console.log(`  x   ${f.url} \u2014 ${detail}`);
             log(`RECHK broken ${f.url} \u2014 ${detail}`);
           }
-          if (cfg.delay) await sleep2(cfg.delay);
+          if (cfg.delay) await sleep(cfg.delay);
         }
       }
       await Promise.all(Array.from({ length: Math.max(1, cfg.concurrency) }, worker));
@@ -2819,13 +2797,13 @@ var require_recheck = __commonJS({
       return { flagged: flagged.length, nowOk, nowBlk, stillBad, stopped };
     }
     async function runRecheck2(cfg, allow) {
-      if (!fs2.existsSync(cfg.recheckFrom)) {
+      if (!fs3.existsSync(cfg.recheckFrom)) {
         console.error("Error: --recheck-from file not found: " + cfg.recheckFrom);
         process.exit(1);
       }
       let j;
       try {
-        j = JSON.parse(fs2.readFileSync(cfg.recheckFrom, "utf8"));
+        j = JSON.parse(fs3.readFileSync(cfg.recheckFrom, "utf8"));
       } catch (e) {
         console.error("Error: --recheck-from is not valid JSON: " + (e.message || e));
         process.exit(1);
@@ -2838,7 +2816,7 @@ var require_recheck = __commonJS({
       const state = loadStateFromJson(cfg.recheckFrom);
       if (!j.startUrl && cfg.startUrl) {
         try {
-          state.startHost = new URL2(cfg.startUrl).hostname;
+          state.startHost = new URL(cfg.startUrl).hostname;
           state.startUrl = cfg.startUrl;
         } catch {
         }
@@ -2848,7 +2826,7 @@ var require_recheck = __commonJS({
       const sidecar = recheckSidecarPath(cfg.json || cfg.out);
       if (sidecar) {
         try {
-          fs2.writeFileSync(sidecar, buildReportJson(state, cfg, allow, false));
+          fs3.writeFileSync(sidecar, buildReportJson(state, cfg, allow, false));
         } catch (e) {
           console.error("Re-check JSON write failed: " + (e.message || e));
         }
@@ -2863,11 +2841,11 @@ Re-check ${r.stopped ? "stopped early" : "done"}: ${r.nowOk} now OK (removed), $
       if (cfg.json) console.log(`JSON:    ${cfg.json}`);
     }
     async function runRecheckMulti(cfg, allow, j, logger) {
-      const dir = path2.dirname(cfg.recheckFrom);
+      const dir = path.dirname(cfg.recheckFrom);
       const sites = [], missing = [];
       for (const s of j.sites || []) {
-        const jf = s.jsonFile ? path2.join(dir, s.jsonFile) : "";
-        if (!jf || !fs2.existsSync(jf)) {
+        const jf = s.jsonFile ? path.join(dir, s.jsonFile) : "";
+        if (!jf || !fs3.existsSync(jf)) {
           missing.push(s.host || s.url || "?");
           continue;
         }
@@ -2878,7 +2856,7 @@ Re-check ${r.stopped ? "stopped early" : "done"}: ${r.nowOk} now OK (removed), $
           missing.push(s.host || s.url || "?");
           continue;
         }
-        sites.push({ url: s.url, host: s.host, state, partial: false, reportFile: s.reportFile || "", jsonFile: s.jsonFile || "", reportPath: s.reportFile ? path2.join(dir, s.reportFile) : "", jsonPath: jf });
+        sites.push({ url: s.url, host: s.host, state, partial: false, reportFile: s.reportFile || "", jsonFile: s.jsonFile || "", reportPath: s.reportFile ? path.join(dir, s.reportFile) : "", jsonPath: jf });
       }
       if (missing.length) {
         console.error(`Re-check: ${missing.length} of ${(j.sites || []).length} site(s) have no per-site JSON next to the index (${missing.join(", ")}).`);
@@ -2900,7 +2878,7 @@ Re-check ${r.stopped ? "stopped early" : "done"}: ${r.nowOk} now OK (removed), $
         const sidecar = recheckSidecarPath(s.jsonPath || s.reportPath);
         if (sidecar) {
           try {
-            fs2.writeFileSync(sidecar, buildReportJson(s.state, cfg, allow, false));
+            fs3.writeFileSync(sidecar, buildReportJson(s.state, cfg, allow, false));
           } catch (e) {
             console.error(`Re-check JSON write failed (${s.host}): ` + (e.message || e));
           }
@@ -2914,7 +2892,7 @@ Re-check ${r.stopped ? "stopped early" : "done"}: ${r.nowOk} now OK (removed), $
       }
       const startedAt = j.crawledAt || (/* @__PURE__ */ new Date()).toISOString();
       try {
-        fs2.writeFileSync(cfg.out, buildIndexReport2(sites, cfg, allow, false, startedAt));
+        fs3.writeFileSync(cfg.out, buildIndexReport2(sites, cfg, allow, false, startedAt));
       } catch (e) {
         console.error("Index write failed: " + (e.message || e));
       }
@@ -2933,13 +2911,13 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
       if (cfg.json) console.log(`JSON:    ${cfg.json}`);
     }
     async function runRebuild2(cfg, allow) {
-      if (!fs2.existsSync(cfg.rebuildFrom)) {
+      if (!fs3.existsSync(cfg.rebuildFrom)) {
         console.error("Error: --rebuild-from file not found: " + cfg.rebuildFrom);
         process.exit(1);
       }
       let j;
       try {
-        j = JSON.parse(fs2.readFileSync(cfg.rebuildFrom, "utf8"));
+        j = JSON.parse(fs3.readFileSync(cfg.rebuildFrom, "utf8"));
       } catch (e) {
         console.error("Error: --rebuild-from is not valid JSON: " + (e.message || e));
         process.exit(1);
@@ -2952,7 +2930,7 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
       state.finishedMs = Date.now();
       if (!j.startUrl && cfg.startUrl) {
         try {
-          state.startHost = new URL2(cfg.startUrl).hostname;
+          state.startHost = new URL(cfg.startUrl).hostname;
           state.startUrl = cfg.startUrl;
         } catch {
         }
@@ -2964,11 +2942,11 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
       if (cfg.json) console.log(`JSON:    ${cfg.json}`);
     }
     async function runRebuildMulti(cfg, allow, j) {
-      const dir = path2.dirname(cfg.rebuildFrom);
+      const dir = path.dirname(cfg.rebuildFrom);
       const sites = [], missing = [];
       for (const s of j.sites || []) {
-        const jf = s.jsonFile ? path2.join(dir, s.jsonFile) : "";
-        if (!jf || !fs2.existsSync(jf)) {
+        const jf = s.jsonFile ? path.join(dir, s.jsonFile) : "";
+        if (!jf || !fs3.existsSync(jf)) {
           missing.push(s.host || s.url || "?");
           continue;
         }
@@ -2980,7 +2958,7 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
           continue;
         }
         state.finishedMs = Date.now();
-        sites.push({ url: s.url, host: s.host, state, partial: false, reportFile: s.reportFile || "", jsonFile: s.jsonFile || "", reportPath: s.reportFile ? path2.join(dir, s.reportFile) : "", jsonPath: jf });
+        sites.push({ url: s.url, host: s.host, state, partial: false, reportFile: s.reportFile || "", jsonFile: s.jsonFile || "", reportPath: s.reportFile ? path.join(dir, s.reportFile) : "", jsonPath: jf });
       }
       if (missing.length) {
         console.error(`Rebuild: ${missing.length} of ${(j.sites || []).length} site(s) have no per-site JSON next to the index (${missing.join(", ")}) \u2014 they can't be rebuilt without re-crawling.`);
@@ -2996,7 +2974,7 @@ Re-check ${anyStopped ? "stopped early" : "done"} across ${sites.length} site${s
       }
       const startedAt = j.crawledAt || (/* @__PURE__ */ new Date()).toISOString();
       try {
-        fs2.writeFileSync(cfg.out, buildIndexReport2(sites, cfg, allow, false, startedAt));
+        fs3.writeFileSync(cfg.out, buildIndexReport2(sites, cfg, allow, false, startedAt));
       } catch (e) {
         console.error("Index write failed: " + (e.message || e));
       }
@@ -3016,661 +2994,808 @@ Rebuilt ${sites.length} site report(s) + index.`);
   }
 });
 
-// src/crawl.js
-var http = require("http");
-var https = require("https");
-var fs = require("fs");
-var path = require("path");
-var zlib = require("zlib");
-var { URL } = require("url");
-var { writeOutputs, buildIndexReport, writeCombinedJson } = require_report();
-var { makeLogWriter, makeJournal, mergeLogs } = require_log();
-var { extractLinks, extractDocLinks, sniffMagic } = require_parse();
-var { makeSeenStore } = require_seen();
-var { request, probe, linkDisposition } = require_fetch();
-var { parseArgs, die } = require_cli();
-var { sleep, normalize, sameDomain, makeRateLimiter, parseRetryAfter, makeThrottle, fetchCrawlDelay } = require_netutil();
-var { runRecheck, runRebuild } = require_recheck();
-function loadAllowlist(file) {
-  if (!file || !fs.existsSync(file)) return [];
-  return fs.readFileSync(file, "utf8").split(/\r?\n/).map((line) => {
-    const t = line.trim();
-    if (!t || t.startsWith("#")) return null;
-    return t.split(/\s+#/)[0].trim();
-  }).filter(Boolean);
-}
-function compileAllow(patterns) {
-  return patterns.map((p) => {
-    const re = "^" + p.split("*").map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$";
-    return new RegExp(re);
-  });
-}
-async function crawl(cfg, allow, sharedLogger, onProgress) {
-  const startHost = new URL(cfg.startUrl).hostname;
-  let crawlDelay = cfg.crawlDelay;
-  let robotsDelay = 0;
-  if (!cfg.crawlDelay && !cfg.ignoreRobots) {
-    robotsDelay = await fetchCrawlDelay(cfg);
-    crawlDelay = robotsDelay;
-  }
-  const effGapMs = () => {
-    let g = 0;
-    if (cfg.rps > 0) g = Math.max(g, 1e3 / cfg.rps);
-    if (crawlDelay > 0) g = Math.max(g, crawlDelay * 1e3);
-    return g;
-  };
-  const limiter = makeRateLimiter(effGapMs);
-  const throttle = makeThrottle(cfg.maxBackoff * 1e3);
-  const urlCap = cfg.maxUrls > 0 ? cfg.maxUrls : cfg.maxPages === Infinity ? Infinity : cfg.maxPages * 50;
-  let pathPrefix = "";
-  if (cfg.pathPrefix) pathPrefix = cfg.pathPrefix;
-  else if (cfg.scope === "path") {
-    try {
-      pathPrefix = new URL(cfg.startUrl).pathname;
-    } catch {
+// src/crawl/allowlist.js
+var require_allowlist = __commonJS({
+  "src/crawl/allowlist.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    function loadAllowlist2(file) {
+      if (!file || !fs3.existsSync(file)) return [];
+      return fs3.readFileSync(file, "utf8").split(/\r?\n/).map((line) => {
+        const t = line.trim();
+        if (!t || t.startsWith("#")) return null;
+        return t.split(/\s+#/)[0].trim();
+      }).filter(Boolean);
     }
-  }
-  pathPrefix = pathPrefix.replace(/\/+$/, "");
-  const inScope = (pathname) => !pathPrefix || pathname === pathPrefix || pathname.indexOf(pathPrefix + "/") === 0;
-  let storeCap = urlCap;
-  if ((cfg.seen === "compact" || cfg.seen === "disk") && !Number.isFinite(storeCap)) {
-    storeCap = 1e6;
-    console.log(`Note: --seen ${cfg.seen} needs a bounded URL count; using ${storeCap.toLocaleString()}. Override with --max-urls.`);
-  }
-  const seen = makeSeenStore(cfg.seen, storeCap, cfg.seenFile);
-  const seedUrls = cfg.seedMode && Array.isArray(cfg.startUrls) && cfg.startUrls.length ? cfg.startUrls : [cfg.startUrl];
-  for (const s of seedUrls) seen.tryAdd(normalize(s));
-  const internalHosts = /* @__PURE__ */ new Set();
-  for (const s of seedUrls) {
-    try {
-      internalHosts.add(new URL(s).hostname);
-    } catch {
+    function compileAllow2(patterns) {
+      return patterns.map((p) => {
+        const re = "^" + p.split("*").map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$";
+        return new RegExp(re);
+      });
     }
+    module2.exports = { loadAllowlist: loadAllowlist2, compileAllow: compileAllow2 };
   }
-  const isInternalHost = (host) => {
-    for (const h of internalHosts) {
-      if (sameDomain(host, h, cfg.includeSubdomains)) return true;
+});
+
+// src/seen.js
+var require_seen = __commonJS({
+  "src/seen.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    function fnv1a64(str) {
+      const prime = 0x100000001b3n, mask = 0xffffffffffffffffn;
+      let h = 0xcbf29ce484222325n;
+      for (let i = 0; i < str.length; i++) {
+        const c = str.charCodeAt(i);
+        h = (h ^ BigInt(c & 255)) * prime & mask;
+        if (c > 255) h = (h ^ BigInt(c >> 8 & 255)) * prime & mask;
+      }
+      return h === 0n ? 1n : h;
     }
-    return false;
-  };
-  const state = {
-    startHost,
-    startUrl: cfg.startUrl,
-    // recorded in the JSON so a rebuild/re-check keeps this report's host
-    pathPrefix,
-    queue: seedUrls.map((u) => ({ url: u, depth: 0, parent: "(start)" })),
-    seen,
-    pages: [],
-    external: /* @__PURE__ */ new Map(),
-    outOfScope: /* @__PURE__ */ new Map(),
-    // same domain, outside pathPrefix: recorded, never followed
-    refs: /* @__PURE__ */ new Map(),
-    // target URL -> Set of every distinct referrer page
-    docUrls: /* @__PURE__ */ new Set(),
-    // URLs that were scanned as documents (PDF/Office) — for the doc-link tally
-    docLinkInstances: 0,
-    // running count of http(s) link instances found inside documents
-    errors: [],
-    blocked: [],
-    // links our automated check couldn't confirm (likely OK in a browser)
-    retries: 0,
-    crawlDelay,
-    crawled: 0,
-    startedAt: (/* @__PURE__ */ new Date()).toISOString(),
-    startedMs: Date.now()
-  };
-  const runId = `${state.startedAt.replace(/[-:]/g, "").replace(/\..+/, "")}-${Math.random().toString(16).slice(2, 8)}`;
-  const logger = sharedLogger || makeLogWriter(cfg, { run: runId, startUrl: cfg.startUrl, startedAt: state.startedAt });
-  state.runId = runId;
-  state.logParts = logger.parts;
-  state.logManifest = logger.manifestPath;
-  state.logSingleFile = logger.singleFile;
-  const journal = makeJournal(cfg.state);
-  const J = journal.ev;
-  if (journal.on && !cfg.resume) {
-    try {
-      fs.writeFileSync(cfg.state, "");
-    } catch {
+    function makeSeenStore(mode, maxItems, seenFile) {
+      if (mode === "memory" || !Number.isFinite(maxItems)) {
+        const s = /* @__PURE__ */ new Set();
+        return {
+          mode: "memory",
+          tryAdd(k) {
+            if (s.has(k)) return false;
+            if (s.size >= maxItems) return false;
+            s.add(k);
+            return true;
+          },
+          get size() {
+            return s.size;
+          },
+          close() {
+          }
+        };
+      }
+      const slots = Math.max(1024, Math.ceil(maxItems / 0.7) + 1);
+      const slotsBig = BigInt(slots);
+      let count = 0;
+      if (mode === "disk") {
+        const fd = fs3.openSync(seenFile, "w+");
+        fs3.ftruncateSync(fd, slots * 8);
+        const buf = Buffer.alloc(8);
+        const read = (i) => {
+          fs3.readSync(fd, buf, 0, 8, i * 8);
+          return buf.readBigUInt64BE(0);
+        };
+        const write = (i, h) => {
+          buf.writeBigUInt64BE(h, 0);
+          fs3.writeSync(fd, buf, 0, 8, i * 8);
+        };
+        return {
+          mode: "disk",
+          tryAdd(k) {
+            const h = fnv1a64(k);
+            let i = Number(h % slotsBig);
+            for (; ; ) {
+              const v = read(i);
+              if (v === 0n) {
+                if (count >= maxItems) return false;
+                write(i, h);
+                count++;
+                return true;
+              }
+              if (v === h) return false;
+              i = (i + 1) % slots;
+            }
+          },
+          get size() {
+            return count;
+          },
+          close() {
+            try {
+              fs3.closeSync(fd);
+              fs3.unlinkSync(seenFile);
+            } catch {
+            }
+          }
+        };
+      }
+      const table = new BigUint64Array(slots);
+      return {
+        mode: "compact",
+        tryAdd(k) {
+          const h = fnv1a64(k);
+          let i = Number(h % slotsBig);
+          for (; ; ) {
+            const v = table[i];
+            if (v === 0n) {
+              if (count >= maxItems) return false;
+              table[i] = h;
+              count++;
+              return true;
+            }
+            if (v === h) return false;
+            i = (i + 1) % slots;
+          }
+        },
+        get size() {
+          return count;
+        },
+        close() {
+        }
+      };
     }
-    J({ t: "meta", v: 1, run: runId, startUrl: cfg.startUrl, scope: pathPrefix || "", depth: cfg.maxDepth === Infinity ? null : cfg.maxDepth, subs: !!cfg.includeSubdomains, startedAt: state.startedAt });
+    module2.exports = { makeSeenStore };
   }
-  const logLine = (s) => logger.line(s);
-  function addRef(target, ref) {
-    let s = state.refs.get(target);
-    if (!s) {
-      s = /* @__PURE__ */ new Set();
-      state.refs.set(target, s);
-    }
-    if (cfg.maxReferrers <= 0 || s.size < cfg.maxReferrers) s.add(ref);
-  }
-  let interrupted = false;
-  if (cfg.resume) {
-    const doneSet = /* @__PURE__ */ new Set();
-    const enq = /* @__PURE__ */ new Map();
-    const vSessions = /* @__PURE__ */ new Map();
-    let session = 0, quarantined = 0;
-    const consider = (target, parentUrl, parentDepth) => {
-      addRef(target, parentUrl);
-      if (parentDepth < cfg.maxDepth && seen.tryAdd(target) && !enq.has(target)) enq.set(target, { depth: parentDepth + 1, parent: parentUrl });
-    };
-    let lines = [];
-    try {
-      lines = fs.readFileSync(cfg.resume, "utf8").split(/\r?\n/);
-    } catch {
-    }
-    let meta = null, replayed = 0, rGood = 0;
-    for (const ln of lines) {
-      if (!ln) continue;
-      let e;
+});
+
+// src/crawl/resume.js
+var require_resume = __commonJS({
+  "src/crawl/resume.js"(exports2, module2) {
+    "use strict";
+    var { normalize } = require_netutil();
+    function replayResume(state, cfg, seen, addRef, logLine, J) {
+      const doneSet = /* @__PURE__ */ new Set();
+      const enq = /* @__PURE__ */ new Map();
+      const vSessions = /* @__PURE__ */ new Map();
+      let session = 0, quarantined = 0;
+      const consider = (target, parentUrl, parentDepth) => {
+        addRef(target, parentUrl);
+        if (parentDepth < cfg.maxDepth && seen.tryAdd(target) && !enq.has(target)) enq.set(target, { depth: parentDepth + 1, parent: parentUrl });
+      };
+      let lines = [];
       try {
-        e = JSON.parse(ln);
+        lines = fs.readFileSync(cfg.resume, "utf8").split(/\r?\n/);
       } catch {
-        continue;
       }
-      if (e.t === "meta") {
-        if (!meta) meta = e;
-        continue;
-      }
-      if (e.t === "r") {
-        session++;
-        continue;
-      }
-      if (e.t === "v") {
-        let s = vSessions.get(e.u);
-        if (!s) {
-          s = /* @__PURE__ */ new Set();
-          vSessions.set(e.u, s);
-        }
-        s.add(session);
-        continue;
-      }
-      if (e.t !== "p" && e.t !== "k" && e.t !== "e" && e.t !== "b") continue;
-      if (doneSet.has(e.u)) continue;
-      doneSet.add(e.u);
-      replayed++;
-      if (e.t === "p") {
-        rGood++;
-        state.pages.push({ url: e.u, title: e.ti, status: e.s, depth: e.d, internal: (e.in || []).length, external: (e.ex || []).length });
-        for (const t of e.in || []) consider(t, e.u, e.d);
-        for (const pr of e.ex || []) {
-          const u = pr[0];
-          if (!state.external.has(u)) state.external.set(u, { url: u, host: pr[1], status: null });
-          addRef(u, e.u);
-        }
-        for (const u of e.oo || []) {
-          if (!state.outOfScope.has(u)) state.outOfScope.set(u, { url: u });
-          addRef(u, e.u);
-        }
-      } else if (e.t === "k") {
-        state.pages.push({ url: e.u, title: "(non-HTML: " + (e.ct || "?") + ")", status: e.s, depth: e.d, internal: 0, external: 0 });
-      } else if (e.t === "e") {
-        state.errors.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
-      } else {
-        state.blocked.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
-      }
-    }
-    if (meta && meta.startUrl && meta.startUrl !== cfg.startUrl) console.log(`Note: resume journal was for ${meta.startUrl}; now crawling ${cfg.startUrl}.`);
-    state.queue = [];
-    for (const [u, info] of enq) {
-      if (doneSet.has(u)) continue;
-      const sess = vSessions.get(u);
-      if (sess && sess.size >= 2) {
-        state.blocked.push({ url: u, reason: `quarantined \u2014 aborted the crawler ${sess.size}\xD7 without completing (likely a page that crashes it)`, source: info.parent, kind: "internal" });
-        quarantined++;
-        continue;
-      }
-      state.queue.push({ url: u, depth: info.depth, parent: info.parent });
-    }
-    const su = normalize(cfg.startUrl);
-    if (!doneSet.has(su) && !enq.has(su)) state.queue.unshift({ url: su, depth: 0, parent: "(start)" });
-    state.crawled = doneSet.size;
-    if (replayed > 0) logLine(`# resume-stats crawled=${state.crawled} good=${rGood} broken=${state.errors.length} blocked=${state.blocked.length} external=${state.external.size}`);
-    J({ t: "r", at: (/* @__PURE__ */ new Date()).toISOString() });
-    console.log(`Resumed from ${cfg.resume}: ${replayed} already done, ${state.queue.length} queued${quarantined ? `, ${quarantined} quarantined (crashing page${quarantined === 1 ? "" : "s"})` : ""}.`);
-  }
-  async function visit(job) {
-    state.crawled++;
-    J({ t: "v", u: job.url });
-    await throttle.gate();
-    await limiter();
-    let r;
-    try {
-      r = await request(job.url, "GET", cfg);
-    } catch (e) {
-      const msg = String(e.message || e);
-      if (linkDisposition(0, msg) === "blocked") {
-        state.blocked.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
-        J({ t: "b", u: job.url, r: msg, k: "internal", src: job.parent });
-        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} BLOCKED ${job.url} :: ${msg} :: found on ${job.parent}`);
-        console.log(`  ?  ${job.url} \u2014 ${msg} (uncertain; found on ${job.parent})`);
-      } else {
-        state.errors.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
-        J({ t: "e", u: job.url, r: msg, k: "internal", src: job.parent });
-        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: ${msg} :: found on ${job.parent}`);
-        console.log(`  x  ${job.url} \u2014 ${msg}  (found on ${job.parent})`);
-      }
-      return;
-    }
-    if (r.status === 429 || r.status === 503) {
-      const waitMs = throttle.noteThrottle(parseRetryAfter(r.retryAfter, cfg.maxBackoff * 1e3));
-      job.attempts = (job.attempts || 0) + 1;
-      if (job.attempts <= cfg.maxRetries) {
-        state.crawled--;
-        state.retries++;
-        state.queue.push(job);
-        const untilMs = Date.now() + throttle.activeMs();
-        logLine(`# BACKOFF ${(/* @__PURE__ */ new Date()).toISOString()} HTTP ${r.status} waitMs=${waitMs} untilMs=${untilMs} attempt=${job.attempts} url=${job.url}`);
-        console.log(`  ~  [${r.status}] rate limited \u2014 backing off ${Math.round(waitMs / 1e3)}s, will retry ${job.url}`);
-        return;
-      }
-      state.errors.push({ url: job.url, reason: `rate limited (HTTP ${r.status}, gave up after ${cfg.maxRetries} retries)`, source: job.parent, kind: "internal" });
-      J({ t: "e", u: job.url, r: `rate limited (HTTP ${r.status})`, k: "internal", src: job.parent });
-      logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: HTTP ${r.status} (gave up after ${cfg.maxRetries} retries) :: found on ${job.parent}`);
-      console.log(`  x  [${r.status}] ${job.url} \u2014 gave up after ${cfg.maxRetries} retries`);
-      return;
-    }
-    throttle.noteSuccess();
-    if (r.status >= 400) {
-      if (linkDisposition(r.status, null) === "blocked") {
-        state.blocked.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
-        J({ t: "b", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
-        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} BLOCKED ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
-        console.log(`  ?  [${r.status}] ${job.url}  (uncertain; found on ${job.parent})`);
-      } else {
-        state.errors.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
-        J({ t: "e", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
-        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
-        console.log(`  x  [${r.status}] ${job.url}  (found on ${job.parent})`);
-      }
-      return;
-    }
-    let links, title;
-    if (r.html) {
-      const ex = extractLinks(r.html, job.url);
-      links = ex.links;
-      title = ex.title;
-    } else if (r.doc) {
-      const dt = r.docType || sniffMagic(r.doc) || "doc";
-      links = extractDocLinks(r.doc, dt, job.url);
-      title = "(" + (dt === "ooxml" ? "office-doc" : dt) + ", " + links.length + " links)";
-    } else {
-      state.pages.push({ url: job.url, title: "(non-HTML: " + (r.contentType || "?") + ")", status: r.status, depth: job.depth, internal: 0, external: 0 });
-      J({ t: "k", u: job.url, s: r.status, d: job.depth, ct: r.contentType || "" });
-      logLine(`${(/* @__PURE__ */ new Date()).toISOString()} SKIP ${job.url} :: ${r.contentType || "non-HTML"}`);
-      return;
-    }
-    let internalFound = 0, externalFound = 0, oosFound = 0;
-    const inT = [], exT = [], ooT = [];
-    for (const link of links) {
-      if (link.protocol !== "http:" && link.protocol !== "https:") continue;
-      if (isInternalHost(link.hostname)) {
-        if (inScope(link.pathname)) {
-          internalFound++;
-          const norm = normalize(link.href);
-          addRef(norm, job.url);
-          if (journal.on) inT.push(norm);
-          if (job.depth < cfg.maxDepth && seen.tryAdd(norm)) state.queue.push({ url: norm, depth: job.depth + 1, parent: job.url });
-        } else {
-          oosFound++;
-          if (!state.outOfScope.has(link.href)) state.outOfScope.set(link.href, { url: link.href });
-          addRef(link.href, job.url);
-          if (journal.on) ooT.push(link.href);
-        }
-      } else {
-        externalFound++;
-        if (!state.external.has(link.href)) state.external.set(link.href, { url: link.href, host: link.hostname, status: null });
-        addRef(link.href, job.url);
-        if (journal.on) exT.push([link.href, link.hostname]);
-      }
-    }
-    state.pages.push({ url: job.url, title, status: r.status, depth: job.depth, internal: internalFound, external: externalFound });
-    J({ t: "p", u: job.url, s: r.status, d: job.depth, ti: title, in: inT, ex: exT, oo: ooT });
-    logLine(`${(/* @__PURE__ */ new Date()).toISOString()} OK d${job.depth} ${r.status} ${job.url} int=${internalFound} ext=${externalFound} extTotal=${state.external.size}`);
-    console.log(`  ok [d${job.depth}] ${job.url}  (${internalFound} int, ${externalFound} ext)`);
-    if (r.doc) {
-      const inside = internalFound + externalFound + oosFound;
-      state.docUrls.add(job.url);
-      state.docLinkInstances += inside;
-      logLine(`# docscan links=${inside} int=${internalFound} ext=${externalFound}`);
-    }
-  }
-  const isPaused = () => cfg.pauseFile && fs.existsSync(cfg.pauseFile);
-  let inFlight = 0;
-  let lastReportMs = Date.now();
-  async function worker() {
-    while (!interrupted) {
-      if (isPaused()) {
-        await sleep(300);
-        continue;
-      }
-      if (state.crawled >= cfg.maxPages) return;
-      const job = state.queue.shift();
-      if (!job) {
-        if (inFlight > 0) {
-          await sleep(100);
+      let meta = null, replayed = 0, rGood = 0;
+      for (const ln of lines) {
+        if (!ln) continue;
+        let e;
+        try {
+          e = JSON.parse(ln);
+        } catch {
           continue;
         }
-        return;
-      }
-      inFlight++;
-      try {
-        await visit(job);
-      } finally {
-        inFlight--;
-      }
-      const dueByCount = cfg.checkpoint && state.crawled % cfg.checkpoint === 0;
-      if (dueByCount || Date.now() - lastReportMs > 2e3) {
-        writeOutputs(state, cfg, allow, true);
-        if (dueByCount) {
-          logLine(`# checkpoint ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} queued=${state.queue.length} -> ${cfg.out}`);
-          logger.finalize(false);
+        if (e.t === "meta") {
+          if (!meta) meta = e;
+          continue;
         }
-        if (onProgress) try {
-          onProgress(state);
+        if (e.t === "r") {
+          session++;
+          continue;
+        }
+        if (e.t === "v") {
+          let s = vSessions.get(e.u);
+          if (!s) {
+            s = /* @__PURE__ */ new Set();
+            vSessions.set(e.u, s);
+          }
+          s.add(session);
+          continue;
+        }
+        if (e.t !== "p" && e.t !== "k" && e.t !== "e" && e.t !== "b") continue;
+        if (doneSet.has(e.u)) continue;
+        doneSet.add(e.u);
+        replayed++;
+        if (e.t === "p") {
+          rGood++;
+          state.pages.push({ url: e.u, title: e.ti, status: e.s, depth: e.d, internal: (e.in || []).length, external: (e.ex || []).length });
+          for (const t of e.in || []) consider(t, e.u, e.d);
+          for (const pr of e.ex || []) {
+            const u = pr[0];
+            if (!state.external.has(u)) state.external.set(u, { url: u, host: pr[1], status: null });
+            addRef(u, e.u);
+          }
+          for (const u of e.oo || []) {
+            if (!state.outOfScope.has(u)) state.outOfScope.set(u, { url: u });
+            addRef(u, e.u);
+          }
+        } else if (e.t === "k") {
+          state.pages.push({ url: e.u, title: "(non-HTML: " + (e.ct || "?") + ")", status: e.s, depth: e.d, internal: 0, external: 0 });
+        } else if (e.t === "e") {
+          state.errors.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
+        } else {
+          state.blocked.push({ url: e.u, reason: e.r, source: e.src, kind: e.k || "internal" });
+        }
+      }
+      if (meta && meta.startUrl && meta.startUrl !== cfg.startUrl) console.log(`Note: resume journal was for ${meta.startUrl}; now crawling ${cfg.startUrl}.`);
+      state.queue = [];
+      for (const [u, info] of enq) {
+        if (doneSet.has(u)) continue;
+        const sess = vSessions.get(u);
+        if (sess && sess.size >= 2) {
+          state.blocked.push({ url: u, reason: `quarantined \u2014 aborted the crawler ${sess.size}\xD7 without completing (likely a page that crashes it)`, source: info.parent, kind: "internal" });
+          quarantined++;
+          continue;
+        }
+        state.queue.push({ url: u, depth: info.depth, parent: info.parent });
+      }
+      const su = normalize(cfg.startUrl);
+      if (!doneSet.has(su) && !enq.has(su)) state.queue.unshift({ url: su, depth: 0, parent: "(start)" });
+      state.crawled = doneSet.size;
+      if (replayed > 0) logLine(`# resume-stats crawled=${state.crawled} good=${rGood} broken=${state.errors.length} blocked=${state.blocked.length} external=${state.external.size}`);
+      J({ t: "r", at: (/* @__PURE__ */ new Date()).toISOString() });
+      console.log(`Resumed from ${cfg.resume}: ${replayed} already done, ${state.queue.length} queued${quarantined ? `, ${quarantined} quarantined (crashing page${quarantined === 1 ? "" : "s"})` : ""}.`);
+    }
+    module2.exports = { replayResume };
+  }
+});
+
+// src/crawl/engine.js
+var require_engine = __commonJS({
+  "src/crawl/engine.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    var { URL } = require("url");
+    var { writeOutputs: writeOutputs2 } = require_report();
+    var { makeLogWriter: makeLogWriter2, makeJournal } = require_log();
+    var { extractLinks, extractDocLinks, sniffMagic } = require_parse();
+    var { makeSeenStore } = require_seen();
+    var { request, probe, linkDisposition } = require_fetch();
+    var { sleep, normalize, sameDomain, makeRateLimiter, parseRetryAfter, makeThrottle, fetchCrawlDelay } = require_netutil();
+    var { replayResume } = require_resume();
+    async function crawl2(cfg, allow, sharedLogger, onProgress) {
+      const startHost = new URL(cfg.startUrl).hostname;
+      let crawlDelay = cfg.crawlDelay;
+      let robotsDelay = 0;
+      if (!cfg.crawlDelay && !cfg.ignoreRobots) {
+        robotsDelay = await fetchCrawlDelay(cfg);
+        crawlDelay = robotsDelay;
+      }
+      const effGapMs = () => {
+        let g = 0;
+        if (cfg.rps > 0) g = Math.max(g, 1e3 / cfg.rps);
+        if (crawlDelay > 0) g = Math.max(g, crawlDelay * 1e3);
+        return g;
+      };
+      const limiter = makeRateLimiter(effGapMs);
+      const throttle = makeThrottle(cfg.maxBackoff * 1e3);
+      const urlCap = cfg.maxUrls > 0 ? cfg.maxUrls : cfg.maxPages === Infinity ? Infinity : cfg.maxPages * 50;
+      let pathPrefix = "";
+      if (cfg.pathPrefix) pathPrefix = cfg.pathPrefix;
+      else if (cfg.scope === "path") {
+        try {
+          pathPrefix = new URL(cfg.startUrl).pathname;
         } catch {
         }
-        lastReportMs = Date.now();
       }
-      if (cfg.delay) await sleep(cfg.delay);
-    }
-  }
-  const depthLabel = cfg.maxDepth === Infinity ? "unlimited" : cfg.maxDepth;
-  const pagesLabel = cfg.maxPages === Infinity ? "unlimited" : cfg.maxPages;
-  const scopeLabel = pathPrefix ? `path ${pathPrefix}/` : "whole domain";
-  logLine(`# crawl start ${state.startedAt} ${cfg.startUrl} scope=${scopeLabel} maxPages=${pagesLabel} maxDepth=${depthLabel} checkpoint=${cfg.checkpoint} crawlDelay=${crawlDelay}s run=${runId}`);
-  if (crawlDelay > 0) console.log(`Crawl-delay: ${crawlDelay}s ${robotsDelay > 0 ? "(from robots.txt)" : "(manual)"} \u2014 ~${(1 / crawlDelay).toFixed(2)} req/sec`);
-  writeOutputs(state, cfg, allow, true);
-  if (onProgress) try {
-    onProgress(state);
-  } catch {
-  }
-  let controlTimer = null;
-  function cleanupControlFiles() {
-    try {
-      if (cfg.stopFile && fs.existsSync(cfg.stopFile)) fs.unlinkSync(cfg.stopFile);
-    } catch {
-    }
-    try {
-      if (cfg.pauseFile && fs.existsSync(cfg.pauseFile)) fs.unlinkSync(cfg.pauseFile);
-    } catch {
-    }
-  }
-  function shutdown(reason) {
-    if (interrupted) process.exit(130);
-    interrupted = true;
-    if (controlTimer) {
-      clearInterval(controlTimer);
-      controlTimer = null;
-    }
-    console.log(`
-${reason} \u2014 flushing partial results (${state.pages.length} pages, ${state.queue.length} queued)\u2026`);
-    try {
-      logLine(`# ${reason} ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} queued=${state.queue.length}`);
-      logger.finalize(false);
-      writeOutputs(state, cfg, allow, true);
-      if (onProgress) onProgress(state);
-      cleanupControlFiles();
-    } catch {
-    }
-    const logHint = cfg.log ? `
-Progress log:   ${logger.singleFile ? cfg.log : logger.manifestPath + ` (${logger.parts.length} part${logger.parts.length === 1 ? "" : "s"})`}` : "";
-    console.log(`Partial report: ${cfg.out}${logHint}`);
-    process.exit(130);
-  }
-  const onSigint = () => shutdown("INTERRUPTED");
-  process.on("SIGINT", onSigint);
-  let lastTuneRaw = null;
-  try {
-    if (cfg.tuneFile && fs.existsSync(cfg.tuneFile)) lastTuneRaw = fs.readFileSync(cfg.tuneFile, "utf8");
-  } catch {
-  }
-  const applyTune = () => {
-    if (!cfg.tuneFile) return;
-    let raw;
-    try {
-      raw = fs.readFileSync(cfg.tuneFile, "utf8");
-    } catch {
-      return;
-    }
-    if (raw === lastTuneRaw) return;
-    lastTuneRaw = raw;
-    let t;
-    try {
-      t = JSON.parse(raw);
-    } catch {
-      return;
-    }
-    if (!t || typeof t !== "object") return;
-    const ch = [];
-    if (Number.isFinite(t.delay) && t.delay >= 0 && t.delay !== cfg.delay) {
-      cfg.delay = t.delay;
-      ch.push(`delay=${t.delay}ms`);
-    }
-    if (Number.isFinite(t.rps) && t.rps >= 0 && t.rps !== cfg.rps) {
-      cfg.rps = t.rps;
-      ch.push(`rps=${t.rps || "off"}`);
-    }
-    if (Number.isFinite(t.crawlDelay) && t.crawlDelay >= 0 && t.crawlDelay !== crawlDelay) {
-      crawlDelay = t.crawlDelay;
-      state.crawlDelay = t.crawlDelay;
-      ch.push(`crawl-delay=${t.crawlDelay}s`);
-    }
-    if (Number.isFinite(t.timeout) && t.timeout >= 1e3 && t.timeout !== cfg.timeout) {
-      cfg.timeout = t.timeout;
-      ch.push(`timeout=${t.timeout}ms`);
-    }
-    if (ch.length) {
-      logLine(`# RETUNED ${(/* @__PURE__ */ new Date()).toISOString()} ${ch.join(" ")}`);
-      console.log("Re-tuned: " + ch.join(", ") + ".");
-    }
-  };
-  let pausedState = false;
-  if (cfg.stopFile || cfg.pauseFile || cfg.tuneFile) {
-    controlTimer = setInterval(() => {
-      if (cfg.stopFile && fs.existsSync(cfg.stopFile)) {
-        shutdown("STOPPED");
-        return;
+      pathPrefix = pathPrefix.replace(/\/+$/, "");
+      const inScope = (pathname) => !pathPrefix || pathname === pathPrefix || pathname.indexOf(pathPrefix + "/") === 0;
+      let storeCap = urlCap;
+      if ((cfg.seen === "compact" || cfg.seen === "disk") && !Number.isFinite(storeCap)) {
+        storeCap = 1e6;
+        console.log(`Note: --seen ${cfg.seen} needs a bounded URL count; using ${storeCap.toLocaleString()}. Override with --max-urls.`);
       }
-      applyTune();
-      const p = isPaused();
-      if (p && !pausedState) {
-        pausedState = true;
-        logLine(`# PAUSED ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled}`);
-        console.log("Paused.");
-      } else if (!p && pausedState) {
-        pausedState = false;
-        logLine(`# RESUMED ${(/* @__PURE__ */ new Date()).toISOString()}`);
-        console.log("Resumed.");
-      }
-    }, 400);
-  }
-  console.log(`Crawling ${cfg.startUrl} (host ${startHost}, scope: ${scopeLabel})`);
-  console.log(`Limits: ${cfg.concurrency} concurrent, ${cfg.delay}ms delay, ${cfg.rps ? cfg.rps + " rps cap" : "no rps cap"}, max ${pagesLabel} pages / depth ${depthLabel}${cfg.checkpoint ? `, checkpoint every ${cfg.checkpoint}` : ""}, seen=${cfg.seen}
-`);
-  await Promise.all(Array.from({ length: cfg.concurrency }, worker));
-  process.removeListener("SIGINT", onSigint);
-  if (controlTimer) {
-    clearInterval(controlTimer);
-    controlTimer = null;
-  }
-  cleanupControlFiles();
-  if (cfg.checkExternal && !interrupted) {
-    const exts = [...state.external.values()];
-    console.log(`
-Checking ${exts.length} external links\u2026`);
-    logLine(`# extcheck start ${(/* @__PURE__ */ new Date()).toISOString()} total=${exts.length}`);
-    let i = 0, checked = 0, bad = 0, blockedN = 0;
-    async function checker() {
-      while (i < exts.length && !interrupted) {
-        if (isPaused()) {
-          await sleep(300);
-          continue;
+      const seen = makeSeenStore(cfg.seen, storeCap, cfg.seenFile);
+      const seedUrls = cfg.seedMode && Array.isArray(cfg.startUrls) && cfg.startUrls.length ? cfg.startUrls : [cfg.startUrl];
+      for (const s of seedUrls) seen.tryAdd(normalize(s));
+      const internalHosts = /* @__PURE__ */ new Set();
+      for (const s of seedUrls) {
+        try {
+          internalHosts.add(new URL(s).hostname);
+        } catch {
         }
-        const e = exts[i++];
+      }
+      const isInternalHost = (host) => {
+        for (const h of internalHosts) {
+          if (sameDomain(host, h, cfg.includeSubdomains)) return true;
+        }
+        return false;
+      };
+      const state = {
+        startHost,
+        startUrl: cfg.startUrl,
+        // recorded in the JSON so a rebuild/re-check keeps this report's host
+        pathPrefix,
+        queue: seedUrls.map((u) => ({ url: u, depth: 0, parent: "(start)" })),
+        seen,
+        pages: [],
+        external: /* @__PURE__ */ new Map(),
+        outOfScope: /* @__PURE__ */ new Map(),
+        // same domain, outside pathPrefix: recorded, never followed
+        refs: /* @__PURE__ */ new Map(),
+        // target URL -> Set of every distinct referrer page
+        errors: [],
+        blocked: [],
+        // links our automated check couldn't confirm (likely OK in a browser)
+        retries: 0,
+        docUrls: /* @__PURE__ */ new Set(),
+        // URLs that were scanned as documents (PDF/Office) — for the doc-link tally
+        docLinkInstances: 0,
+        // running count of http(s) link instances found inside documents
+        crawlDelay,
+        crawled: 0,
+        startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        startedMs: Date.now()
+      };
+      const runId = `${state.startedAt.replace(/[-:]/g, "").replace(/\..+/, "")}-${Math.random().toString(16).slice(2, 8)}`;
+      const logger = sharedLogger || makeLogWriter2(cfg, { run: runId, startUrl: cfg.startUrl, startedAt: state.startedAt });
+      state.runId = runId;
+      state.logParts = logger.parts;
+      state.logManifest = logger.manifestPath;
+      state.logSingleFile = logger.singleFile;
+      const journal = makeJournal(cfg.state);
+      const J = journal.ev;
+      if (journal.on && !cfg.resume) {
+        try {
+          fs3.writeFileSync(cfg.state, "");
+        } catch {
+        }
+        J({ t: "meta", v: 1, run: runId, startUrl: cfg.startUrl, scope: pathPrefix || "", depth: cfg.maxDepth === Infinity ? null : cfg.maxDepth, subs: !!cfg.includeSubdomains, startedAt: state.startedAt });
+      }
+      const logLine = (s) => logger.line(s);
+      function addRef(target, ref) {
+        let s = state.refs.get(target);
+        if (!s) {
+          s = /* @__PURE__ */ new Set();
+          state.refs.set(target, s);
+        }
+        if (cfg.maxReferrers <= 0 || s.size < cfg.maxReferrers) s.add(ref);
+      }
+      let interrupted = false;
+      if (cfg.resume) replayResume(state, cfg, seen, addRef, logLine, J);
+      async function visit(job) {
+        state.crawled++;
+        J({ t: "v", u: job.url });
         await throttle.gate();
         await limiter();
-        const { status, err } = await probe(e.url, cfg);
-        const disp = linkDisposition(status, err);
-        const detail = status > 0 ? "HTTP " + status : err || "no response";
-        checked++;
-        const rf = state.refs.get(e.url);
-        const source = rf ? [...rf][0] || "" : "";
-        if (disp === "ok") {
-          e.status = "ok";
-        } else if (disp === "blocked") {
-          e.status = "blocked";
-          blockedN++;
-          state.blocked.push({ url: e.url, reason: detail, source, kind: "external" });
-        } else {
-          e.status = "err";
-          bad++;
-          state.errors.push({ url: e.url, reason: "external unreachable (" + detail + ")", source, kind: "external" });
-        }
-        logLine(`# extcheck ${checked}/${exts.length} ${e.status} ${detail} ${e.url}`);
-        if (Date.now() - lastReportMs > 2e3) {
-          writeOutputs(state, cfg, allow, true);
-          if (onProgress) try {
-            onProgress(state);
-          } catch {
+        let r;
+        try {
+          r = await request(job.url, "GET", cfg);
+        } catch (e) {
+          const msg = String(e.message || e);
+          if (linkDisposition(0, msg) === "blocked") {
+            state.blocked.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
+            J({ t: "b", u: job.url, r: msg, k: "internal", src: job.parent });
+            logLine(`${(/* @__PURE__ */ new Date()).toISOString()} BLOCKED ${job.url} :: ${msg} :: found on ${job.parent}`);
+            console.log(`  ?  ${job.url} \u2014 ${msg} (uncertain; found on ${job.parent})`);
+          } else {
+            state.errors.push({ url: job.url, reason: msg, source: job.parent, kind: "internal" });
+            J({ t: "e", u: job.url, r: msg, k: "internal", src: job.parent });
+            logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: ${msg} :: found on ${job.parent}`);
+            console.log(`  x  ${job.url} \u2014 ${msg}  (found on ${job.parent})`);
           }
-          lastReportMs = Date.now();
+          return;
         }
-        if (cfg.delay) await sleep(cfg.delay);
-      }
-    }
-    await Promise.all(Array.from({ length: cfg.concurrency }, checker));
-    logLine(`# extcheck done ${(/* @__PURE__ */ new Date()).toISOString()} checked=${checked} unreachable=${bad} blocked=${blockedN}`);
-    console.log(`Checked ${checked} external links, ${bad} unreachable, ${blockedN} blocked/uncertain.`);
-  }
-  if (cfg.recheck && !interrupted && state.errors.length) {
-    const toRecheck = state.errors.slice();
-    console.log(`
-Re-checking ${toRecheck.length} failed link${toRecheck.length === 1 ? "" : "s"} (second pass)\u2026`);
-    logLine(`# recheck start ${(/* @__PURE__ */ new Date()).toISOString()} count=${toRecheck.length}`);
-    let i = 0, fixed = 0, moved = 0;
-    async function rechecker() {
-      while (i < toRecheck.length && !interrupted) {
-        if (isPaused()) {
-          await sleep(300);
-          continue;
+        if (r.status === 429 || r.status === 503) {
+          const waitMs = throttle.noteThrottle(parseRetryAfter(r.retryAfter, cfg.maxBackoff * 1e3));
+          job.attempts = (job.attempts || 0) + 1;
+          if (job.attempts <= cfg.maxRetries) {
+            state.crawled--;
+            state.retries++;
+            state.queue.push(job);
+            const untilMs = Date.now() + throttle.activeMs();
+            logLine(`# BACKOFF ${(/* @__PURE__ */ new Date()).toISOString()} HTTP ${r.status} waitMs=${waitMs} untilMs=${untilMs} attempt=${job.attempts} url=${job.url}`);
+            console.log(`  ~  [${r.status}] rate limited \u2014 backing off ${Math.round(waitMs / 1e3)}s, will retry ${job.url}`);
+            return;
+          }
+          state.errors.push({ url: job.url, reason: `rate limited (HTTP ${r.status}, gave up after ${cfg.maxRetries} retries)`, source: job.parent, kind: "internal" });
+          J({ t: "e", u: job.url, r: `rate limited (HTTP ${r.status})`, k: "internal", src: job.parent });
+          logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: HTTP ${r.status} (gave up after ${cfg.maxRetries} retries) :: found on ${job.parent}`);
+          console.log(`  x  [${r.status}] ${job.url} \u2014 gave up after ${cfg.maxRetries} retries`);
+          return;
         }
-        const e = toRecheck[i++];
-        await throttle.gate();
-        await limiter();
-        let disp = "broken", detail = "";
-        if (e.kind === "external") {
-          const { status, err } = await probe(e.url, cfg);
-          disp = linkDisposition(status, err);
-          detail = status > 0 ? "HTTP " + status : err || "no response";
+        throttle.noteSuccess();
+        if (r.status >= 400) {
+          if (linkDisposition(r.status, null) === "blocked") {
+            state.blocked.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
+            J({ t: "b", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
+            logLine(`${(/* @__PURE__ */ new Date()).toISOString()} BLOCKED ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
+            console.log(`  ?  [${r.status}] ${job.url}  (uncertain; found on ${job.parent})`);
+          } else {
+            state.errors.push({ url: job.url, reason: "HTTP " + r.status, source: job.parent, kind: "internal" });
+            J({ t: "e", u: job.url, r: "HTTP " + r.status, k: "internal", src: job.parent });
+            logLine(`${(/* @__PURE__ */ new Date()).toISOString()} ERR ${job.url} :: HTTP ${r.status} :: found on ${job.parent}`);
+            console.log(`  x  [${r.status}] ${job.url}  (found on ${job.parent})`);
+          }
+          return;
+        }
+        let links, title;
+        if (r.html) {
+          const ex = extractLinks(r.html, job.url);
+          links = ex.links;
+          title = ex.title;
+        } else if (r.doc) {
+          const dt = r.docType || sniffMagic(r.doc) || "doc";
+          links = extractDocLinks(r.doc, dt, job.url);
+          title = "(" + (dt === "ooxml" ? "office-doc" : dt) + ", " + links.length + " links)";
         } else {
+          state.pages.push({ url: job.url, title: "(non-HTML: " + (r.contentType || "?") + ")", status: r.status, depth: job.depth, internal: 0, external: 0 });
+          J({ t: "k", u: job.url, s: r.status, d: job.depth, ct: r.contentType || "" });
+          logLine(`${(/* @__PURE__ */ new Date()).toISOString()} SKIP ${job.url} :: ${r.contentType || "non-HTML"}`);
+          return;
+        }
+        let internalFound = 0, externalFound = 0, oosFound = 0;
+        const inT = [], exT = [], ooT = [];
+        for (const link of links) {
+          if (link.protocol !== "http:" && link.protocol !== "https:") continue;
+          if (isInternalHost(link.hostname)) {
+            if (inScope(link.pathname)) {
+              internalFound++;
+              const norm = normalize(link.href);
+              addRef(norm, job.url);
+              if (journal.on) inT.push(norm);
+              if (job.depth < cfg.maxDepth && seen.tryAdd(norm)) state.queue.push({ url: norm, depth: job.depth + 1, parent: job.url });
+            } else {
+              if (!state.outOfScope.has(link.href)) state.outOfScope.set(link.href, { url: link.href });
+              addRef(link.href, job.url);
+              if (journal.on) ooT.push(link.href);
+              oosFound++;
+            }
+          } else {
+            externalFound++;
+            if (!state.external.has(link.href)) state.external.set(link.href, { url: link.href, host: link.hostname, status: null });
+            addRef(link.href, job.url);
+            if (journal.on) exT.push([link.href, link.hostname]);
+          }
+        }
+        state.pages.push({ url: job.url, title, status: r.status, depth: job.depth, internal: internalFound, external: externalFound });
+        J({ t: "p", u: job.url, s: r.status, d: job.depth, ti: title, in: inT, ex: exT, oo: ooT });
+        logLine(`${(/* @__PURE__ */ new Date()).toISOString()} OK d${job.depth} ${r.status} ${job.url} int=${internalFound} ext=${externalFound} extTotal=${state.external.size}`);
+        console.log(`  ok [d${job.depth}] ${job.url}  (${internalFound} int, ${externalFound} ext)`);
+        if (r.doc) {
+          const inside = internalFound + externalFound + oosFound;
+          state.docUrls.add(job.url);
+          state.docLinkInstances += inside;
+          logLine(`# docscan links=${inside} int=${internalFound} ext=${externalFound}`);
+        }
+      }
+      const isPaused = () => cfg.pauseFile && fs3.existsSync(cfg.pauseFile);
+      let inFlight = 0;
+      let lastReportMs = Date.now();
+      async function worker() {
+        while (!interrupted) {
+          if (isPaused()) {
+            await sleep(300);
+            continue;
+          }
+          if (state.crawled >= cfg.maxPages) return;
+          const job = state.queue.shift();
+          if (!job) {
+            if (inFlight > 0) {
+              await sleep(100);
+              continue;
+            }
+            return;
+          }
+          inFlight++;
           try {
-            const r = await request(e.url, "GET", cfg);
-            disp = linkDisposition(r.status, null);
-            detail = "HTTP " + r.status;
-          } catch (err) {
-            const m = String(err && err.message || err);
-            disp = linkDisposition(0, m);
-            detail = m;
+            await visit(job);
+          } finally {
+            inFlight--;
           }
-        }
-        if (disp === "ok") {
-          const idx = state.errors.indexOf(e);
-          if (idx >= 0) state.errors.splice(idx, 1);
-          if (e.kind === "external") {
-            const ent = state.external.get(e.url);
-            if (ent) ent.status = "ok";
+          const dueByCount = cfg.checkpoint && state.crawled % cfg.checkpoint === 0;
+          if (dueByCount || Date.now() - lastReportMs > 2e3) {
+            writeOutputs2(state, cfg, allow, true);
+            if (dueByCount) {
+              logLine(`# checkpoint ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} queued=${state.queue.length} -> ${cfg.out}`);
+              logger.finalize(false);
+            }
+            if (onProgress) try {
+              onProgress(state);
+            } catch {
+            }
+            lastReportMs = Date.now();
           }
-          fixed++;
-          logLine(`# recheck ${e.url} was=error now=ok`);
-        } else if (disp === "blocked") {
-          const idx = state.errors.indexOf(e);
-          if (idx >= 0) state.errors.splice(idx, 1);
-          if (e.kind === "external") {
-            const ent = state.external.get(e.url);
-            if (ent) ent.status = "blocked";
-          }
-          state.blocked.push({ url: e.url, reason: detail, source: e.source, kind: e.kind });
-          moved++;
-          logLine(`# recheck ${e.url} was=error now=blocked`);
-        } else {
-          logLine(`# recheck ${e.url} still=error`);
-        }
-        if (Date.now() - lastReportMs > 2e3) {
-          writeOutputs(state, cfg, allow, true);
-          if (onProgress) try {
-            onProgress(state);
-          } catch {
-          }
-          lastReportMs = Date.now();
-        }
-        if (cfg.delay) await sleep(cfg.delay);
-      }
-    }
-    await Promise.all(Array.from({ length: cfg.concurrency }, rechecker));
-    logLine(`# recheck done ${(/* @__PURE__ */ new Date()).toISOString()} fixed=${fixed} blocked=${moved} stillBroken=${toRecheck.length - fixed - moved}`);
-    console.log(`Re-check: ${fixed} of ${toRecheck.length} now OK, ${moved} blocked/uncertain, ${toRecheck.length - fixed - moved} still broken.`);
-  }
-  for (const e of state.errors) {
-    const rf = state.refs.get(e.url);
-    const list = rf && rf.size ? [...rf] : e.source ? [e.source] : [];
-    for (const ref of list) logLine(`# brokenref ${e.kind || "internal"} ${e.url} <- ${ref}`);
-  }
-  if (state.docUrls.size) {
-    const errSet = new Set(state.errors.map((e) => e.url));
-    const blkSet = new Set(state.blocked.map((b) => b.url));
-    let uniq = 0, brk = 0, blk = 0;
-    for (const [target, refs] of state.refs) {
-      let inDoc = false;
-      for (const ref of refs) {
-        if (state.docUrls.has(ref)) {
-          inDoc = true;
-          break;
+          if (cfg.delay) await sleep(cfg.delay);
         }
       }
-      if (!inDoc) continue;
-      uniq++;
-      if (errSet.has(target)) brk++;
-      else if (blkSet.has(target)) blk++;
+      const depthLabel = cfg.maxDepth === Infinity ? "unlimited" : cfg.maxDepth;
+      const pagesLabel = cfg.maxPages === Infinity ? "unlimited" : cfg.maxPages;
+      const scopeLabel = pathPrefix ? `path ${pathPrefix}/` : "whole domain";
+      logLine(`# crawl start ${state.startedAt} ${cfg.startUrl} scope=${scopeLabel} maxPages=${pagesLabel} maxDepth=${depthLabel} checkpoint=${cfg.checkpoint} crawlDelay=${crawlDelay}s run=${runId}`);
+      if (crawlDelay > 0) console.log(`Crawl-delay: ${crawlDelay}s ${robotsDelay > 0 ? "(from robots.txt)" : "(manual)"} \u2014 ~${(1 / crawlDelay).toFixed(2)} req/sec`);
+      writeOutputs2(state, cfg, allow, true);
+      if (onProgress) try {
+        onProgress(state);
+      } catch {
+      }
+      let controlTimer = null;
+      function cleanupControlFiles() {
+        try {
+          if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) fs3.unlinkSync(cfg.stopFile);
+        } catch {
+        }
+        try {
+          if (cfg.pauseFile && fs3.existsSync(cfg.pauseFile)) fs3.unlinkSync(cfg.pauseFile);
+        } catch {
+        }
+      }
+      function shutdown(reason) {
+        if (interrupted) process.exit(130);
+        interrupted = true;
+        if (controlTimer) {
+          clearInterval(controlTimer);
+          controlTimer = null;
+        }
+        console.log(`
+${reason} \u2014 flushing partial results (${state.pages.length} pages, ${state.queue.length} queued)\u2026`);
+        try {
+          logLine(`# ${reason} ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} queued=${state.queue.length}`);
+          logger.finalize(false);
+          writeOutputs2(state, cfg, allow, true);
+          if (onProgress) onProgress(state);
+          cleanupControlFiles();
+        } catch {
+        }
+        const logHint = cfg.log ? `
+Progress log:   ${logger.singleFile ? cfg.log : logger.manifestPath + ` (${logger.parts.length} part${logger.parts.length === 1 ? "" : "s"})`}` : "";
+        console.log(`Partial report: ${cfg.out}${logHint}`);
+        process.exit(130);
+      }
+      const onSigint = () => shutdown("INTERRUPTED");
+      process.on("SIGINT", onSigint);
+      let lastTuneRaw = null;
+      try {
+        if (cfg.tuneFile && fs3.existsSync(cfg.tuneFile)) lastTuneRaw = fs3.readFileSync(cfg.tuneFile, "utf8");
+      } catch {
+      }
+      const applyTune = () => {
+        if (!cfg.tuneFile) return;
+        let raw;
+        try {
+          raw = fs3.readFileSync(cfg.tuneFile, "utf8");
+        } catch {
+          return;
+        }
+        if (raw === lastTuneRaw) return;
+        lastTuneRaw = raw;
+        let t;
+        try {
+          t = JSON.parse(raw);
+        } catch {
+          return;
+        }
+        if (!t || typeof t !== "object") return;
+        const ch = [];
+        if (Number.isFinite(t.delay) && t.delay >= 0 && t.delay !== cfg.delay) {
+          cfg.delay = t.delay;
+          ch.push(`delay=${t.delay}ms`);
+        }
+        if (Number.isFinite(t.rps) && t.rps >= 0 && t.rps !== cfg.rps) {
+          cfg.rps = t.rps;
+          ch.push(`rps=${t.rps || "off"}`);
+        }
+        if (Number.isFinite(t.crawlDelay) && t.crawlDelay >= 0 && t.crawlDelay !== crawlDelay) {
+          crawlDelay = t.crawlDelay;
+          state.crawlDelay = t.crawlDelay;
+          ch.push(`crawl-delay=${t.crawlDelay}s`);
+        }
+        if (Number.isFinite(t.timeout) && t.timeout >= 1e3 && t.timeout !== cfg.timeout) {
+          cfg.timeout = t.timeout;
+          ch.push(`timeout=${t.timeout}ms`);
+        }
+        if (ch.length) {
+          logLine(`# RETUNED ${(/* @__PURE__ */ new Date()).toISOString()} ${ch.join(" ")}`);
+          console.log("Re-tuned: " + ch.join(", ") + ".");
+        }
+      };
+      let pausedState = false;
+      if (cfg.stopFile || cfg.pauseFile || cfg.tuneFile) {
+        controlTimer = setInterval(() => {
+          if (cfg.stopFile && fs3.existsSync(cfg.stopFile)) {
+            shutdown("STOPPED");
+            return;
+          }
+          applyTune();
+          const p = isPaused();
+          if (p && !pausedState) {
+            pausedState = true;
+            logLine(`# PAUSED ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled}`);
+            console.log("Paused.");
+          } else if (!p && pausedState) {
+            pausedState = false;
+            logLine(`# RESUMED ${(/* @__PURE__ */ new Date()).toISOString()}`);
+            console.log("Resumed.");
+          }
+        }, 400);
+      }
+      console.log(`Crawling ${cfg.startUrl} (host ${startHost}, scope: ${scopeLabel})`);
+      console.log(`Limits: ${cfg.concurrency} concurrent, ${cfg.delay}ms delay, ${cfg.rps ? cfg.rps + " rps cap" : "no rps cap"}, max ${pagesLabel} pages / depth ${depthLabel}${cfg.checkpoint ? `, checkpoint every ${cfg.checkpoint}` : ""}, seen=${cfg.seen}
+`);
+      await Promise.all(Array.from({ length: cfg.concurrency }, worker));
+      process.removeListener("SIGINT", onSigint);
+      if (controlTimer) {
+        clearInterval(controlTimer);
+        controlTimer = null;
+      }
+      cleanupControlFiles();
+      if (cfg.checkExternal && !interrupted) {
+        const exts = [...state.external.values()];
+        console.log(`
+Checking ${exts.length} external links\u2026`);
+        logLine(`# extcheck start ${(/* @__PURE__ */ new Date()).toISOString()} total=${exts.length}`);
+        let i = 0, checked = 0, bad = 0, blockedN = 0;
+        async function checker() {
+          while (i < exts.length && !interrupted) {
+            if (isPaused()) {
+              await sleep(300);
+              continue;
+            }
+            const e = exts[i++];
+            await throttle.gate();
+            await limiter();
+            const { status, err } = await probe(e.url, cfg);
+            const disp = linkDisposition(status, err);
+            const detail = status > 0 ? "HTTP " + status : err || "no response";
+            checked++;
+            const rf = state.refs.get(e.url);
+            const source = rf ? [...rf][0] || "" : "";
+            if (disp === "ok") {
+              e.status = "ok";
+            } else if (disp === "blocked") {
+              e.status = "blocked";
+              blockedN++;
+              state.blocked.push({ url: e.url, reason: detail, source, kind: "external" });
+            } else {
+              e.status = "err";
+              bad++;
+              state.errors.push({ url: e.url, reason: "external unreachable (" + detail + ")", source, kind: "external" });
+            }
+            logLine(`# extcheck ${checked}/${exts.length} ${e.status} ${detail} ${e.url}`);
+            if (Date.now() - lastReportMs > 2e3) {
+              writeOutputs2(state, cfg, allow, true);
+              if (onProgress) try {
+                onProgress(state);
+              } catch {
+              }
+              lastReportMs = Date.now();
+            }
+            if (cfg.delay) await sleep(cfg.delay);
+          }
+        }
+        await Promise.all(Array.from({ length: cfg.concurrency }, checker));
+        logLine(`# extcheck done ${(/* @__PURE__ */ new Date()).toISOString()} checked=${checked} unreachable=${bad} blocked=${blockedN}`);
+        console.log(`Checked ${checked} external links, ${bad} unreachable, ${blockedN} blocked/uncertain.`);
+      }
+      if (cfg.recheck && !interrupted && state.errors.length) {
+        const toRecheck = state.errors.slice();
+        console.log(`
+Re-checking ${toRecheck.length} failed link${toRecheck.length === 1 ? "" : "s"} (second pass)\u2026`);
+        logLine(`# recheck start ${(/* @__PURE__ */ new Date()).toISOString()} count=${toRecheck.length}`);
+        let i = 0, fixed = 0, moved = 0;
+        async function rechecker() {
+          while (i < toRecheck.length && !interrupted) {
+            if (isPaused()) {
+              await sleep(300);
+              continue;
+            }
+            const e = toRecheck[i++];
+            await throttle.gate();
+            await limiter();
+            let disp = "broken", detail = "";
+            if (e.kind === "external") {
+              const { status, err } = await probe(e.url, cfg);
+              disp = linkDisposition(status, err);
+              detail = status > 0 ? "HTTP " + status : err || "no response";
+            } else {
+              try {
+                const r = await request(e.url, "GET", cfg);
+                disp = linkDisposition(r.status, null);
+                detail = "HTTP " + r.status;
+              } catch (err) {
+                const m = String(err && err.message || err);
+                disp = linkDisposition(0, m);
+                detail = m;
+              }
+            }
+            if (disp === "ok") {
+              const idx = state.errors.indexOf(e);
+              if (idx >= 0) state.errors.splice(idx, 1);
+              if (e.kind === "external") {
+                const ent = state.external.get(e.url);
+                if (ent) ent.status = "ok";
+              }
+              fixed++;
+              logLine(`# recheck ${e.url} was=error now=ok`);
+            } else if (disp === "blocked") {
+              const idx = state.errors.indexOf(e);
+              if (idx >= 0) state.errors.splice(idx, 1);
+              if (e.kind === "external") {
+                const ent = state.external.get(e.url);
+                if (ent) ent.status = "blocked";
+              }
+              state.blocked.push({ url: e.url, reason: detail, source: e.source, kind: e.kind });
+              moved++;
+              logLine(`# recheck ${e.url} was=error now=blocked`);
+            } else {
+              logLine(`# recheck ${e.url} still=error`);
+            }
+            if (Date.now() - lastReportMs > 2e3) {
+              writeOutputs2(state, cfg, allow, true);
+              if (onProgress) try {
+                onProgress(state);
+              } catch {
+              }
+              lastReportMs = Date.now();
+            }
+            if (cfg.delay) await sleep(cfg.delay);
+          }
+        }
+        await Promise.all(Array.from({ length: cfg.concurrency }, rechecker));
+        logLine(`# recheck done ${(/* @__PURE__ */ new Date()).toISOString()} fixed=${fixed} blocked=${moved} stillBroken=${toRecheck.length - fixed - moved}`);
+        console.log(`Re-check: ${fixed} of ${toRecheck.length} now OK, ${moved} blocked/uncertain, ${toRecheck.length - fixed - moved} still broken.`);
+      }
+      for (const e of state.errors) {
+        const rf = state.refs.get(e.url);
+        const list = rf && rf.size ? [...rf] : e.source ? [e.source] : [];
+        for (const ref of list) logLine(`# brokenref ${e.kind || "internal"} ${e.url} <- ${ref}`);
+      }
+      logLine(`# crawl done ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} pages=${state.pages.length} external=${state.external.size} errors=${state.errors.length}`);
+      if (state.docUrls.size) {
+        const errSet = new Set(state.errors.map((e) => e.url));
+        const blkSet = new Set(state.blocked.map((b) => b.url));
+        let uniq = 0, brk = 0, blk = 0;
+        for (const [target, refs] of state.refs) {
+          let inDoc = false;
+          for (const ref of refs) {
+            if (state.docUrls.has(ref)) {
+              inDoc = true;
+              break;
+            }
+          }
+          if (!inDoc) continue;
+          uniq++;
+          if (errSet.has(target)) brk++;
+          else if (blkSet.has(target)) blk++;
+        }
+        logLine(`# docsummary docs=${state.docUrls.size} instances=${state.docLinkInstances} unique=${uniq} broken=${brk} blocked=${blk}`);
+      }
+      logger.finalize(!sharedLogger);
+      seen.close();
+      state.finishedMs = Date.now();
+      return state;
     }
-    logLine(`# docsummary docs=${state.docUrls.size} instances=${state.docLinkInstances} unique=${uniq} broken=${brk} blocked=${blk}`);
+    module2.exports = { crawl: crawl2 };
   }
-  logLine(`# crawl done ${(/* @__PURE__ */ new Date()).toISOString()} crawled=${state.crawled} pages=${state.pages.length} external=${state.external.size} errors=${state.errors.length}`);
-  logger.finalize(!sharedLogger);
-  seen.close();
-  state.finishedMs = Date.now();
-  return state;
-}
-function writeSuggested(cfg, suppressedOut, activeErrors) {
-  if (!activeErrors.length) {
-    return false;
+});
+
+// src/crawl/suggest.js
+var require_suggest = __commonJS({
+  "src/crawl/suggest.js"(exports2, module2) {
+    "use strict";
+    var fs3 = require("fs");
+    var path = require("path");
+    var { URL } = require("url");
+    function writeSuggested2(cfg, suppressedOut, activeErrors) {
+      if (!activeErrors.length) {
+        return false;
+      }
+      const lines = [];
+      lines.push("# Suggested allowlist \u2014 broken links found " + (/* @__PURE__ */ new Date()).toISOString());
+      lines.push("# These are NOT yet in " + cfg.allowlist + ".");
+      lines.push("#");
+      lines.push("# To stop a broken link from appearing in future reports, KEEP its");
+      lines.push("# line here and append it to " + cfg.allowlist + " (or pass this file");
+      lines.push("# via --allowlist). DELETE lines for issues you still want flagged.");
+      lines.push("# '*' is a wildcard. '#' starts a comment. Blank lines are ignored.");
+      lines.push("#");
+      for (const e of activeErrors) {
+        lines.push(`${e.url}   # ${e.reason} \u2014 found on: ${e.source || "(start)"}`);
+      }
+      fs3.writeFileSync(cfg.suggest, lines.join("\n") + "\n");
+      return true;
+    }
+    function hostOf2(u) {
+      try {
+        return new URL(u).hostname;
+      } catch {
+        return u;
+      }
+    }
+    function sitePath2(out, i, host) {
+      const ext = path.extname(out) || ".html";
+      const stem = out.slice(0, out.length - ext.length);
+      return `${stem}.${i + 1}-${host.replace(/[^a-z0-9.-]/gi, "_")}${ext}`;
+    }
+    module2.exports = { writeSuggested: writeSuggested2, hostOf: hostOf2, sitePath: sitePath2 };
   }
-  const lines = [];
-  lines.push("# Suggested allowlist \u2014 broken links found " + (/* @__PURE__ */ new Date()).toISOString());
-  lines.push("# These are NOT yet in " + cfg.allowlist + ".");
-  lines.push("#");
-  lines.push("# To stop a broken link from appearing in future reports, KEEP its");
-  lines.push("# line here and append it to " + cfg.allowlist + " (or pass this file");
-  lines.push("# via --allowlist). DELETE lines for issues you still want flagged.");
-  lines.push("# '*' is a wildcard. '#' starts a comment. Blank lines are ignored.");
-  lines.push("#");
-  for (const e of activeErrors) {
-    lines.push(`${e.url}   # ${e.reason} \u2014 found on: ${e.source || "(start)"}`);
-  }
-  fs.writeFileSync(cfg.suggest, lines.join("\n") + "\n");
-  return true;
-}
-function hostOf(u) {
-  try {
-    return new URL(u).hostname;
-  } catch {
-    return u;
-  }
-}
-function sitePath(out, i, host) {
-  const ext = path.extname(out) || ".html";
-  const stem = out.slice(0, out.length - ext.length);
-  return `${stem}.${i + 1}-${host.replace(/[^a-z0-9.-]/gi, "_")}${ext}`;
-}
+});
+
+// src/crawl.js
+var fs2 = require("fs");
+var { writeOutputs, buildIndexReport, writeCombinedJson } = require_report();
+var { makeLogWriter, mergeLogs } = require_log();
+var { parseArgs, die } = require_cli();
+var { runRecheck, runRebuild } = require_recheck();
+var { loadAllowlist, compileAllow } = require_allowlist();
+var { crawl } = require_engine();
+var { writeSuggested, hostOf, sitePath } = require_suggest();
 (async function main() {
   const mi = process.argv.indexOf("--merge-logs");
   if (mi !== -1) {
@@ -3717,7 +3842,7 @@ Done. ${state.pages.length} pages, ${state.external.size} external links${state.
   const sites = cfg.startUrls.map((u, i) => ({ url: u, host: hostOf(u), state: null, partial: true, reportFile: sitePath(cfg.out, i, hostOf(u)), jsonFile: cfg.json ? sitePath(cfg.json, i, hostOf(u)) : "" }));
   const writeIndex = (partial) => {
     try {
-      fs.writeFileSync(cfg.out, buildIndexReport(sites, cfg, allow, partial, startedAt));
+      fs2.writeFileSync(cfg.out, buildIndexReport(sites, cfg, allow, partial, startedAt));
       if (cfg.json) writeCombinedJson(sites, cfg, allow);
     } catch {
     }

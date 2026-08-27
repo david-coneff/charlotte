@@ -8,6 +8,7 @@
 # on the working branch at all (the bootstrap problem, EL-152).
 .rhiz-binding.json export-ignore
 .rhiz-lint.json export-ignore
+.rhiz-orphans.json export-ignore
 .rhiz/ export-ignore
 .claude/ export-ignore
 tools/rhiz.py export-ignore

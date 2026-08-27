@@ -42,6 +42,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 ARTIFACT_PATHS = [
     ".rhiz-binding.json",
     ".rhiz-lint.json",
+    ".rhiz-orphans.json",
     ".rhiz",                              # runtime state + subagent findings
     ".claude",                            # Claude Code hooks/commands, if adopted
     "tools/rhiz.py",

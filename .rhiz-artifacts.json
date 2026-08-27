@@ -3,6 +3,7 @@
   "strip": [
     { "path": ".rhiz-binding.json", "reason": "bootstrap pin, meaningless without the rest of the tooling" },
     { "path": ".rhiz-lint.json", "reason": "rhiz-lint config for CRAWLER/; linted here pre-promotion, parity guarantees the promoted copy is identical" },
+    { "path": ".rhiz-orphans.json", "reason": "rhiz orphan-detection config, meaningless without the rest of the tooling" },
     { "path": ".rhiz", "reason": "runtime state and subagent findings, regenerable" },
     { "path": ".claude", "reason": "Claude Code hooks/commands, if adopted" },
     { "path": "tools/rhiz.py", "reason": "bootstrap + hook entrypoint, needs the full tree to mean anything" },

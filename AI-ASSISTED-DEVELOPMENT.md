@@ -20,6 +20,7 @@ without switching to `main`.
 | `.rhiz-binding.json` | Pins to the shared `rhizome-protocol` tooling repo and this project's own `charlotte-memory` notes repo. |
 | `.rhiz-artifacts.json` | The registry below — declares exactly this list, with a reason per row. Read by `rhiz promote` when generating `main`. |
 | `.rhiz-lint.json` | Config for `rhiz-lint`, used to check the `CRAWLER/` docs for consistency. Checked on `rhiz-working` pre-promotion; `main`'s copy of `CRAWLER/` is proven byte-identical (see "Why `main` doesn't need its own lint config" below), so nothing is lost by not carrying the config itself. |
+| `.rhiz-orphans.json` | Config for rhiz's orphan-detection check. Same reasoning as `.rhiz-lint.json`. |
 | `tools/rhiz.py` | A bootstrap/dispatcher script that fetches and forwards to the real tooling in `rhizome-protocol`. Also the entry point for Claude Code session hooks, if `.claude/` is present. |
 | `.rhiz/` | Runtime state and logs written by the tooling — regenerable, not meaningful outside an active rhizome session. |
 | `.claude/` | Claude Code configuration (hooks, custom commands), if present. |

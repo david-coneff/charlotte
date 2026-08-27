@@ -103,14 +103,6 @@ never needed to *run* it, only to rebuild it after a source change. `crawl-rende
 - **`crawl-gui.hta`** — Windows (mshta.exe) with Node on `PATH`.
 - **`web-crawler.html`** — any modern browser.
 
-## AI-assisted development
-
-This repo was developed with AI assistance, using a `rhiz-working` branch that
-carries the tooling for that workflow and mechanically promotes into `main` with
-every AI/rhizome file stripped. **`main` — this branch — never carries any of it.**
-Development happens on `rhiz-working`; see
-[AI-ASSISTED-DEVELOPMENT.md](AI-ASSISTED-DEVELOPMENT.md) for what's there and why.
-
 ## License
 
 [MIT](LICENSE)

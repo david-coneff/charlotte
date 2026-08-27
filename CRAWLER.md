@@ -1,7 +1,7 @@
 # CRAWLER — suite reference (partitioned)
 
-This reference grew past the Rhizome rhiz-Merkle threshold (971 lines / 56 KB) and
-was partitioned into a navigable section graph on 2026-06-27 (AD-080).
+This reference grew large and was partitioned into a navigable section graph for
+easier reading.
 
 **→ Start at the index: [`CRAWLER/CRAWLER_index.md`](CRAWLER/CRAWLER_index.md)**
 

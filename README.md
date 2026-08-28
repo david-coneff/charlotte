@@ -74,10 +74,12 @@ by default — that runs this whole pipeline (render → harvest → verify + sc
 from the form's settings, with the live progress feed and Stop/Pause buttons
 covering the render phase. Uncheck it for a plain static crawl.
 
-See the **[CRAWLER reference index](CRAWLER/CRAWLER_index.md)** for the complete
-reference: every option, common workflows, the Windows GUI, the headless-render
-verifier, and the in-browser variant. (It was partitioned into a section graph
-under `CRAWLER/`; [`CRAWLER.md`](CRAWLER.md) is a pointer to the index.)
+See **[CRAWLER.full.md](CRAWLER.full.md)** for the complete reference: every
+option, common workflows, the Windows GUI, the headless-render verifier, and
+the in-browser variant. (It's the merged roll-up of a section graph
+partitioned under `CRAWLER/`, indexed at
+[`CRAWLER/CRAWLER_index.md`](CRAWLER/CRAWLER_index.md); [`CRAWLER.md`](CRAWLER.md)
+is a pointer to the index.)
 
 ## Requirements
 

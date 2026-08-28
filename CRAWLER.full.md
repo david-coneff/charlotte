@@ -29,12 +29,10 @@ All three apply the same rules:
 ---
 
 
+## `crawl.js` — Node crawler (recommended)
+
 <details>
-<summary id="crawljs--node-crawler-recommended">
-
-`crawl.js` — Node crawler (recommended)
-
-</summary>
+<summary>Show details</summary>
 
 No browser, no CORS. Crawls any domain directly and writes a self-contained
 `report.html` you open in a browser.
@@ -807,12 +805,10 @@ Point any run at a specific allowlist with `--allowlist path/to/file.txt`.
 
 </details>
 
+## `crawl-gui.hta` — Windows GUI
+
 <details>
-<summary id="crawl-guihta--windows-gui">
-
-`crawl-gui.hta` — Windows GUI
-
-</summary>
+<summary>Show details</summary>
 
 A friendly point-and-click front-end for `crawl.js`, for when you'd rather fill
 in a form than type a command. It's a Windows HTML Application — it runs on
@@ -923,12 +919,10 @@ into the output folder, not `%TEMP%`, since `%TEMP%` is a common block target.)
 
 </details>
 
+## `web-crawler.html` — in-browser crawler
+
 <details>
-<summary id="web-crawlerhtml--in-browser-crawler">
-
-`web-crawler.html` — in-browser crawler
-
-</summary>
+<summary>Show details</summary>
 
 A single self-contained HTML page that crawls and renders its report inline.
 Open it in a browser, fill in the start URL, click **Start crawl**.
@@ -957,12 +951,10 @@ proxy** / **Copy source** buttons.
 
 </details>
 
+## `local-cors-proxy.js` — proxy for the HTML version
+
 <details>
-<summary id="local-cors-proxyjs--proxy-for-the-html-version">
-
-`local-cors-proxy.js` — proxy for the HTML version
-
-</summary>
+<summary>Show details</summary>
 
 A tiny zero-dependency Node server that lets `web-crawler.html` crawl across
 domains from `file://`. It fetches pages server-side and adds the CORS headers
@@ -995,12 +987,10 @@ You don't need this at all if you run `crawl.js` instead.
 
 </details>
 
+## Be a responsible crawler
+
 <details>
-<summary id="be-a-responsible-crawler">
-
-Be a responsible crawler
-
-</summary>
+<summary>Show details</summary>
 
 - Check the site's `robots.txt` and terms before crawling something you don't own.
 - Use modest `--concurrency` / `--rps` so you don't hammer the server.

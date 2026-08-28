@@ -4,7 +4,7 @@
   "source-file": "CRAWLER.md",
   "split-heading-level": 2,
   "created": "2026-06-27T16:07:48Z",
-  "updated": "2026-06-27T23:06:41Z",
+  "updated": "2026-08-28T00:35:26Z",
   "parent-index": null,
   "sections": [
     {
@@ -14,7 +14,8 @@
       "content-hash": "sha256:c1fcbc2326ead69a9bf0f223eaf17200863800b3500d1ddf0317775614ea5c38",
       "line-count": 27,
       "byte-count": 1658,
-      "description": "Suite orientation: what Charlotte is (a single-domain crawler that maps a site, records but never follows first-tier external links, verifies links \u2014 including inside PDF/Office docs \u2014 and writes a self-contained HTML report) plus the pick-your-tool table linking each entry point."
+      "description": "Suite orientation: what Charlotte is (a single-domain crawler that maps a site, records but never follows first-tier external links, verifies links \u2014 including inside PDF/Office docs \u2014 and writes a self-contained HTML report) plus the pick-your-tool table linking each entry point.",
+      "desc-source": "unknown"
     },
     {
       "section-order": 2,
@@ -23,7 +24,8 @@
       "content-hash": "sha256:996cac50a28aecf0f7b2d9d621719af2fa8c59e76b3aeaca05ebf41a65b5a72c",
       "line-count": 770,
       "byte-count": 46659,
-      "description": "The flagship Node crawler \u2014 the primary, recommended tool, kept whole as one coherent reference with its own internal ### TOC (~770 lines). Covers requirements, quick start, common runs, the full option list, multi-site runs, scope/depth, rate limiting + robots/adaptive-backoff/auto-resume, document-link scanning, the --recheck-from / --rebuild-from modes, the headless Playwright second opinion (crawl-render.js), large-crawl checkpoints + resume (--state/--resume), mid-crawl re-tuning (--tune-file), memory tuning, the self-contained HTML report, and the allowlist."
+      "description": "The flagship Node crawler \u2014 the primary, recommended tool, kept whole as one coherent reference with its own internal ### TOC (~770 lines). Covers requirements, quick start, common runs, the full option list, multi-site runs, scope/depth, rate limiting + robots/adaptive-backoff/auto-resume, document-link scanning, the --recheck-from / --rebuild-from modes, the headless Playwright second opinion (crawl-render.js), large-crawl checkpoints + resume (--state/--resume), mid-crawl re-tuning (--tune-file), memory tuning, the self-contained HTML report, and the allowlist.",
+      "desc-source": "unknown"
     },
     {
       "section-order": 3,
@@ -32,7 +34,8 @@
       "content-hash": "sha256:624a5b306d46e12ac13452cc8906c9f5bbaa04c1c1064e7934fa2f1da2a1375d",
       "line-count": 108,
       "byte-count": 5529,
-      "description": "The Windows GUI front-end (crawl-gui.hta) that builds the crawl.js command line and launches it: requirements, the optional crawl-gui-domains.txt (default start URLs) and crawl-gui-config.txt (default option values) files, and how to run it."
+      "description": "The Windows GUI front-end (crawl-gui.hta) that builds the crawl.js command line and launches it: requirements, the optional crawl-gui-domains.txt (default start URLs) and crawl-gui-config.txt (default option values) files, and how to run it.",
+      "desc-source": "unknown"
     },
     {
       "section-order": 4,
@@ -41,7 +44,8 @@
       "content-hash": "sha256:203e4f864b190b86bee2bc4c858ba3d8e662c29a5ecc2839ee4449c4d2d11f3d",
       "line-count": 26,
       "byte-count": 1124,
-      "description": "The in-browser crawler variant (web-crawler.html) that runs entirely in a tab \u2014 for a live, interactive report with no Node install."
+      "description": "The in-browser crawler variant (web-crawler.html) that runs entirely in a tab \u2014 for a live, interactive report with no Node install.",
+      "desc-source": "unknown"
     },
     {
       "section-order": 5,
@@ -50,7 +54,8 @@
       "content-hash": "sha256:77c2fea2bcabb15f4126490b0f158ce99686240a8e392a03b6c67d75bc1442dc",
       "line-count": 30,
       "byte-count": 1041,
-      "description": "The zero-dependency CORS proxy (local-cors-proxy.js) that lets web-crawler.html cross origins from a file:// page."
+      "description": "The zero-dependency CORS proxy (local-cors-proxy.js) that lets web-crawler.html cross origins from a file:// page.",
+      "desc-source": "unknown"
     },
     {
       "section-order": 6,
@@ -59,7 +64,8 @@
       "content-hash": "sha256:af45ecec6d20f4c24844110f33c5d1784a2155c530eacf3d4b9b08b1fb613990",
       "line-count": 5,
       "byte-count": 212,
-      "description": "Politeness guidance: honest User-Agent/headers, rate limits, and respecting robots.txt \u2014 how to crawl responsibly."
+      "description": "Politeness guidance: honest User-Agent/headers, rate limits, and respecting robots.txt \u2014 how to crawl responsibly.",
+      "desc-source": "unknown"
     }
   ],
   "index-hash": "sha256:2d06db26973367680afb976e373cc13b681a43de5bc0ba86f033a41e363d9bac"

@@ -8,10 +8,10 @@ run it.
 
 | File | Runtime | Use it when |
 |------|---------|-------------|
-| [`crawl.js`](CRAWLER/CRAWLER_part_02_crawljs-node-crawler-recommended.md) | Node | Mapping any domain from your machine. No CORS limits. **Start here.** |
-| [`crawl-gui.hta`](CRAWLER/CRAWLER_part_03_crawl-guihta-windows-gui.md) | Windows | You'd rather click than type — a form front-end for `crawl.js`. |
-| [`web-crawler.html`](CRAWLER/CRAWLER_part_04_web-crawlerhtml-in-browser-crawler.md) | Browser | You want a live, interactive report in the page, or you host the file on the domain you're mapping. |
-| [`local-cors-proxy.js`](CRAWLER/CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md) | Node | Only needed to let `web-crawler.html` crawl across domains from `file://`. |
+| [`crawl.js`](#crawljs--node-crawler-recommended) | Node | Mapping any domain from your machine. No CORS limits. **Start here.** |
+| [`crawl-gui.hta`](#crawl-guihta--windows-gui) | Windows | You'd rather click than type — a form front-end for `crawl.js`. |
+| [`web-crawler.html`](#web-crawlerhtml--in-browser-crawler) | Browser | You want a live, interactive report in the page, or you host the file on the domain you're mapping. |
+| [`local-cors-proxy.js`](#local-cors-proxyjs--proxy-for-the-html-version) | Node | Only needed to let `web-crawler.html` crawl across domains from `file://`. |
 
 All three apply the same rules:
 
@@ -893,7 +893,7 @@ Other buttons: **Open output folder** (jumps to where files were written) and
 case you want to script it later).
 
 Everything the GUI sets maps directly to a `crawl.js` flag documented above, so
-the [Rate limiting](CRAWLER/CRAWLER_part_02_crawljs-node-crawler-recommended.md#rate-limiting) and [Allowlist](CRAWLER/CRAWLER_part_02_crawljs-node-crawler-recommended.md#allowlist-stop-known-broken-links-from-cluttering-future-reports)
+the [Rate limiting](#rate-limiting) and [Allowlist](#allowlist-stop-known-broken-links-from-cluttering-future-reports)
 sections apply unchanged.
 
 > If Windows shows a security prompt when opening the `.hta`, that's the normal

@@ -27,9 +27,11 @@ crawl-render.json
 render-report.html
 crawl-report.json.bak
 
-# Generated full-doc roll-ups (doc-graph render of CRAWLER/ etc.) — human
-# readability only; the section files + _index.json are the source of truth.
-*.full.md
+# NOTE: *.full.md (doc-graph render of CRAWLER/ etc.) is deliberately NOT
+# ignored — it's committed (rhizome-protocol:rhiz-merkle.md §9.11), the one
+# derived artifact meant to be read linearly on GitHub. The section files +
+# _index.json remain the source of truth; `rhiz maintain` verifies the
+# committed copy still matches them.
 
 # rhiz tooling channel — gitignored: resolved tools cache + generated search index
 .rhiz-tools/

@@ -4,7 +4,7 @@
   "source-file": "CRAWLER.md",
   "split-heading-level": 2,
   "created": "2026-06-27T16:07:48Z",
-  "updated": "2026-08-28T00:35:26Z",
+  "updated": "2026-08-29T21:05:44Z",
   "parent-index": null,
   "sections": [
     {
@@ -21,9 +21,9 @@
       "section-order": 2,
       "section-id": "crawljs-node-crawler-recommended",
       "filename": "CRAWLER_part_02_crawljs-node-crawler-recommended.md",
-      "content-hash": "sha256:996cac50a28aecf0f7b2d9d621719af2fa8c59e76b3aeaca05ebf41a65b5a72c",
-      "line-count": 770,
-      "byte-count": 46659,
+      "content-hash": "sha256:4659a3cfaf93fdf55830552886726b71a1236289636a127295852c6e1aaa59c9",
+      "line-count": 845,
+      "byte-count": 52658,
       "description": "The flagship Node crawler \u2014 the primary, recommended tool, kept whole as one coherent reference with its own internal ### TOC (~770 lines). Covers requirements, quick start, common runs, the full option list, multi-site runs, scope/depth, rate limiting + robots/adaptive-backoff/auto-resume, document-link scanning, the --recheck-from / --rebuild-from modes, the headless Playwright second opinion (crawl-render.js), large-crawl checkpoints + resume (--state/--resume), mid-crawl re-tuning (--tune-file), memory tuning, the self-contained HTML report, and the allowlist.",
       "desc-source": "unknown"
     },
@@ -31,9 +31,9 @@
       "section-order": 3,
       "section-id": "crawl-guihta-windows-gui",
       "filename": "CRAWLER_part_03_crawl-guihta-windows-gui.md",
-      "content-hash": "sha256:624a5b306d46e12ac13452cc8906c9f5bbaa04c1c1064e7934fa2f1da2a1375d",
-      "line-count": 108,
-      "byte-count": 5529,
+      "content-hash": "sha256:6eb16237716796a9ff240d65c09c9db1bb890061f7a4bdf43cc5f5a6e1e23f5f",
+      "line-count": 131,
+      "byte-count": 7413,
       "description": "The Windows GUI front-end (crawl-gui.hta) that builds the crawl.js command line and launches it: requirements, the optional crawl-gui-domains.txt (default start URLs) and crawl-gui-config.txt (default option values) files, and how to run it.",
       "desc-source": "unknown"
     },
@@ -68,5 +68,5 @@
       "desc-source": "unknown"
     }
   ],
-  "index-hash": "sha256:2d06db26973367680afb976e373cc13b681a43de5bc0ba86f033a41e363d9bac"
+  "index-hash": "sha256:1811b2ed48b476a9745c1701a8d4e07735923f6bf6770d585f1f3337b78f2451"
 }

@@ -517,12 +517,28 @@ when pages are unlimited (it defaults to 1,000,000 with a notice otherwise). The
 `report.html` is self-contained (inline CSS/JS — email it, archive it) with
 tabbed sections:
 
+![Charlotte's crawl report: the headline dashboard of destination and hyperlink-instance counts, the share toolbar with Export fix tracker, and the tab row above the Internal destinations table grouped by first-level folder](docs/images/report-overview.png)
+
+*The report at a glance — headline numbers on top (dashed outlines flag counts that
+still have untriaged links), the share/fix-tracker toolbar under them, then the tabs.
+The open tab here is **Internal destinations**, grouped into collapsible folder sections.*
+
 - **Internal destinations** — every page crawled, with depth, title, status, and link counts — **grouped into collapsible sections by first-level folder** (e.g. `site.gov/about/` vs `site.gov/blog/`; root pages under the bare host), each with a count, plus an **Expand all / Collapse all** toggle.
 - **External destinations** — the *unique* off-site URLs your pages link to, grouped by destination host (each a collapsible section, with a count), with the pages they were found on. An **Expand all / Collapse all** toggle at the top of the tab opens or closes every domain section at once.
+
+  ![The External destinations tab, with off-site URLs grouped into a collapsible section per destination host](docs/images/report-external.png)
+
+  *Every off-site destination, one collapsible section per host, with the pages each was found on.*
 - **Out of scope** — _(only when a scope/prefix is set)_ same-domain links outside the subsection: recorded, not crawled — also **grouped into collapsible folder sections** (count each, Expand/Collapse all).
 - **Broken · internal** — broken internal destinations (HTTP 404/410, bad requests) — yours to fix.
 - **Broken · external** — unreachable external destinations (when `--check-external` is on) — a link to fix or remove.
 - **Blocked · uncertain** — links the automated check *couldn't confirm*: a 401/403/429/5xx, a timeout, or a method quirk. These very likely work in a real browser — the server just refused our automated request — so they're shown apart from confirmed-dead links to keep false positives out of **Errors**. Verify by hand, or re-run with `--browser` and a slower rate to clear many of them. Each row has the same two mutually-exclusive boxes as the **Broken** tabs — **Broken** and **Working** — but with the opposite default: blocked links start *uncertain and uncounted*, so ticking **Broken** *confirms* one really is dead and **adds** it to the **Broken hyperlink instances** count (live), routed to internal or external by its **Kind**, while **Working** records that it loads. (Leave both unticked to keep it uncertain.) Either way, an uncertain link **stays in the fix-tracker export until you mark it Working** — like everything else untested — so the tracker is a complete to-review list. That feeds the same cleanup workflow without needing to split the tab in two.
+
+  ![The Blocked · uncertain tab: rows with 403 and timeout reason pills, Broken/Working verdict boxes, a Last triaged timestamp column, and a per-domain header showing a mixture of verdicts](docs/images/report-blocked.png)
+
+  *Blocked · uncertain, grouped by domain. One link here has been confirmed **Broken** by
+  hand and one marked **Working** (struck through, and dropped from the counts) — the domain
+  header tracks the split with a live `tested K/N` count and a **Mixture** flag.*
 - **Suppressed** — broken links hidden via the allowlist, kept separately so you can still audit them.
 
 Each tab's list sits in a **fixed-height viewport that scrolls internally** (so a long list never
@@ -565,6 +581,15 @@ still broken. The metrics are in the JSON as `summary.linkInstances` /
 counts plus grand totals. Also shown: blocked, suppressed, requests, and the crawl
 **Runtime**. The report is branded **Charlotte** with a 🕸️ favicon (visible on the browser tab).
 
+![The headline dashboard before triage: 56 broken hyperlink instances, 18 broken internal destinations, 28 referrer pages with broken links](docs/images/report-dashboard-before.png)
+
+![The same dashboard after triage: 28 broken hyperlink instances, 17 broken internal destinations, 18 referrer pages with broken links](docs/images/report-dashboard-after.png)
+
+*The same report before and after a few minutes of triage. One sitewide link the crawler
+flagged (a footer link on all 28 pages) turned out to work; ticking it **Working** once
+takes **Broken hyperlink instances** from 56 to 28 and **Referrer pages with broken links**
+from 28 to 18 — no re-crawl. The dashed outlines stay amber because links are still untriaged.*
+
 The two **Errors** tabs are built for triage. Each row has two **mutually-exclusive**
 verdict boxes: **Broken** (a manual check confirms it really is dead) and **Working** (it
 actually loads). *(With `--allowlist-export`, an additional **allowlist** pick box and a
@@ -584,6 +609,15 @@ boxes **auto-fills the local date & time** whenever you tick **Broken** or **Wor
 each row carries a timestamp of its latest manual result (it re-stamps when you change the
 verdict and clears if you untick back to no verdict). Ticks and timestamps persist in the
 browser.
+
+![The Broken · internal tab mid-triage: a live "Manually triaged 6 / 18 · confirmed broken 5 · confirmed working 1" counter, folder sections with amber dashed outlines, Last triaged timestamps, Broken/Working boxes, and an expanded "3 pages link here" referrer list](docs/images/report-triage.png)
+
+*Triage in progress on **Broken · internal**. The live counter above the sections tracks
+**Manually triaged X / N · confirmed broken Y · confirmed working Z**; each verdict stamps its
+own **Last triaged** time; and each broken link expands to the list of pages that link to it
+(**3 pages link here**) — the pages someone has to edit. The per-folder header carries the same
+**All: Broken / Working** pair, a `tested K/N` count, and the amber outline that clears when the
+whole section has a verdict.*
 
 The **Broken · external** tab additionally groups its links into **collapsible per-domain
 sections**, each with a **domain-level Broken / Working pair** in the section header that
@@ -622,6 +656,13 @@ a **Type** column flagging each as internal or external (the By-broken-link view
 badge in the section header instead). **Fixes, verdicts, timestamps, and notes persist in the
 browser** (localStorage), so it can be worked through and handed off over time.
 
+![The exported fix tracker: the Fixed-over-Broken stat matrix at the top, the By page / By broken link toggle and share toolbar, then one collapsible section per referrer page with a Notes field and a table of that page's broken links](docs/images/tracker-overview.png)
+
+*The exported tracker, freshly opened. Header: this site, when it was generated, and the size
+of the job (**19 referrer pages, 31 broken-link instances**). Then the stat matrix, the view
+toggle and toolbar, then a section per page that has broken links — each with its own Notes
+field and a table of the links to fix, internal and external together.*
+
 At the top, a **stat matrix** scores the work across four columns: the **bottom row is Broken**
 (verdict-driven — broken hyperlink instances, broken internal destinations, broken external destinations,
 and **pages with broken links**; a link drops out the moment you mark it **Working**), and the **top row
@@ -633,6 +674,14 @@ workload-by-owner view — a *page* is counted once it has any still-broken link
 one of its broken links is Fixed — so you can see how many distinct pages (and their responsible parties)
 still need attention, not just how many links. The two axes are independent: *Broken/Working* is whether the
 link loads; *Fixed* is whether the page's reference to it has been removed or corrected.
+
+![The same tracker part-way through the work: 9 of 31 references fixed (29.0%), 5 pages remediated, fixed rows struck through with Fixed-on timestamps, a filled-in page note, and finished sections no longer outlined amber](docs/images/tracker-progress.png)
+
+*The same tracker part-way through the cleanup. The **Fixed** row and the toolbar's
+**Fixed: 9/31 link references** readout update as boxes are ticked; each tick stamps its own **Fixed on**
+time and strikes the row through; a section's **translucent amber dashed outline** disappears
+once every link in it is fixed or working (the two finished pages here have lost theirs). The
+**Notes** field is per page — the natural place for "who owns this / what was done".*
 
 The groups are **collapsible sections** — grouped **By page** (referrer page → all its broken
 links, internal and external) or **By broken link** (link → every page that links to it), toggled
@@ -653,6 +702,19 @@ in reach no matter how far down you've scrolled. Just like the report's tables, 
 drag-resizable** — grab a column's right edge and drag; the new width applies to that column across
 every section so they stay aligned, persists per view in your browser, and **↔ Reset columns**
 restores the defaults (By-page and By-broken-link keep separate widths since their columns differ).
+
+![The By broken link view: each section headed by one broken URL with an internal/external badge, its verdict pair and K/N fixed counter, and a table of every page that links to it](docs/images/tracker-by-link.png)
+
+*The **By broken link** view of the same data — one section per broken destination, listing
+**every page that links to it**. Use it when one dead URL is referenced across the site and you
+want to fix all of its references in one pass (the By-page view is the opposite cut: everything
+one page owner has to fix).*
+
+![The tracker with Collapse all applied: ten folder and domain parents, each showing how many sections it holds](docs/images/tracker-collapsed.png)
+
+*`Collapse all` folds every section into its folder/domain parent — a bird's-eye of where the
+cleanup work actually sits (here on the By-broken-link view: `/events/` 4 sections,
+`/services/` 4, `catalog.example.net` 2 …).*
 
 Like the report, the tracker **auto-saves** to localStorage as you work — reopen the same
 tracker file in the same browser and your progress is intact, no Save step needed. And like
@@ -678,6 +740,19 @@ where it's unavailable it falls back to downloading the files individually):
   every page under e.g. `/blog/` goes into a *single* file, scoped to all of those pages' broken
   links and named after the folder (`site/blog/` → `site_blog.html`). Use this to hand a whole
   section of the site to one owner instead of a file per page.
+
+![The tracker after a per-page bulk export, with a toast reading "Wrote 19 page trackers of 19"](docs/images/tracker-bulk.png)
+
+*One click, one folder pick: a self-contained mini-tracker per referrer page, named after the
+page address, each seeded with this tracker's current verdicts, fixes and notes.*
+
+![A sub-tracker for a single page: the same stat matrix scoped to 1 referrer page and 3 broken-link instances, with two of the three already ticked Fixed and a page note](docs/images/tracker-mini.png)
+
+*A sub-tracker as its owner receives it — the same tool, scoped to one page's three broken
+links. Its stat matrix counts only that slice (2 of 3 fixed, 66.7%), the verdicts it arrived
+with are already ticked, and **All: ☐ Fixed** shows the indeterminate state of a partly-done
+page. When they're finished they hit **⬇ Export** and you **⬆ Import** the JSON back into the
+central tracker.*
 
 Either way each file is **seeded with this tracker's current verdicts/fixes/notes** for its pages,
 and groups whose links are all already marked **Working are skipped** (the toast reports how many).
@@ -815,6 +890,14 @@ in a form than type a command. It's a Windows HTML Application — it runs on
 `mshta.exe`, which ships with every version of Windows, so there's **nothing to
 install** beyond Node.js.
 
+![The GUI's Settings tab: Start URL rows with an Add another site button, a crawl-scope dropdown, the crawl-limit and rate-limiting fields, the option checkboxes, and the output/allowlist filenames](docs/images/gui-settings.png)
+
+*The **Settings** tab — everything `crawl.js` can be told, as a form. Two start URLs are
+loaded here (they're crawled one after the other with the same settings), scope is the whole
+domain, pages and depth are unlimited, and the rate-limiting trio sits on the right. Every
+field maps to exactly one flag, and the two optional files described below
+(`crawl-gui-domains.txt`, `crawl-gui-config.txt`) just pre-fill it.*
+
 ### Requirements
 
 - Windows.
@@ -884,11 +967,26 @@ once, or to another breakpoint like `pageSize = 500`.)
    (it flags rate-limit backoff and when no new page has appeared for a while).
    The live log streams below, and **Open report** lights up when it finishes.
 
-The GUI's defaults are: whole-domain, **unlimited** pages and depth, subdomains
-treated as internal, and external-link verification on — adjust any of these
-before starting.
+   The GUI's defaults are: whole-domain, **unlimited** pages and depth, subdomains
+   treated as internal, and external-link verification on — adjust any of these
+   before starting.
+
 5. **Pause** suspends the crawl (click **Resume** to continue); **Stop** ends it
    gracefully and writes a partial report you can still open.
+
+![The Run & monitor tab during a crawl: the command preview, the Start/Pause/Stop button row, a live stats bar (crawled, good, broken, blocked, external, docs, elapsed, rate), a rolling last-five-URLs box and the streaming progress log](docs/images/gui-running.png)
+
+*The **Run & monitor** tab mid-crawl. At the top, the exact `node crawl.js …` command the form
+builds (it updates as you type, and **Copy command** puts it on your clipboard). Below it the
+live stats bar — **crawled / good / broken / blocked**, external links, documents scanned,
+elapsed and rate — then the rolling **last 5 URLs** so you can see at a glance whether it's
+moving, and the crawler's own progress log streaming underneath.*
+
+![The same tab after the crawl finished: a green "Done — 47 crawled (28 good, 18 broken, 4 blocked/uncertain) in 1:58" line, a finished chip, and the Open crawl report button now enabled](docs/images/gui-done.png)
+
+*The same tab when it finishes: a one-line summary, the stat bar frozen on the final numbers,
+and **Open crawl report** lit up. **Re-check broken links** and **Rebuild report** re-run just
+those phases against the crawl you already have; **Resume crawl** picks up an interrupted one.*
 
 The GUI tails the crawler's own progress log for the live view, and uses a
 single-file log for that run (log partitioning is a CLI feature — see below).

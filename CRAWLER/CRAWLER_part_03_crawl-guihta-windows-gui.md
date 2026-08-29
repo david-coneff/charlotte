@@ -4,7 +4,7 @@ docgraph-type: section
 section-id: crawl-guihta-windows-gui
 section-order: 3
 parent-index: CRAWLER_index.json
-content-hash: sha256:624a5b306d46e12ac13452cc8906c9f5bbaa04c1c1064e7934fa2f1da2a1375d
+content-hash: sha256:6eb16237716796a9ff240d65c09c9db1bb890061f7a4bdf43cc5f5a6e1e23f5f
 ---
 ## `crawl-gui.hta` — Windows GUI
 
@@ -12,6 +12,14 @@ A friendly point-and-click front-end for `crawl.js`, for when you'd rather fill
 in a form than type a command. It's a Windows HTML Application — it runs on
 `mshta.exe`, which ships with every version of Windows, so there's **nothing to
 install** beyond Node.js.
+
+![The GUI's Settings tab: Start URL rows with an Add another site button, a crawl-scope dropdown, the crawl-limit and rate-limiting fields, the option checkboxes, and the output/allowlist filenames](../docs/images/gui-settings.png)
+
+*The **Settings** tab — everything `crawl.js` can be told, as a form. Two start URLs are
+loaded here (they're crawled one after the other with the same settings), scope is the whole
+domain, pages and depth are unlimited, and the rate-limiting trio sits on the right. Every
+field maps to exactly one flag, and the two optional files described below
+(`crawl-gui-domains.txt`, `crawl-gui-config.txt`) just pre-fill it.*
 
 ### Requirements
 
@@ -82,11 +90,26 @@ once, or to another breakpoint like `pageSize = 500`.)
    (it flags rate-limit backoff and when no new page has appeared for a while).
    The live log streams below, and **Open report** lights up when it finishes.
 
-The GUI's defaults are: whole-domain, **unlimited** pages and depth, subdomains
-treated as internal, and external-link verification on — adjust any of these
-before starting.
+   The GUI's defaults are: whole-domain, **unlimited** pages and depth, subdomains
+   treated as internal, and external-link verification on — adjust any of these
+   before starting.
+
 5. **Pause** suspends the crawl (click **Resume** to continue); **Stop** ends it
    gracefully and writes a partial report you can still open.
+
+![The Run & monitor tab during a crawl: the command preview, the Start/Pause/Stop button row, a live stats bar (crawled, good, broken, blocked, external, docs, elapsed, rate), a rolling last-five-URLs box and the streaming progress log](../docs/images/gui-running.png)
+
+*The **Run & monitor** tab mid-crawl. At the top, the exact `node crawl.js …` command the form
+builds (it updates as you type, and **Copy command** puts it on your clipboard). Below it the
+live stats bar — **crawled / good / broken / blocked**, external links, documents scanned,
+elapsed and rate — then the rolling **last 5 URLs** so you can see at a glance whether it's
+moving, and the crawler's own progress log streaming underneath.*
+
+![The same tab after the crawl finished: a green "Done — 47 crawled (28 good, 18 broken, 4 blocked/uncertain) in 1:58" line, a finished chip, and the Open crawl report button now enabled](../docs/images/gui-done.png)
+
+*The same tab when it finishes: a one-line summary, the stat bar frozen on the final numbers,
+and **Open crawl report** lit up. **Re-check broken links** and **Rebuild report** re-run just
+those phases against the crawl you already have; **Resume crawl** picks up an interrupted one.*
 
 The GUI tails the crawler's own progress log for the live view, and uses a
 single-file log for that run (log partitioning is a CLI feature — see below).

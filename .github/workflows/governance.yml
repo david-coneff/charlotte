@@ -6,18 +6,21 @@
 # this is the only pipeline that needs all three.
 #
 # charlotte runs the two-branch model (rhizome-protocol:protocol/docs/
-# rhiz-child-repo-convention.md#55): this workflow only ever runs on rhiz-working
+# rhiz-child-repo-convention.md#55): this workflow only ever runs on a rhiz-working* branch
 # (the full-artifact branch) — main carries none of this and only ever advances via
 # `rhiz promote`. The last job below verifies that invariant on a schedule.
 name: governance
 
 on:
   push:
-    # rhiz-working, not main: this workflow needs .rhiz-binding.json to bootstrap
+    # rhiz-working*, not main: this workflow needs .rhiz-binding.json to bootstrap
     # (checked out below), and main never carries it — main only ever advances via
     # `rhiz promote`, never a direct push. See .rhiz-artifacts.json and
     # rhizome-protocol:protocol/docs/rhiz-child-repo-convention.md#55.
-    branches: [rhiz-working, "claude/**"]
+    # The glob is load-bearing: the protocol keys EVERY stream's working branch
+    # (rhiz-working-<slug>) and grants no stream standing for being first, so an
+    # exact-name filter silently stops triggering the moment a repo adopts one.
+    branches: ["rhiz-working*", "claude/**"]
   pull_request:
   schedule:
     # Doubles as the promotion parity/drift check now (rhiz promote --verify-only) —

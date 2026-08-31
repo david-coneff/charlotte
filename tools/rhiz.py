@@ -46,7 +46,8 @@ Subcommands (extra args are forwarded to the underlying tool):
   search [..]      rhiz-search.py  --root-repo <repo> [..]   (e.g. `search query "x"`)
   docs             doc-graph.py render-all --root <repo>
   verify <index>   doc-graph.py verify <index>
-  maintain         bare: lint + search index + docs + scope-audit + merkle verify + ledger-check
+  maintain         bare: lint + search index + docs + scope-audit + merkle verify
+                   + rollup check + unit suite + ledger-check
                    (the mechanical loop, no LLM — the same gates CI runs, so local green means CI green)
   maintain [..]    with flags: rhiz-maintain.py --root <repo> [..]  (e.g. `maintain --fix`, `--check`)
   report           rhiz-maintain.py --report — classify findings auto vs judgment
@@ -80,6 +81,12 @@ Subcommands (extra args are forwarded to the underlying tool):
   restore          post-compaction surface: stale refs to re-read + prior un-losables note
   indexed-backfill [--write]  reverse-derive indexed_by from index/manifest membership
                               (plan by default; --write applies additively). Proposer; lint verifies.
+  shareability     the blob half of the shareability boundary: a `storage: "notes"` repo
+                   must carry no blobs; a `"lfs"` one is exempt. Replaces a 9x-duplicated
+                   inline grep. Point it at a MEMORY repo.
+  reference-inventory [--against SHA]  Phase 6's completion gate (R21): enumerate + disposition
+                   every historical SHA citation and cross-repo coordinate. Exit 2 while any
+                   remain un-dispositioned. Does NOT purge or rehearse.
   preflight [--check|--card]  operator-setup preflight: detect silent-unconfigured setup
                               (adapter wired, managed-web Setup script, PreToolUse guard, vendored
                               cache) + surface the fix. --check for CI; hook runs --card at start.
@@ -93,6 +100,36 @@ Subcommands (extra args are forwarded to the underlying tool):
                    what was said AFTER the last checkpoint-bucket refresh (offline, zero
                    tokens). `--status` reports without writing; writes transcripts/<sess>-tail.md
                    and registers it in the read mandate so the fresh window reads it in full
+  stream           resolve this checkout's STREAM identity — the durable slug that
+                   per-stream buckets, branches and runtime markers are keyed by. NOT the
+                   harness session id, which `/clear` changes (EL-215). Defaults to the
+                   worktree basename; `--adopt SLUG` pins one that survives a rename or a
+                   fresh clone. Reports DOUBLE OCCUPANCY (two sessions in one checkout)
+                   rather than blocking it — the operator owns which streams run.
+                   `--list` derives the cross-stream view (who has buckets, last touched)
+                   from git at READ time — there is no index file that can fall stale
+  ignore-parity [--fleet] [--fix|--check]  does this repo's .gitignore cover the `.rhiz/`
+                   runtime state the tools actually write? Canonical list = the anchor's own
+                   .gitignore; --fix appends what is missing; also names `.rhiz/` files already
+                   COMMITTED, which an ignore rule will not untrack
+  ci [--record] [--advance-channel]  run the CI gate LOCALLY against a clean clone of a SHA
+                   (both workflows' tool steps, siblings included, ~69s) and record the verdict
+                   as a git note on that SHA. `--show` reads a recorded verdict back; on PASS,
+                   `--advance-channel` fast-forwards tools-stable — the job CI's own
+                   advance-channel does. Does NOT reproduce: independence, the weekly floor
+  stream-migrate [--attribute]  evidence for adopting a stream in a memory repo older than
+                   streams: unadopted / mixed / migrated state from git, which products each
+                   past window MOVED, and the exact renames — as commands, never applied.
+                   `mixed` means something is STILL writing unkeyed names; find it first
+  merge-back [..]  land this stream's branch on the trunk (§5.2): REAL-overlap check vs
+                   other streams' unmerged work (git merge-tree), --no-ff merge, the full
+                   gates re-run ON the target AFTER the merge, and a push receipt taken
+                   from the remote. `--dry-run` reports without merging. Operator-triggered:
+                   it never decides to merge, and it never closes the stream
+  coord-check      mechanize rehydrate step 2 — parse the anchor's session-checkpoints.md
+                   END-SHA table and diff each recorded coordinate against actual local repo
+                   state (offline, no network). A report, not a gate: drift is often just
+                   "more work happened since," not a bug
   reference-capture [--transcript P] [--against R]  flag operator-PASTED reference images
                    not yet committed to any in-scope repo (offline, zero tokens) — persist the
                    reference before the intent is lost to a reset; pixel-parity is the oracle (EL-137)
@@ -216,6 +253,15 @@ def resolve_rhizome(root: Path) -> Path:
         bp = (root / bound) if not Path(bound).is_absolute() else Path(bound)
         if (bp / "tools" / "rhiz-lint.py").exists():
             return bp.resolve()
+    # rhizome-protocol itself carries no binding (nothing to bind to but itself), so
+    # without this check it fell all the way through to a channel-pinned clone of its
+    # OWN repo — silently serving `tools-stable`'s lagged tools even when invoked from
+    # inside the very tree that just edited them. Same marker check as the two cases
+    # above, applied to `root` itself: a child never carries `tools/rhiz-lint.py`
+    # natively ("reference, don't copy" — rhiz-child-repo-convention.md §1), so this
+    # only ever fires for the source repo.
+    if (root / "tools" / "rhiz-lint.py").exists():
+        return root.resolve()
     cache = root / ".rhiz-tools" / "rhizome"
     ref = channel(root)
     if not (cache / ".git").exists():
@@ -293,6 +339,55 @@ def _verify_partitions(py: str, dg: str, root: Path) -> int:
     if rc == 0:
         print(f"⟐ doc-graph verify: {len(idxs)} partition(s) verified.", file=sys.stderr)
     return rc
+
+
+def _check_rollups(py: str, root: Path) -> int:
+    """`build-rollup --check` — do the committed single-file tools still match the
+    `src/` fragments they are built from? 0 when they do, or when this repo builds none.
+
+    PRESENCE-GATED on the builder itself, not on a repo name. EL-106's rule (1) says to
+    gate a detector on a signal every governed repo carries — that rule does not apply
+    here, because the capability genuinely is not universal: only the two protocol twins
+    carry `tools/build-rollup.py`, and a child running the same mechanical loop has no
+    fragments to roll up. What DOES apply is EL-124: report the DENOMINATOR, because
+    "this repo builds no rollups" and "every rollup matches its fragments" are different
+    answers and must not print the same thing.
+
+    The cheap half of D7, and it runs before the suite deliberately: measured 2026-08-17
+    at 5.12s against 5.15s for the bare loop — inside the noise floor — so ordering the
+    cheap gate first costs nothing and means a one-second failure is never masked by a
+    long suite behind it."""
+    br = root / "tools" / "build-rollup.py"
+    if not br.is_file():
+        print("⟐ build-rollup: no rollup builder in this repo — nothing to check "
+              "(not the same as a clean check).", file=sys.stderr)
+        return 0
+    return _run([py, str(br), "--check"])
+
+
+def _run_unit_suite(py: str, root: Path) -> int:
+    """The repo's own unit suite via `unittest discover`. 0 when green, or when absent.
+
+    Closes the last leg of the local/CI asymmetry the scope-audit and Merkle steps above
+    were added for — and the widest one: **the anchor ran no unit suite in CI at all**,
+    so the suite was neither a local gate nor a remote one. A tool change could go green
+    everywhere it was checked and still be untested.
+
+    Discovery is BY FILE (`test_*.py` under `tools/`) with an ABSOLUTE `-s`, so the loop
+    behaves the same from any cwd — verified from `/tmp`, not assumed. This is also the
+    reason the size census keeps those modules whole: `unittest discover` addresses a
+    test module by path, so splitting one trades a readable file for two that must
+    always be found together.
+
+    Presence-gated and denominator-reporting for the same reason as the rollup check:
+    every governed child carries zero `test_*.py`, and in a repo with no tests a silent
+    skip is indistinguishable from a pass."""
+    tools_dir = root / "tools"
+    if not tools_dir.is_dir() or not any(tools_dir.glob("test_*.py")):
+        print("⟐ unit suite: no `tools/test_*.py` in this repo — nothing to run "
+              "(not the same as a green suite).", file=sys.stderr)
+        return 0
+    return _run([py, "-m", "unittest", "discover", "-s", str(tools_dir), "-q"])
 
 
 # ------------------------------------------------------------------ hook entrypoint
@@ -396,7 +491,25 @@ def cmd_hook(rest: list[str]) -> int:
         try:
             return subprocess.run([py, str(adapter), *rest[1:]],
                                   input=raw, text=True).returncode
-        except Exception:                                   # noqa: BLE001
+        except Exception as e:                               # noqa: BLE001
+            # FIX (fails-toward-OK sweep #21): a launch failure HERE means the adapter
+            # was found (unlike the fallthrough below, which fires when it was not) but
+            # could not actually run — a bad interpreter, permission denied, a crash
+            # before it could produce output. Returning 0 silently is exactly the outage
+            # the "ARMED BUT DORMANT" card two dozen lines down exists to announce; this
+            # branch used to skip it entirely because it returns before reaching that
+            # code. A distinct card, since the cause here is different (resolved but
+            # unlaunchable, not unresolved).
+            _hook_card(
+                "⟐ rhizome governance is ARMED BUT DORMANT in this repo — the cached "
+                "adapter is present but FAILED TO LAUNCH just now.\n"
+                f"  {adapter} exists, but invoking it raised {e!r}.\n"
+                "  Until this is fixed, NOTHING in the context lifecycle is running: no "
+                "distillation checkpoint, no state-bucket rehydration, no read mandate, "
+                "no drift sensors. That is a silent absence, which is why this card "
+                "exists.\n"
+                "  Check the interpreter and the adapter's permissions, or re-resolve "
+                "with:  python3 tools/rhiz.py setup")
             return 0
 
     # Could not heal — self-announcing is the floor. Name the one command, and say what
@@ -483,6 +596,15 @@ def main() -> int:
         local = root / "tools" / "lint-local.py"
         if local.exists():
             rc |= _run([py, str(local)])   # repo-local extension (e.g. code-growth census)
+        else:
+            # FIX (fails-toward-OK sweep #14, found via rootstock's vendored copy of this
+            # bootstrap): was a bare `if local.exists()` with no else — a child repo with
+            # no lint-local.py ran rhiz-lint alone and reported the SAME "clean" as a
+            # child whose extension genuinely passed. Mirrors _verify_partitions()'s
+            # denominator convention: announce the skip, don't fail on it (the extension
+            # is optional by design).
+            print("⟐ lint-local: tools/lint-local.py not present — repo-local extension "
+                  "skipped (not the same as a clean run).", file=sys.stderr)
         return rc
     if sub == "search":
         return _run([py, search, "--root-repo", str(root), *rest])
@@ -502,8 +624,19 @@ def main() -> int:
         local = root / "tools" / "lint-local.py"
         if local.exists():
             rc |= _run([py, str(local)])   # repo-local extension (e.g. code-growth census)
+        else:
+            # FIX (fails-toward-OK sweep #14): same silent skip as the `lint` subcommand
+            # above, in the `maintain` loop's own copy of the check.
+            print("⟐ lint-local: tools/lint-local.py not present — repo-local extension "
+                  "skipped (not the same as a clean run).", file=sys.stderr)
         rc |= _run([py, search, "--root-repo", str(root), "index"])
-        rc |= _run([py, dg, "render-all", "--root", str(root)])
+        # --check, not a bare regenerate: a doc-graph .full.md is committed now
+        # (rhiz-merkle.md §9.11), so drift between it and its sections is a CI
+        # failure, the same treatment `_index.md` already gets. Measured clean
+        # across the whole fleet before landing (0 or all-OK everywhere a
+        # product repo's own root is scanned — a memory-repo sibling is out of
+        # this call's --root and unaffected either way).
+        rc |= _run([py, dg, "render-all", "--root", str(root), "--check"])
         # MERKLE INTEGRITY + the coordinate gate. Both were CI-only, and that asymmetry
         # cost three failed pushes on 2026-08-15 alone: a content-hash desync in three
         # edited sections, a coordinate literal in a new config, and a link that only
@@ -517,6 +650,23 @@ def main() -> int:
         # disabled rather than fixed.
         rc |= _run([py, str(R / "tools" / "rhiz_scope_audit.py"), "--root", str(root)])
         rc |= _verify_partitions(py, dg, root)
+        # D7 (operator decision, 2026-08-17): the last two CI-only gates come local.
+        # Same asymmetry as the two steps above, one layer out — `build-rollup --check`
+        # guards the rolled-up tools against their own `src/` fragments, and the suite
+        # was running in NEITHER place for the anchor. Cheap gate first, then the
+        # expensive one, so a five-second failure is never reported behind a suite.
+        rc |= _check_rollups(py, root)
+        rc |= _run_unit_suite(py, root)
+        # IGNORE-PARITY: does this repo ignore the `.rhiz/` runtime state the tools write?
+        # INFORMATIONAL — deliberately NOT OR'd into rc, and the reason is a rule this repo
+        # learned the hard way: a gate that arrives already failing gets disabled rather
+        # than fixed. Two known-red cases remain and neither is the repo's fault — a
+        # PROMOTED CLEAN branch carries the ignore block from its last promote (charlotte's
+        # `main`), and a long-lived side branch predates entries added on the trunk. Both
+        # resolve by a normal promote/merge, not by an edit. It becomes a hard gate once
+        # the promoted-branch case is ruled on; until then the exit code lives in the
+        # tool's own `--check`, for a CI that wants it.
+        _run([py, str(R / "tools" / "rhiz_ignore_parity.py"), "--root", str(root)])
         # Load-ledger diff: surface any relied-on unit whose reference moved since
         # this repo's agent loaded it ("re-read these"). INFORMATIONAL — deliberately
         # NOT OR'd into rc, so a stale local ledger never fails the mechanical loop /
@@ -667,6 +817,63 @@ def main() -> int:
         # and registers it in the read mandate (verified full-fidelity delivery, EL-127).
         # The anchor (rhizome) holds the marker, so run against it.
         return _run([py, str(R / "tools" / "rhiz_tail_recover.py"), "--root", str(root), *rest])
+    if sub == "stream":
+        # STREAM identity (multi-session support, operator rulings 2026-08-30): the slug
+        # is the durable line of work; the worktree is only its usual home. Everything
+        # durable keys off this rather than off `session_id`, which dies at /clear.
+        return _run([py, str(R / "tools" / "rhiz_stream.py"), "--root", str(root), *rest])
+    if sub == "ignore-parity":
+        # EL-148's missing gate: `.rhiz/` runtime state must be gitignored, the rules live in
+        # each repo's OWN .gitignore, and a channel bless ships TOOLS rather than a child's
+        # .gitignore — so the list drifts by construction. Measured the day it landed: the
+        # anchor carried 29 entries, children 22, four repos had no block at all, and one
+        # runtime file had already been committed into a child. The canonical list is the
+        # anchor's own .gitignore (not a second registry to drift), and the tools cache IS
+        # the anchor checkout — so the bless that delivers the tool delivers the list.
+        return _run([py, str(R / "tools" / "rhiz_ignore_parity.py"), "--root", str(root), *rest])
+    if sub == "ci":
+        # The CI gate, run LOCALLY against a clean clone, with the verdict recorded as a git
+        # note on the SHA. Built 2026-08-30 when the account's Actions minutes ran out and
+        # every job was refused in 3 seconds — which also froze `tools-stable`, since the
+        # channel rule is "fast-forward to any GREEN main" and greenness was CI's word.
+        # It reproduces every tool-invoking step in both workflows (measured: ~69s, siblings
+        # included) and is explicit about the three things it does NOT reproduce —
+        # independence, the weekly schedule floor, and a different machine. The interpreter
+        # is no longer one of them: the CI pin was aligned to the version this fleet is
+        # developed on, so the two are one predicate.
+        return _run([py, str(R / "tools" / "rhiz_ci.py"), "--root", str(root), *rest])
+    if sub == "stream-migrate":
+        # Evidence for adopting a stream in a memory repo whose history PREDATES streams.
+        # Several lines of work ran against one instance before any of them had a name, so
+        # their record is interleaved in one unkeyed file's history with no field saying who
+        # wrote what — a rename does not migrate that, it ATTRIBUTES it. This reports what
+        # git can actually establish (`--attribute` walks the coordinates bucket for which
+        # products each past window MOVED) and proposes renames as commands for a human to
+        # run. It never renames anything, and it never proposes keying `session-arc.md`,
+        # which is the one cross-cutting bucket.
+        return _run([py, str(R / "tools" / "rhiz_stream_migrate.py"), "--root", str(root), *rest])
+    if sub == "merge-back":
+        # Land a stream's branch on the trunk (multi-session-streams.md §5.2). OPERATOR-
+        # TRIGGERED by ruling — this never decides whether to merge, only how. It exists
+        # because the two things that make a landing safe are the two a hand-run skips:
+        # the gates re-run ON the target AFTER the merge (a merge can break what neither
+        # side broke), and --no-ff (a fast-forward erases the fact that this was a stream).
+        # Every check is in its own exit code: nothing intercepts `git merge`/`git push`,
+        # and a gate that is not an exit code is prose.
+        return _run([py, str(R / "tools" / "rhiz_merge_back.py"), "--root", str(root), *rest])
+    if sub == "coord-check":
+        # Mechanizes `rhiz howto rehydrate` step 2 ("is HEAD still the recorded END SHA").
+        # `compute_bucket_skew()` (tail-recover) catches a memory repo's bucket FILES
+        # drifting out of sync with each other; this catches a DIFFERENT axis — the
+        # coordinates bucket itself going stale relative to the repos it names, e.g. a
+        # BRANCH-map SHA or a "not touched" claim going wrong even while the file is being
+        # actively edited (2026-08-23 incident). Parses session-checkpoints.md's structured
+        # END-SHA table only (never the free-prose BRANCH sections) — local repo state only,
+        # no network. The coordinates live in the anchor's MEMORY repo; the tool resolves
+        # --root through $RHIZ_MEMORY_PATH / the committed .rhiz-binding.json, so the
+        # invoking checkout's toplevel is a correct --root from either the product or the
+        # memory repo.
+        return _run([py, str(R / "tools" / "rhiz_coord_check.py"), "--root", str(root), *rest])
     if sub == "reference-capture":
         # REFERENCE-CAPTURE sensor: a visual-imitation task's oracle is pixel-parity vs the
         # operator's reference images, not completion of the plan (EL-137) — but a pasted image
@@ -689,12 +896,43 @@ def main() -> int:
         # PROPOSER: rhiz-lint stays the authoritative membership check. See
         # rhiz-memory/roadmap/frontmatter-reverse-membership.md.
         return _run([py, str(R / "tools" / "rhiz_indexed_backfill.py"), "--root", str(root), *rest])
+    if sub == "reference-inventory":
+        # R21: Phase 6 collapses this repo's history, so every historical citation must be
+        # dispositioned FIRST — forward-resolved or registered intentionally-unattached with
+        # a reviewed reason, verified on the exact SHA the purge would run against. The
+        # gating class is the SHA citation: a coordinate dies visibly when a reader follows
+        # it, while a cited commit id resolves today and is simply gone afterwards. This is
+        # the inventory half only; the dry-run rehearsal R21 also requires is separate.
+        return _run([py, str(R / "tools" / "rhiz_reference_inventory.py"),
+                     "--root", str(root), *rest])
+    if sub == "shareability":
+        # The blob half of the shareability boundary (D4), replacing the inline
+        # `find | grep -iE '\.(png|jpg|…)$'` that nine workflows each carried a copy of.
+        # Classifies by `.rhiz-identity.json`'s `storage` — this is that field's first
+        # consumer — and refuses to guess when it cannot classify, because BOTH defaults
+        # are silently wrong: enforcing breaks the -lfs sibling, exempting stops gating a
+        # shareable repo. A repo with no identity at all is outside the scheme (a product
+        # repo) and is skipped, which is a different answer and prints differently.
+        return _run([py, str(R / "tools" / "rhiz_shareability.py"),
+                     "--root", str(root), *rest])
     if sub == "preflight":
         # Operator-setup preflight (first-time-setup.md → Detection): detect silent-unconfigured
         # setup (adapter wired, managed-web Setup script, PreToolUse guard armed + firing,
         # vendored cache) and surface the exact fix. `--check` for CI; the distill-nudge hook
         # runs `--card` at SessionStart. Sibling of the behavioral-gate register.
         return _run([py, str(R / "tools" / "rhiz_preflight.py"), "--root", str(root), *rest])
+    if sub == "promote":
+        # Working-branch -> clean-branch promotion (rhiz-child-repo-convention.md's
+        # optional two-branch model). Strips a per-repo `.rhiz-artifacts.json` registry
+        # (read from --source only, modeled on the retired `.rhiz-bless.json`'s
+        # self-referential policy-read) via index surgery + `commit-tree`, never `git
+        # merge` — tested traps: `merge -s ours` silently drops real product changes,
+        # `merge --no-commit` + `git rm` breaks on the SECOND promotion once a stripped
+        # path has changed since the last strip. `--verify-only` is the parity/drift
+        # check alone (no new commit) — run it on a schedule, not just at promotion
+        # time, since main only being touched by this tool is an invariant nothing else
+        # enforces.
+        return _run([py, str(R / "tools" / "rhiz_promote.py"), "--root", str(root), *rest])
     if sub == "trace":
         node = shutil.which("node")
         if not node:

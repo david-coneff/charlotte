@@ -106,3 +106,14 @@ crawl-report.json.bak
 
 .rhiz/ci-schedule.json
 .rhiz/ci-schedule.log
+
+# rhizome runtime state (`rhiz ignore-parity`) — machine-local, never committed.
+# Mirrored from rhizome-protocol's own .gitignore, which is the canonical list
+# because it is where a tool author already edits when they add a runtime file.
+# Re-run `rhiz ignore-parity --fix` after pulling new tools; the drift is silent
+# otherwise (EL-148: a channel bless ships tools, not a child's .gitignore).
+
+.rhiz/emission.*
+.rhiz/pturun.*
+.rhiz/refcapture.*
+.rhiz/transcript-ptr.*

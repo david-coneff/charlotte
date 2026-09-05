@@ -130,6 +130,11 @@ Subcommands (extra args are forwarded to the underlying tool):
                    END-SHA table and diff each recorded coordinate against actual local repo
                    state (offline, no network). A report, not a gate: drift is often just
                    "more work happened since," not a bug
+  cite-check       the OTHER half of rehydrate step 2 — grade the free-prose SHA citations in
+                   each session-cache's BRANCH map, which coord-check deliberately does not
+                   parse. Catches a cache that is structurally fresh (rewritten this commit,
+                   right section order, under cap) while its branch map names a superseded
+                   tree. Offline. `--root-only` narrows the workspace sweep
   reference-capture [--transcript P] [--against R]  flag operator-PASTED reference images
                    not yet committed to any in-scope repo (offline, zero tokens) — persist the
                    reference before the intent is lost to a reset; pixel-parity is the oracle (EL-137)
@@ -137,8 +142,13 @@ Subcommands (extra args are forwarded to the underlying tool):
                    repo's built HTML deliverable (probe / --ast / --data). Reads
                    a `.rhiz-trace.json` adapter at the repo root. Needs node.
   setup            FIRST RUN on a machine: fetch the tools cache, arm this repo's
-                   hooks (committable form), print the preflight verdict + what is
-                   live now vs next session. Idempotent. Also `/rhiz-setup`.
+                   hooks (committable form), link the declared slash-commands, print
+                   the preflight verdict + what is live now vs next session.
+                   Idempotent. Also `/rhiz-setup`.
+  link-commands    Link this repo's DECLARED slash-commands into the user-level dir,
+                   so they resolve from a workspace root that is not itself a repo.
+                   `--check` reports without touching. `setup` calls this; it is
+                   also here for re-linking after the repo moves.
   hook <adapter>   HOOK ENTRYPOINT — what a child's committed .claude/settings.json
                    invokes instead of naming a path inside the gitignored cache.
                    This file is TRACKED, so a fresh clone can always reach it; the
@@ -392,7 +402,20 @@ def _run_unit_suite(py: str, root: Path) -> int:
 
 # ------------------------------------------------------------------ hook entrypoint
 
-HOOK_ADAPTERS = ("distill-nudge", "census-nudge", "sync-nudge", "rollup-read-guard")
+# Every adapter `arm-hooks.HOOKS` can arm must be dispatchable here, or a governed
+# CHILD arms a command this entrypoint then refuses. The two lists are hand-kept in
+# two files and drifted exactly as that arrangement predicts: `generated-write-guard`
+# and `subagent-durability` were armable and NOT dispatchable, so in every governed
+# child the write-guard was wired to a command that answered "unknown adapter" and
+# exited 0 — armed, reported armed, and a no-op. Found 2026-09-01, the same defect
+# class as the audit that found it, one level up.
+#
+# Not derived from the registry by import ON PURPOSE: this bootstrap's job is to FIND
+# a rhizome checkout, so it cannot depend on having found one. The agreement is held by
+# a test instead (`test_rhiz.py::HookAdapters`), which is the honest way to keep two
+# lists in step when one of them cannot import the other.
+HOOK_ADAPTERS = ("distill-nudge", "census-nudge", "sync-nudge", "rollup-read-guard",
+                 "generated-write-guard", "subagent-durability")
 HOOK_REL = Path("protocol") / "hooks" / "claude-code"
 
 
@@ -583,6 +606,16 @@ def main() -> int:
                   f"--target {root}/.claude/settings.json --workspace {root}", file=sys.stderr)
             return 2
         return _run([py, str(setup), "--root", str(root), "--rhizome", str(R), *rest])
+    if sub == "link-commands":
+        # The commands live in the RHIZOME checkout (R), not in `root`: a governed child
+        # vendors the tools but does not carry the lifecycle command files, and linking
+        # from the child would produce links pointing at files that were never there.
+        linker = R / "tools" / "rhiz_link_commands.py"
+        if not linker.is_file():
+            print(f"rhiz link-commands: not in this channel snapshot ({channel(root)} @ {R}).",
+                  file=sys.stderr)
+            return 2
+        return _run([py, str(linker), "--root", str(R), *rest])
     if sub == "self-update":
         src, dst = R / "tools" / "rhiz.py", root / "tools" / "rhiz.py"
         if src.resolve() == dst.resolve():
@@ -874,6 +907,16 @@ def main() -> int:
         # invoking checkout's toplevel is a correct --root from either the product or the
         # memory repo.
         return _run([py, str(R / "tools" / "rhiz_coord_check.py"), "--root", str(root), *rest])
+    if sub == "cite-check":
+        # coord-check's complement, and the close of a gap the corpus recorded as OPEN on
+        # 2026-08-23 ("what this does NOT close: content drift inside a file that IS being
+        # touched regularly"). coord-check reads the STRUCTURED END-SHA table and explicitly
+        # skips session-cache.md's free-prose BRANCH map; bucket-skew reads git metadata and
+        # cannot see inside a file at all. So a cache rewritten in the same commit that fixes
+        # its siblings passes both while naming a tree that has moved — measured 2026-09-01 in
+        # rootstock-memory and, unnoticed until this tool ran, charlotte-memory. Not a prose
+        # parser: it walks BACKTICKED tokens and asks git to classify each one.
+        return _run([py, str(R / "tools" / "rhiz_cite_check.py"), "--root", str(root), *rest])
     if sub == "reference-capture":
         # REFERENCE-CAPTURE sensor: a visual-imitation task's oracle is pixel-parity vs the
         # operator's reference images, not completion of the plan (EL-137) — but a pasted image

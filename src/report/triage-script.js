@@ -242,7 +242,13 @@ const triageScript = (state, linkInstances) => `<script>(function(){
     var ts=triTables(scope); if(!ts.length) return;
     var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
     var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j;
-      for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } }
+      for(j=0;j<hs.length;j++){ (function(th, idx){
+        // Same serialize-and-reopen hazard as the pager bar (see page-scripts.js): a saved copy
+        // of this report carries the grips this script appended last time, as inert markup, and
+        // the report's tables are static so nothing regenerates them. Drop this th's stale grips
+        // before appending, or every save/reopen cycle adds another dead handle per column.
+        var og=th.querySelectorAll('.colgrip'), oz; for(oz=0;oz<og.length;oz++) og[oz].parentNode.removeChild(og[oz]);
+        var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } }
   }
   function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=triTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
   for(var cz=0;cz<SCOPES.length;cz++) wireColResize(SCOPES[cz]);
@@ -282,7 +288,13 @@ const collapseScript = (state) => `<script>(function(){
     function up(){ document.removeEventListener('mousemove',mv,true); document.removeEventListener('mouseup',up,true); setCls(grip,'drag',false); saveCol(scope, idx, cur); }
     document.addEventListener('mousemove',mv,true); document.addEventListener('mouseup',up,true); }
   function wireResize(scope){ var ts=grpTables(scope); if(!ts.length) return; var saved=loadCols(scope), i; if(saved){ for(i=0;i<saved.length;i++){ if(saved[i]>0) applyCol(scope, i, saved[i]); } }
-    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++){ (function(th, idx){ var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } } }
+    var t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++){ (function(th, idx){
+        // Same serialize-and-reopen hazard as the pager bar (see page-scripts.js): a saved copy
+        // of this report carries the grips this script appended last time, as inert markup, and
+        // the report's tables are static so nothing regenerates them. Drop this th's stale grips
+        // before appending, or every save/reopen cycle adds another dead handle per column.
+        var og=th.querySelectorAll('.colgrip'), oz; for(oz=0;oz<og.length;oz++) og[oz].parentNode.removeChild(og[oz]);
+        var grip=document.createElement('span'); grip.className='colgrip'; grip.title='Drag to resize this column'; grip.addEventListener('mousedown', function(e){ gripDown(scope, th, idx, grip, e); }); th.appendChild(grip); })(hs[j], j); } } }
   function resetCols(scope){ var s=L(); if(s){ try{ s.removeItem(colKey(scope)); }catch(e){} } var ts=grpTables(scope), t; for(t=0;t<ts.length;t++){ var hs=ts[t].querySelectorAll('thead th'), j; for(j=0;j<hs.length;j++) hs[j].style.width=''; } }
   var TABS=[['panel-external','ext'],['panel-internal','int'],['panel-outscope','oos']], t;
   for(t=0;t<TABS.length;t++){ (function(pid, pre){

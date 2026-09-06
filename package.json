@@ -12,13 +12,15 @@
     "build": "node build.mjs",
     "crawl": "node crawl.js",
     "render": "node crawl-render.js",
-    "proxy": "node local-cors-proxy.js"
+    "proxy": "node local-cors-proxy.js",
+    "test": "node test/report-idempotence.mjs"
   },
   "optionalDependencies": {
     "playwright": "^1.40.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "jsdom": "^29.1.1"
   },
   "engines": {
     "node": ">=14"

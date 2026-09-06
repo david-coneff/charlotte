@@ -1,4 +1,4 @@
-# charlotte PRODUCT CI — build only (the repo declares no test script).
+# charlotte PRODUCT CI — build, then the report regression suite (`npm test`).
 # R15: governance runs in governance.yml against product + protocol + memory.
 #
 # Runs on BOTH branches of the two-branch model (rhiz-child-repo-convention.md#55):
@@ -26,3 +26,10 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run build
+      # crawl.js is a COMMITTED artifact generated from src/. The build above just rewrote it,
+      # so a non-empty diff means the commit shipped a src/ change without rebuilding — which
+      # `npm test` alone cannot catch, since the tests import src/ directly.
+      - name: crawl.js is in sync with src/
+        run: git diff --exit-code -- crawl.js
+      # test/ drives the report's own client-side scripts (src/report/*) through jsdom.
+      - run: npm test

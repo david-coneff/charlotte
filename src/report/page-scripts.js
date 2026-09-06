@@ -34,6 +34,16 @@ const pagerScriptFor = (cfg) => cfg.paginate ? `<script>(function(){
     prev.addEventListener('click',function(){ show(cur-1); });
     next.addEventListener('click',function(){ show(cur+1); });
     jump.addEventListener('change',function(){ var v=parseInt(jump.value,10); if(!isNaN(v)) show(v-1); });
+    // A SAVED copy of this report re-runs this script over a DOM that already contains the bar
+    // it inserted last time: "Save shareable copy" serializes document.documentElement.outerHTML
+    // (and so does the browser's own Save Page As), while this <script> is inside <body> and
+    // serializes with it. Listeners do not survive serialization, so the baked-in bar is inert --
+    // and since we insert immediately before tw, the live one lands BELOW it. Left alone that
+    // stacks one more dead bar per save/reopen cycle. Drop this table's stale bars first: they
+    // are the contiguous .pager element siblings directly above tw, so a sibling tablewrap's
+    // own bar (separated from tw by that tablewrap) is never touched.
+    var stale=tw.previousElementSibling;
+    while(stale&&(' '+(stale.className||'')+' ').indexOf(' pager ')>=0){ var older=stale.previousElementSibling; stale.parentNode.removeChild(stale); stale=older; }
     tw.parentNode.insertBefore(bar,tw);
     show(0);
   }

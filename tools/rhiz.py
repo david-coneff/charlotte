@@ -154,10 +154,14 @@ Subcommands (extra args are forwarded to the underlying tool):
                    This file is TRACKED, so a fresh clone can always reach it; the
                    cached adapter it forwards to is not (EL-152). Self-heals on
                    SessionStart, announces if it cannot, never fails the session.
-  update           refresh the cached rhizome checkout only
+  update           refresh the cached rhizome checkout — a NO-OP (warns rather than
+                   silently doing nothing) when this root resolves via $RHIZ_TOOLS_PATH,
+                   a committed binding, or being the source repo itself; `where` shows
+                   which tier is live
   self-update      overwrite this bootstrap with the channel's canonical copy
   channel          print the channel/ref this repo tracks (drift-guard reads this)
-  where            print the resolved rhizome checkout path + forge URL
+  where            print the resolved rhizome checkout path + forge URL + WHICH of the
+                   four resolution tiers (env / binding / native / cache) answered
 """
 import json
 import os
@@ -251,18 +255,93 @@ def tools_url(root=None) -> str:
     return read_binding(root).get("protocol_url") or RHIZOME_URL_DEFAULT
 
 
-def resolve_rhizome(root: Path) -> Path:
+def _main_worktree(c: Path) -> Path:
+    """The MAIN worktree of `c`, or `c` unchanged when it is not a linked worktree.
+
+    ANOTHER HAND-KEPT TWIN (retro-4 cycle 2) of `60_scope.py`'s `main_worktree` /
+    `tools/rhiz_stream.py`'s own copy of the identical function — same name, same
+    body, on purpose; see either of those docstrings for why this is copied rather
+    than imported (`rhiz.py` is a standalone, copyable bootstrap — see the module
+    docstring — so it cannot import a sibling `tools/*.py` module that a bare
+    bootstrap copy in a child repo would not carry). If either of those versions ever
+    changes, mirror the change here too.
+
+    A linked worktree's `.git` is a FILE reading `gitdir: <main>/.git/worktrees/<name>`.
+    Read it rather than shelling out — this sits on `resolve_rhizome_tier`'s hot path."""
+    dotgit = c / ".git"
+    try:
+        if not dotgit.is_file():
+            return c
+        txt = dotgit.read_text(encoding="utf-8", errors="replace").strip()
+        if not txt.startswith("gitdir:"):
+            return c
+        gd = Path(txt.split(":", 1)[1].strip())
+        if not gd.is_absolute():
+            gd = (c / gd).resolve()
+        for a in gd.parents:                    # .../<main>/.git/worktrees/<n> -> <main>
+            if a.name == ".git":
+                return a.parent.resolve()
+    except OSError:
+        pass
+    return c
+
+
+def resolve_rhizome_tier(root: Path) -> tuple[Path | None, str, str]:
+    """(path, tier, detail) for the FIRST of the four resolution tiers that answers for
+    `root`, without performing the cache tier's fetch — `path` is None only for tier
+    "cache" (`resolve_rhizome` still has to fetch/clone to answer that one); `tier` is
+    "env" / "binding" / "native" / "cache"; `detail` is a human-readable note (the env
+    var's value, the binding's own `protocol_path`, etc.) for a caller to report.
+
+    THE GAP THIS CLOSES (WH-12 datum, 2026-09-08): `resolve_rhizome`'s own resolution
+    ORDER was documented, but nothing said which tier answers for a GIVEN root, and in
+    a workspace where every child's `.rhiz-binding.json` carries a `protocol_path`
+    pointing at a present local sibling — this fleet's own normal dev layout — every
+    `rhiz` invocation resolves via "binding", never "cache", no matter which
+    subcommand runs. `rhiz update`/`self-update`/`where` all exited 0 with a
+    plausible-looking resolved path on all 12 fleet repos while leaving their vendored
+    `.rhiz-tools/rhizome` caches completely untouched; only a direct before/after diff
+    of the cache's own git HEAD caught it. `where`/`update` report this tier now so the
+    same silent no-op is visible from the command's own output, not just a diff.
+
+    A RELATIVE override/binding path is resolved against `root`'s MAIN WORKTREE
+    (retro-4 cycle 2), not `root` verbatim — the same canonicalization
+    `tools/rhiz_stream.py`'s `resolve_slug`/`adopt` apply for the identical reason.
+    Worktrees are typically created at an arbitrary location relative to the main
+    checkout, so a sibling-relative path (`../rhizome-protocol`, the documented form)
+    is only meaningful relative to the ONE place the repo's siblings actually live —
+    the main checkout — not wherever a linked worktree happens to sit on disk. Without
+    this, the identical committed `.rhiz-binding.json`, checked out unchanged into
+    every linked worktree, silently resolved to a DIFFERENT tier depending on which
+    worktree invoked the tool. `read_binding` itself still reads from `root` verbatim
+    (a worktree legitimately checking out a different branch/commit gets ITS OWN
+    binding content, unaffected) — only the RELATIVE-PATH JOIN is re-based."""
+    canon = _main_worktree(root)
     local = os.environ.get("RHIZ_TOOLS_PATH")
-    if local and (Path(local) / "tools" / "rhiz-lint.py").exists():
-        return Path(local).resolve()
+    if local:
+        # RETRO-4 (idx-9): a relative $RHIZ_TOOLS_PATH (the documented form, e.g.
+        # `RHIZ_TOOLS_PATH=../rhizome-protocol` per rhiz-quickstart.md/
+        # rhiz-child-repo-convention.md) used to resolve against the PROCESS CWD here
+        # — two lines down, the binding branch already treats an equivalent relative
+        # `protocol_path` as root-relative, and `rhiz_roots.py`'s own `_resolve_path`
+        # resolves this SAME env var against the product root for every other tool
+        # built on it. `repo_root()` deliberately supports invocation from any
+        # subdirectory via `git rev-parse --show-toplevel`, so the two modules silently
+        # disagreed the moment cwd nested inside the repo: this one fell through to the
+        # cache tier, dropping the operator's override with no warning, while
+        # `rhiz_roots.resolve(root).protocol_root` kept correctly returning it.
+        lp = Path(local)
+        lp = lp if lp.is_absolute() else (canon / lp)
+        if (lp / "tools" / "rhiz-lint.py").exists():
+            return lp.resolve(), "env", f"$RHIZ_TOOLS_PATH={local}"
     bound = read_binding(root).get("protocol_path")
     if bound:
         # A relative protocol_path is repo-root-relative (portable across machines,
         # the sibling-checkout layout); validated like $RHIZ_TOOLS_PATH — a binding
         # that points at nothing falls through to the channel clone.
-        bp = (root / bound) if not Path(bound).is_absolute() else Path(bound)
+        bp = (canon / bound) if not Path(bound).is_absolute() else Path(bound)
         if (bp / "tools" / "rhiz-lint.py").exists():
-            return bp.resolve()
+            return bp.resolve(), "binding", f"protocol_path={bound}"
     # rhizome-protocol itself carries no binding (nothing to bind to but itself), so
     # without this check it fell all the way through to a channel-pinned clone of its
     # OWN repo — silently serving `tools-stable`'s lagged tools even when invoked from
@@ -271,7 +350,14 @@ def resolve_rhizome(root: Path) -> Path:
     # natively ("reference, don't copy" — rhiz-child-repo-convention.md §1), so this
     # only ever fires for the source repo.
     if (root / "tools" / "rhiz-lint.py").exists():
-        return root.resolve()
+        return root.resolve(), "native", "this repo IS the source (native tools/)"
+    return None, "cache", str(root / ".rhiz-tools" / "rhizome")
+
+
+def resolve_rhizome(root: Path) -> Path:
+    path, tier, _ = resolve_rhizome_tier(root)
+    if tier != "cache":
+        return path
     cache = root / ".rhiz-tools" / "rhizome"
     ref = channel(root)
     if not (cache / ".git").exists():
@@ -375,6 +461,28 @@ def _check_rollups(py: str, root: Path) -> int:
     return _run([py, str(br), "--check"])
 
 
+def _check_kb_usage_rollup(py: str, root: Path) -> int:
+    """`rhiz_kb_usage.py rollup --check` — idx-38: a code fix that changes what an
+    EXISTING access-log row MEANS (e.g. DECLARED_CHANNELS) does not itself trigger a
+    re-run of the published `rhiz-memory/usage/access-rollup.json`, so the artifact can
+    keep publishing pre-fix numbers indefinitely with nothing else in this repo ever
+    reporting it stale. Compares full CONTENT against a fresh computation, not just row
+    counts.
+
+    PRESENCE-GATED, same convention as `_check_rollups` above: most governed repos log
+    KB access but have never published a rollup at all (measured 2026-09-06: aether,
+    rootstock, both rhizome-protocol worktrees, WebPageScreensaver, rhizome-memory all
+    carry an access log; only rhizome-memory has ever run `rollup --write`). The check
+    itself already returns 0 for "never published" — this wrapper only needs to skip
+    entirely when the TOOL is absent (a repo predating this feature)."""
+    ku = root / "tools" / "rhiz_kb_usage.py"
+    if not ku.is_file():
+        print("⟐ kb-usage rollup: rhiz_kb_usage.py not present in this repo — nothing "
+              "to check (not the same as a clean check).", file=sys.stderr)
+        return 0
+    return _run([py, str(ku), "--root", str(root), "rollup", "--check"])
+
+
 def _run_unit_suite(py: str, root: Path) -> int:
     """The repo's own unit suite via `unittest discover`. 0 when green, or when absent.
 
@@ -412,7 +520,8 @@ def _run_unit_suite(py: str, root: Path) -> int:
 #
 # Not derived from the registry by import ON PURPOSE: this bootstrap's job is to FIND
 # a rhizome checkout, so it cannot depend on having found one. The agreement is held by
-# a test instead (`test_rhiz.py::HookAdapters`), which is the honest way to keep two
+# a test instead (`test_generated_write_guard.py::ArmableImpliesDispatchable::
+# test_every_armable_hook_is_dispatchable`), which is the honest way to keep two
 # lists in step when one of them cannot import the other.
 HOOK_ADAPTERS = ("distill-nudge", "census-nudge", "sync-nudge", "rollup-read-guard",
                  "generated-write-guard", "subagent-durability")
@@ -580,6 +689,7 @@ def main() -> int:
 
     root = repo_root()
     R = resolve_rhizome(root)
+    _, _tier, _tier_detail = resolve_rhizome_tier(root)
     py = sys.executable or "python3"
     lint = str(R / "tools" / "rhiz-lint.py")
     search = str(R / "tools" / "rhiz-search.py")
@@ -587,10 +697,25 @@ def main() -> int:
     dg = str(R / "protocol" / "modules" / "rhiz-merkle" / "tools" / "doc-graph.py")
 
     if sub == "where":
-        print(f"rhizome: {R}\nforge:   {tools_url(root)}\nchannel: {channel(root)}")
+        note = {
+            "env": f"$RHIZ_TOOLS_PATH override ({_tier_detail})",
+            "binding": f"committed binding ({_tier_detail}) — the vendored "
+                       f".rhiz-tools/rhizome cache here, if one exists, answers no "
+                       f"`rhiz` command; `rhiz update` is a no-op",
+            "native": _tier_detail,
+            "cache": "the vendored .rhiz-tools/rhizome cache (just fetched/verified)",
+        }[_tier]
+        print(f"rhizome: {R}\nforge:   {tools_url(root)}\nchannel: {channel(root)}\n"
+              f"resolved via: {note}")
         return 0
     if sub == "update":
-        return 0  # resolve_rhizome already refreshed the cache
+        if _tier != "cache":
+            print(f"rhiz update: nothing to refresh here — this root resolves via "
+                  f"{_tier} ({_tier_detail}), not the vendored cache. A "
+                  f".rhiz-tools/rhizome cache in this repo, if any, is not what any "
+                  f"`rhiz` command actually runs; `rhiz where` shows which tier is live.",
+                  file=sys.stderr)
+        return 0  # resolve_rhizome already refreshed the cache, when tier == "cache"
     if sub == "setup":
         # FIRST-RUN wiring: arm this machine's hooks and say what is live now vs next
         # session. Reaching this line has ALREADY done the half that matters most —
@@ -689,6 +814,11 @@ def main() -> int:
         # was running in NEITHER place for the anchor. Cheap gate first, then the
         # expensive one, so a five-second failure is never reported behind a suite.
         rc |= _check_rollups(py, root)
+        # idx-38: same cheap-gate-first reasoning as build-rollup --check above, for a
+        # different rollup concept (aggregated KB-usage stats, not a built tool). Clean
+        # everywhere on the day this lands (verified 2026-09-06): every repo without the
+        # tool or without a published rollup returns 0 by construction.
+        rc |= _check_kb_usage_rollup(py, root)
         rc |= _run_unit_suite(py, root)
         # IGNORE-PARITY: does this repo ignore the `.rhiz/` runtime state the tools write?
         # INFORMATIONAL — deliberately NOT OR'd into rc, and the reason is a rule this repo

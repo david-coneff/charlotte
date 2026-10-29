@@ -128,3 +128,47 @@ crawl-report.json.bak
 .rhiz/ptufrun.*
 .rhiz/setup-ack*
 .rhiz/fcdrift.*
+
+# rhizome runtime state (`rhiz ignore-parity`) — machine-local, never committed.
+# Mirrored from rhizome-protocol's own .gitignore, which is the canonical list
+# because it is where a tool author already edits when they add a runtime file.
+# Re-run `rhiz ignore-parity --fix` after pulling new tools; the drift is silent
+# otherwise (EL-148: a channel bless ships tools, not a child's .gitignore).
+
+.rhiz/kb-usage-extract.json
+.rhiz/kb-usage-extract.json.tmp
+.rhiz/mandate-gate.*.json
+.rhiz/checkpoint-tail-marker*.json
+.rhiz/decision-nudge.*.json
+.rhiz/denial-nudge.*.json
+.rhiz/ack-nudge.*.json
+.rhiz/triage-nudge.*.json
+.rhiz/tier-nudge.*
+.rhiz/bucket-review*.md
+.rhiz/bucket-review*.json
+.rhiz/bg09.*
+.rhiz/bg02.*
+.rhiz/bg21.*
+.rhiz/ab/
+.rhiz/bg26.*
+.rhiz/beat-cursor.*
+.rhiz/failure-reflex.*
+.rhiz/fcrun.*
+.rhiz/occupancy-acquired.*
+.rhiz/stream-latch.*
+.rhiz/stream-handoff.*
+.rhiz/rollup-drift.json
+.rhiz/loop/
+.rhiz/suite-runs.jsonl
+.rhiz/suite-timings.json
+.rhiz/suite-timings.json.tmp
+.rhiz/timings/
+.rhiz/change-guard/
+.rhiz/lesson-recall/
+.rhiz/test-runs.jsonl
+.rhiz/context-dismiss*
+.rhiz/access-log.jsonl.lock
+.rhiz/events/
+.rhiz/verdicts/
+.rhiz/runs/
+.rhiz/succession.json

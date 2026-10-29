@@ -320,6 +320,59 @@ node crawl-render.js --from-json crawl-report.json --channel chrome \
 
 Run `node crawl-render.js --help` for the full option list.
 
+### Mapping a JavaScript-built site (`crawl-render.js --discover`, then `crawl.js --seeds`)
+
+`crawl.js` reads HTML as the server sends it, so a site whose navigation is built by
+JavaScript (a single-page app, a document repository viewer) shows it almost no links.
+`crawl-render.js` has a second job for that: **discover**. It renders the site in real
+Chromium, harvests the links the rendered pages actually carry, and writes them as seeds
+that `crawl.js` then verifies with its normal pipeline:
+
+```
+node crawl-render.js --discover https://site.example/ --seeds site.seeds.txt
+node crawl.js --seeds site.seeds.txt --out report.html
+```
+
+Discover options (`node crawl-render.js --help` has the full list):
+
+- `--seeds FILE` — where the discovered URLs go, one per line: in-scope pages and
+  documents (default `crawl-render.seeds.txt`). A full JSON manifest of pages, documents
+  and links goes to `--out` (default `crawl-render.discover.json` in this mode).
+- `--scope domain|path`, `--path-prefix STR`, `--include-subdomains`, `--max-pages N`
+  (default 200), `--max-depth N` (default 8) — the same confinement as a `crawl.js` crawl.
+- `--settle MS` — an extra wait after load for late XHR-driven rendering (default 0). In
+  discover mode `--wait-until` defaults to `networkidle`.
+- `--no-onclick-scan` — URL-like `onclick`/`data-*` attributes are harvested by default
+  (single-page apps often navigate from JavaScript handlers); this turns that off.
+- `--ignore-case` — de-duplicate URLs case-insensitively, and query strings whose
+  parameters differ only in order, so `/Browse.aspx` and `/browse.aspx` render once. For
+  IIS/ASP.NET sites (Laserfiche WebLink, SharePoint); off by default, because it is wrong
+  on a case-sensitive server.
+- `--laserfiche` — for Laserfiche WebLink: a `DocView.aspx?id=N` viewer page is recorded
+  as a DOCUMENT (its file URL) instead of being rendered, which turns thousands of viewer
+  renders into file URLs `crawl.js` can scan. `--laserfiche-dl P` (implies `--laserfiche`)
+  chooses how a document's bytes are reached: `electronicfile` (default,
+  `ElectronicFile.aspx?docid=N`, the native file, which works where PDF export is blocked),
+  or `openpdf=true` / `openfile=true` as a query parameter on `DocView`.
+- **Limits shared with the GUI:** when `crawl-gui-config.txt` (the GUI's options file) sits
+  beside the script or in the working directory, discover reads the same limits from it
+  (max pages and depth, scope and path prefix, concurrency, delay, timeout, subdomains), so
+  a discover run honours what was set for a GUI crawl; explicit flags still win.
+  `--config FILE` reads another file, `--no-config` ignores it. `--log`, `--stop-file` and
+  `--pause-file` let the GUI monitor, stop and pause the discover phase.
+
+**`crawl.js --seeds FILE`** reads start URLs from a file (one per line; `#` comments and
+blank lines ignored). Unlike several start URLs on the command line, which are crawled as
+separate sites with an index report, a seeds file makes **one** crawl: every seed starts
+the frontier at depth 0, with one shared seen-set and one report. Every seed's host counts
+as internal, not only the first one's, so a sibling host the discover run found (a
+document repository beside the main site) is followed rather than filed as external, the
+same rule discover applies.
+
+**`crawl.js --start-url URL`** names the site explicitly for `--rebuild-from` or
+`--recheck-from` on an older JSON report that did not record its start URL (reports from
+this version on record it).
+
 ### Large crawls: checkpoints, resumable view, and partitioned logs
 
 For an unbounded crawl (`--max-pages none`), the run can take a long time, so the

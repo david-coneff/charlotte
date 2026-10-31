@@ -13,7 +13,7 @@
     "crawl": "node crawl.js",
     "render": "node crawl-render.js",
     "proxy": "node local-cors-proxy.js",
-    "test": "node test/report-idempotence.mjs && node test/merge-fix-state.mjs && node test/settings-roundtrip.mjs && node test/report-triage.mjs && node test/report-verdict-share.mjs && node test/report-tracker-export.mjs && node test/tracker-views.mjs && node test/tracker-share.mjs"
+    "test": "node test/report-idempotence.mjs && node test/merge-fix-state.mjs && node test/settings-roundtrip.mjs && node test/report-triage.mjs && node test/report-verdict-share.mjs && node test/report-tracker-export.mjs && node test/tracker-views.mjs && node test/tracker-share.mjs && node test/satellite-window.mjs"
   },
   "optionalDependencies": {
     "playwright": "^1.40.0"

@@ -63,15 +63,17 @@ export const CFG = {
 export const buildHtml = (state = fixtureState(), cfg = CFG) => buildReport(state, cfg, [], false);
 
 // Open a report in jsdom with its scripts running. `store` pre-seeds localStorage before any
-// script runs; `noStorage` makes the localStorage accessor throw, as some file:// modes do.
-// Downloads (URL.createObjectURL) are captured on dom.downloads as { name, blob }. Any script
+// script runs; `noStorage` makes the localStorage accessor throw, as some file:// modes do; `url` is
+// where the page is opened from.
+// Downloads (URL.createObjectURL) are captured on dom.downloads as { name, blob }, and every
+// object URL's blob on dom.blobs (url -> blob). Any script
 // error other than jsdom's "Not implemented" (navigation, location.reload) fails the test.
-export function openReport(html, { store = {}, noStorage = false } = {}) {
+export function openReport(html, { store = {}, noStorage = false, url = `https://${HOST}/crawl-report.html` } = {}) {
   const errors = [], downloads = [], blobs = new Map();
   const vc = new VirtualConsole();
   vc.on("jsdomError", (e) => { if (!/Not implemented/.test(e.message)) errors.push(e); });
   const dom = new JSDOM(html, {
-    runScripts: "dangerously", url: `https://${HOST}/crawl-report.html`, virtualConsole: vc,
+    runScripts: "dangerously", url, virtualConsole: vc,
     beforeParse(w) {
       if (noStorage) Object.defineProperty(w, "localStorage", { get() { throw new w.DOMException("denied", "SecurityError"); } });
       else for (const [k, v] of Object.entries(store)) w.localStorage.setItem(k, v);
@@ -83,6 +85,7 @@ export function openReport(html, { store = {}, noStorage = false } = {}) {
   });
   dom.errors = errors;
   dom.downloads = downloads;
+  dom.blobs = blobs;
   return dom;
 }
 

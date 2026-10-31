@@ -101,6 +101,19 @@ export const storeOf = (dom) => {
 // Tick a row's Broken or Working box the way a user does (click fires the change handler).
 export const tick = (dom, url, which) => row(dom, url).querySelector(which === "broken" ? ".brokenbox" : ".okbox").click();
 
+// The data island a fix tracker renders itself from (between its CW_DATA_BOUNDS markers).
+export const trackerData = (src) => JSON.parse(/\/\*CW_DATA_BOUNDS\*\/([\s\S]*?)\/\*CW_DATA_BOUNDS\*\//.exec(src)[1]);
+
+// Click the report's "Export fix tracker" and return the saved tracker document.
+export async function exportTracker(dom) {
+  const before = dom.downloads.length;
+  $(dom, ".trackbtn").click();
+  if (dom.downloads.length !== before + 1) throw new Error("the tracker export saved no file");
+  const { name, blob } = dom.downloads[before];
+  const src = await blob.text();
+  return { name, src, data: trackerData(src) };
+}
+
 // Wait until cond() holds (FileReader and toasts are async). Fails after `ms`.
 export async function until(cond, ms = 2000) {
   const end = Date.now() + ms;

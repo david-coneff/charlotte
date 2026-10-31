@@ -8,7 +8,7 @@
 //   view shows. A URL's verdict is one value wherever the URL appears. Group counters, the
 //   "All: Fixed" box, the amber needfix ring and the stat matrix all follow.
 import assert from "node:assert";
-import { HOST, buildHtml, openReport, $, $$, hasCls, storeOf, tick, exportTracker, run } from "./lib/report-fixture.mjs";
+import { HOST, buildHtml, openReport, $, $$, hasCls, storeOf, tick, exportTracker, until, run } from "./lib/report-fixture.mjs";
 
 const P = (p) => `https://${HOST}${p}`;
 const HOME = P("/"), ABOUT = P("/about/");
@@ -104,13 +104,41 @@ const tests = {
       const d = openReport(src);
       assert.strictEqual(verdictBoxes(d, EY, "vo").length, 0);
       assert.deepStrictEqual(verdictBoxes(d, BQ, "vb").map((b) => b.checked), [true]);
-      // Clearing a baked verdict does not survive a reload yet (charlotte-memory:pando-0011);
-      // changing it to Working does.
+      // Changing it to Working survives a reload.
       verdictBoxes(d, BQ, "vo")[0].click();
       const again = openReport(src, { store: storeOf(d) });
       assert.deepStrictEqual([verdictBoxes(again, BQ, "vb")[0].checked, verdictBoxes(again, BQ, "vo")[0].checked], [false, true], "the tracker's own change wins over the baked one");
       d.window.close(); again.window.close();
     });
+  },
+
+  async "clearing a baked verdict survives a reload and a state export/import"() {
+    // charlotte-memory:pando-0011: un-ticking a verdict that came in with the report used to
+    // remove its key, so the next open fell back to the baked verdict and re-ticked it.
+    const r = openReport(buildHtml());
+    tick(r, BQ, "broken");
+    const { src } = await exportTracker(r);
+    r.window.close();
+    const d = openReport(src);
+    const boxes = (dom) => [verdictBoxes(dom, BQ, "vb")[0].checked, verdictBoxes(dom, BQ, "vo")[0].checked];
+    assert.deepStrictEqual(boxes(d), [true, false], "BQ arrives Broken");
+    verdictBoxes(d, BQ, "vb")[0].click();
+    assert.deepStrictEqual(boxes(d), [false, false], "the fixer cleared it");
+    const reloaded = openReport(src, { store: storeOf(d) });
+    assert.deepStrictEqual(boxes(reloaded), [false, false], "the cleared verdict survives a reload");
+    reloaded.window.close();
+    // Export this tracker's state and import it into a fresh browser: still cleared.
+    $(d, "#cwExp").click();
+    const text = await d.downloads[d.downloads.length - 1].blob.text();
+    assert.strictEqual(JSON.parse(text).v[`${NS}vd:${BQ}`], "", "the export carries the cleared verdict");
+    const fresh = openReport(src);
+    const w = fresh.window, input = $(fresh, "#cwImpF");
+    Object.defineProperty(input, "files", { configurable: true, value: [new w.File([text], "s.json", { type: "application/json" })] });
+    input.dispatchEvent(new w.Event("change"));
+    await until(() => fresh.window.localStorage.getItem(`${NS}vd:${BQ}`) !== null);
+    const after = openReport(src, { store: storeOf(fresh) });
+    assert.deepStrictEqual(boxes(after), [false, false], "the cleared verdict survives export/import");
+    d.window.close(); fresh.window.close(); after.window.close();
   },
 
   "a section's counter, All: Fixed box and needfix ring follow its rows"() {

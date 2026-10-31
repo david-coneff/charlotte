@@ -190,10 +190,14 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   // Per-BROKEN-URL manual verdict (Broken/Working) + last-tested timestamp, mirroring the main
   // report. Baked in at export from the report's localStorage; editable + persisted here too.
   function storedV(url){return rawGet(NS+'vd:'+url);}
-  function saveV(url,v){rawSet(NS+'vd:'+url,v);}
+  // A verdict or last-tested is KEPT when cleared: '' is a stored choice, so a verdict baked in from
+  // the report (initVerdict's fallback) cannot come back after the fixer un-ticks it. rawSet would
+  // remove the key, and a missing key means "use the baked value".
+  function rawKeep(fk,v){var s=lsObj();if(!s)return;try{s.setItem(fk,v||'');}catch(e){}}
+  function saveV(url,v){rawKeep(NS+'vd:'+url,v);}
   function initVerdict(url,baked){var s=storedV(url);if(s!=null)return s;return baked||'';}
   function storedT(url){return rawGet(NS+'vt:'+url);}
-  function saveT(url,t){rawSet(NS+'vt:'+url,t);}
+  function saveT(url,t){rawKeep(NS+'vt:'+url,t);}
   function initTs(url,baked){var s=storedT(url);if(s!=null)return s;return baked||'';}
   function nowStr(){var d=new Date();function p(x){return (x<10?'0':'')+x;}return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());}
   // Set the verdict for a URL everywhere it appears (a URL can be linked from several pages):

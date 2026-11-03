@@ -76,6 +76,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      # The protocol tools read their vocabularies (work items, lessons) as YAML. Without
+      # PyYAML they REPORT a vocabulary unreadable rather than skip it, because a skipped
+      # check reads as a pass, so `maintain` fails by design (pando-0518).
+      - name: Install the protocol tools' dependency
+        run: python3 -m pip install --quiet pyyaml
+
       - name: Protocol pin drift-guard
         working-directory: charlotte
         run: |

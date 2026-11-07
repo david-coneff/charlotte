@@ -201,8 +201,14 @@ jobs:
           ref: ${{ steps.binding.outputs.protocol_ref }}
           path: rhizome-protocol
           token: ${{ secrets.RHIZOME_TOOLS_TOKEN || github.token }}
-      - name: rhiz promote --verify-only (rhiz-working vs origin/main)
+      - name: rhiz promote --verify-only (origin/main vs its last promotion)
         working-directory: charlotte
         run: |
+          # pando-0519 (operator ruling 2026-11-06): main against its OWN last promotion, so a
+          # rhiz-working that moved on is not drift but a direct commit to main is. origin/rhiz-working
+          # resolves in every checkout (a stream-branch run has no local rhiz-working). The flag is
+          # used once the protocol channel's rhiz_promote.py has it; until then the tip check runs.
+          since=""
+          if python3 ../rhizome-protocol/tools/rhiz_promote.py --help | grep -- --since-promotion >/dev/null; then since=--since-promotion; fi
           python3 ../rhizome-protocol/tools/rhiz_promote.py --root . \
-            --source rhiz-working --target origin/main --verify-only
+            --source origin/rhiz-working --target origin/main --verify-only $since

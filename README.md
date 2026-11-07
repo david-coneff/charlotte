@@ -20,6 +20,32 @@ modules in [`src/`](src/) via an esbuild roll-up; the build tool is a dev-time
 | [`web-crawler.html`](CRAWLER/CRAWLER_part_04_web-crawlerhtml-in-browser-crawler.md) | Browser | You want a live, interactive report in the page, with no Node install. |
 | [`local-cors-proxy.js`](CRAWLER/CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md) | Node | Lets `web-crawler.html` crawl across domains from a `file://` page. |
 
+## What it looks like
+
+![Charlotte's crawl report: headline counts of broken hyperlink instances, broken internal and external destinations and referrer pages with broken links, above the tab row and the crawled-pages table](docs/images/report-overview.png)
+
+**The report** — one self-contained HTML file. Headline counts on top, then tabs for
+everything crawled, the off-site links, and the broken/blocked ones. The two verdict boxes on
+each broken row (**Broken** / **Working**) let you triage false positives away, and the
+headline numbers drop as you do.
+
+![The exported fix tracker: a Fixed-over-Broken stat matrix, a By page / By broken link toggle, and a collapsible section per referrer page listing that page's broken links with Fixed boxes and a Notes field](docs/images/tracker-overview.png)
+
+**The fix tracker** — one click from the report. A standalone checklist of every link still to
+fix, grouped by the page it's on (or by the broken link), with Fixed boxes, timestamps and
+per-page notes, and a dashboard of how much of the work is done. Bulk-export it into one
+mini-tracker per page or per site section, hand those to the people who own those pages, and
+import their progress back.
+
+![The Windows GUI's Settings tab: start-URL rows, crawl scope, page/depth limits, rate limiting, option checkboxes and output filenames](docs/images/gui-settings.png)
+
+**The Windows GUI** (`crawl-gui.hta`) — the same crawler as a form, with a live command
+preview, live stats while it runs, and Pause/Stop. Nothing to install beyond Node.
+
+More screenshots — the triage tabs, the live run monitor, the tracker's views and the
+sub-trackers — are in the [full reference](CRAWLER.full.md).
+
+
 ## Quick start
 
 ```bash

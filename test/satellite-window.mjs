@@ -128,6 +128,46 @@ const tests = {
     d.window.close();
   },
 
+  // charlotte-memory:pando-0929: Chrome 148 does not honour the by-name reuse once the popup's page has
+  // disowned its opener (window.opener=null): window.open returns a NEW window. The report keeps it as the
+  // link window and says why a second window appeared; where the name lookup does find the old window
+  // (the same handle comes back), nothing is said.
+  "when the by-name open yields a new window, it becomes the link window and the report says why"() {
+    const d = openWith(html);
+    d.nextPopup = () => fakePopup({ crossOrigin: true });
+    click(d, linkTo(d, EX));
+    d.nextPopup = () => fakePopup();                       // the by-name open: a different, reachable window
+    click(d, linkTo(d, OZ));
+    const note = d.window.document.getElementById("cwLinkNote");
+    assert.ok(note, "a notice appears");
+    assert.match(note.textContent, /new window/);
+    assert.strictEqual(note.getAttribute("role"), "status");
+    const opens = d.opens.length, fresh = d.popups[d.popups.length - 1];
+    click(d, linkTo(d, EX));
+    assert.strictEqual(d.opens.length, opens, "the next link reuses the new window: no further open");
+    assert.ok(fresh.nav.length >= 1, "and navigates it");
+    d.window.close();
+  },
+
+  "when the by-name open finds the old window again, no notice"() {
+    const d = openWith(html);
+    let first = null;
+    d.nextPopup = () => (first = fakePopup({ crossOrigin: true }));
+    click(d, linkTo(d, EX));
+    d.nextPopup = () => first;                             // the name lookup returns the same handle
+    click(d, linkTo(d, OZ));
+    assert.strictEqual(d.window.document.getElementById("cwLinkNote"), null);
+    d.window.close();
+  },
+
+  "a notice saved into a shareable copy is removed when the copy opens"() {
+    const saved = html.replace("<body>", '<body><div id="cwLinkNote" role="status">stale</div>');
+    assert.notStrictEqual(saved, html, "the fixture has a <body> tag to seed");
+    const d = openWith(saved);
+    assert.strictEqual(d.window.document.getElementById("cwLinkNote"), null);
+    d.window.close();
+  },
+
   "where blob: URLs are unavailable, the popup goes straight to the link"() {
     const d = openWith(html, { noBlob: true });
     click(d, linkTo(d, EX));

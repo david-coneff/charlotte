@@ -26,7 +26,9 @@ const { port } = server.address();
 
 // A raw request line, so the client does not normalise ../ away before it is sent.
 const raw = (target, method = "GET") => new Promise((resolve, reject) => {
-  const s = net.connect(port, "127.0.0.1", () => s.end(`${method} ${target} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`));
+  // write, not end: a half-closed socket can drop a streamed (async) response; the server closes
+  // it after replying because of Connection: close.
+  const s = net.connect(port, "127.0.0.1", () => s.write(`${method} ${target} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n`));
   let buf = ""; s.on("data", (c) => (buf += c)); s.on("end", () => resolve(buf)); s.on("error", reject);
 });
 const status = (r) => Number(r.split(" ")[1]);

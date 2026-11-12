@@ -4,16 +4,16 @@
   "source-file": "CRAWLER.md",
   "split-heading-level": 2,
   "created": "2026-06-27T16:07:48Z",
-  "updated": "2026-11-06T14:11:28Z",
+  "updated": "2026-11-12T14:41:52Z",
   "parent-index": null,
   "sections": [
     {
       "section-order": 1,
       "section-id": "preamble",
       "filename": "CRAWLER_part_01_preamble.md",
-      "content-hash": "sha256:c1fcbc2326ead69a9bf0f223eaf17200863800b3500d1ddf0317775614ea5c38",
-      "line-count": 27,
-      "byte-count": 1658,
+      "content-hash": "sha256:41bfd89a3d42286433834e53d3421ea5ab19acc56916e38f942bb56e82893c84",
+      "line-count": 28,
+      "byte-count": 1915,
       "description": "Suite orientation: what Charlotte is (a single-domain crawler that maps a site, records but never follows first-tier external links, verifies links \u2014 including inside PDF/Office docs \u2014 and writes a self-contained HTML report) plus the pick-your-tool table linking each entry point.",
       "desc-source": "unknown"
     },
@@ -21,9 +21,9 @@
       "section-order": 2,
       "section-id": "crawljs-node-crawler-recommended",
       "filename": "CRAWLER_part_02_crawljs-node-crawler-recommended.md",
-      "content-hash": "sha256:ff04e78136de99fdbd05b7a80bf784849fe8273ac0bf23bbb40332ebd8bffdf0",
-      "line-count": 898,
-      "byte-count": 56201,
+      "content-hash": "sha256:c7140e5ab755a1a5746a3a70b35b0ac7363448af3007447dfe8d6468ed537973",
+      "line-count": 902,
+      "byte-count": 56722,
       "description": "The flagship Node crawler \u2014 the primary, recommended tool, kept whole as one coherent reference with its own internal ### TOC (~770 lines). Covers requirements, quick start, common runs, the full option list, multi-site runs, scope/depth, rate limiting + robots/adaptive-backoff/auto-resume, document-link scanning, the --recheck-from / --rebuild-from modes, the headless Playwright second opinion (crawl-render.js), large-crawl checkpoints + resume (--state/--resume), mid-crawl re-tuning (--tune-file), memory tuning, the self-contained HTML report, and the allowlist.",
       "desc-source": "unknown"
     },
@@ -51,9 +51,9 @@
       "section-order": 5,
       "section-id": "local-cors-proxyjs-proxy-for-the-html-ve",
       "filename": "CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md",
-      "content-hash": "sha256:77c2fea2bcabb15f4126490b0f158ce99686240a8e392a03b6c67d75bc1442dc",
-      "line-count": 30,
-      "byte-count": 1041,
+      "content-hash": "sha256:ac55f4d4837a1d1eee9c0c10bc423ff8dfbc3bf27eedff00ee66dd62465ce35b",
+      "line-count": 65,
+      "byte-count": 2962,
       "description": "The zero-dependency CORS proxy (local-cors-proxy.js) that lets web-crawler.html cross origins from a file:// page.",
       "desc-source": "unknown"
     },
@@ -68,5 +68,5 @@
       "desc-source": "unknown"
     }
   ],
-  "index-hash": "sha256:61bc188e8c8e04feb25b6877093b528daf7602020df3622985b826d37fa4a6eb"
+  "index-hash": "sha256:c227bfb142df6abcf1b7924b7680761c5d5923d458a8769c3780402b26596ccf"
 }

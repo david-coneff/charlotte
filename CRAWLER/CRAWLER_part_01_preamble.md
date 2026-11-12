@@ -4,7 +4,7 @@ docgraph-type: section
 section-id: preamble
 section-order: 1
 parent-index: CRAWLER_index.json
-content-hash: sha256:c1fcbc2326ead69a9bf0f223eaf17200863800b3500d1ddf0317775614ea5c38
+content-hash: sha256:41bfd89a3d42286433834e53d3421ea5ab19acc56916e38f942bb56e82893c84
 ---
 # 🕸️ Charlotte — Domain Crawler
 
@@ -18,6 +18,7 @@ run it.
 | [`crawl-gui.hta`](CRAWLER_part_03_crawl-guihta-windows-gui.md) | Windows | You'd rather click than type — a form front-end for `crawl.js`. |
 | [`web-crawler.html`](CRAWLER_part_04_web-crawlerhtml-in-browser-crawler.md) | Browser | You want a live, interactive report in the page, or you host the file on the domain you're mapping. |
 | [`local-cors-proxy.js`](CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md) | Node | Only needed to let `web-crawler.html` crawl across domains from `file://`. |
+| [`local-static-server.js`](CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost) | Node | Only needed when the browser blocks storage for a report or fix tracker (Import says so). |
 
 All three apply the same rules:
 

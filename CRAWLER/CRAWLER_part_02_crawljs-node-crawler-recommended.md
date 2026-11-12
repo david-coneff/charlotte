@@ -4,7 +4,7 @@ docgraph-type: section
 section-id: crawljs-node-crawler-recommended
 section-order: 2
 parent-index: CRAWLER_index.json
-content-hash: sha256:ff04e78136de99fdbd05b7a80bf784849fe8273ac0bf23bbb40332ebd8bffdf0
+content-hash: sha256:c7140e5ab755a1a5746a3a70b35b0ac7363448af3007447dfe8d6468ed537973
 ---
 ## `crawl.js` — Node crawler (recommended)
 
@@ -754,7 +754,9 @@ downloads a **self-contained copy of the tracker with all of that baked in** —
 file and the recipient opens it with your progress already in place. Imports are checked to the
 same site and only apply keys under this tracker's own `cwfix:<host>:` namespace (a dropped file
 can't inject stray storage), and a saved copy still displays where `file://` storage is locked
-down.
+down. Import itself needs that storage: where cookies are blocked for the page, it refuses and
+says so, and [`local-static-server.js`](CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost)
+gives the two ways to allow it.
 
 Two **bulk-export** buttons turn the tracker into a delegation hub, each batch-writing a set of
 self-contained mini-trackers into a **folder you pick once** (File System Access directory picker;
@@ -824,7 +826,9 @@ verdicts** toolbar (above the tabs, on the final report) carries it across:
   timestamp (`charlotte-verdicts-<host>.json`) to send alongside the report; Import loads such
   a file and reloads. Import **merges by link** (each link the file mentions is replaced; links
   it doesn't mention are left alone), so several people's triage can be combined. A verdicts
-  file made for a different site is rejected.
+  file made for a different site is rejected. Where cookies are blocked for the report, Import
+  refuses and says so; see
+  [`local-static-server.js`](CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost).
 
 (The **fix tracker** export above is already a self-contained file, so *it* survives emailing
 too — but it's the referrer-grouped “what to fix” view, not the raw Broken/Working verdicts.)

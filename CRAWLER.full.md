@@ -12,6 +12,7 @@ run it.
 | [`crawl-gui.hta`](#crawl-guihta--windows-gui) | Windows | You'd rather click than type — a form front-end for `crawl.js`. |
 | [`web-crawler.html`](#web-crawlerhtml--in-browser-crawler) | Browser | You want a live, interactive report in the page, or you host the file on the domain you're mapping. |
 | [`local-cors-proxy.js`](#local-cors-proxyjs--proxy-for-the-html-version) | Node | Only needed to let `web-crawler.html` crawl across domains from `file://`. |
+| [`local-static-server.js`](#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost) | Node | Only needed when the browser blocks storage for a report or fix tracker (Import says so). |
 
 All three apply the same rules:
 
@@ -780,7 +781,9 @@ downloads a **self-contained copy of the tracker with all of that baked in** —
 file and the recipient opens it with your progress already in place. Imports are checked to the
 same site and only apply keys under this tracker's own `cwfix:<host>:` namespace (a dropped file
 can't inject stray storage), and a saved copy still displays where `file://` storage is locked
-down.
+down. Import itself needs that storage: where cookies are blocked for the page, it refuses and
+says so, and [`local-static-server.js`](#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost)
+gives the two ways to allow it.
 
 Two **bulk-export** buttons turn the tracker into a delegation hub, each batch-writing a set of
 self-contained mini-trackers into a **folder you pick once** (File System Access directory picker;
@@ -850,7 +853,9 @@ verdicts** toolbar (above the tabs, on the final report) carries it across:
   timestamp (`charlotte-verdicts-<host>.json`) to send alongside the report; Import loads such
   a file and reloads. Import **merges by link** (each link the file mentions is replaced; links
   it doesn't mention are left alone), so several people's triage can be combined. A verdicts
-  file made for a different site is rejected.
+  file made for a different site is rejected. Where cookies are blocked for the report, Import
+  refuses and says so; see
+  [`local-static-server.js`](#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost).
 
 (The **fix tracker** export above is already a self-contained file, so *it* survives emailing
 too — but it's the referrer-grouped “what to fix” view, not the raw Broken/Working verdicts.)
@@ -1133,6 +1138,41 @@ http://127.0.0.1:8080/?url={url}
   it needs no special browser permission and keeps your traffic on your machine.
 
 You don't need this at all if you run `crawl.js` instead.
+
+### `local-static-server.js` — serve a report or fix tracker on localhost
+
+The report's verdicts and the fix tracker's progress live in the browser's
+`localStorage`. If **⬆ Import** says storage is blocked, the cause is a **cookie
+block** for that page: Chrome's *Don't allow sites to save data on your device*
+setting, or an administrator's `DefaultCookiesSetting` policy. That block applies
+to `file://` **and** to `http://127.0.0.1` alike, so serving the page is not
+enough by itself: the page's address also has to be allowed. Two routes, both
+checked in Chrome 148 with storage blocked:
+
+1. **No server.** Open `chrome://settings/content/siteData`, and under
+   **Allowed to save data on your device** click **Add** and enter `file:///*`.
+   Reload the report or tracker; Import now works from the file itself.
+2. **This server**, for when local files may not get an exception. It is a tiny
+   zero-dependency Node server, like the proxy above:
+
+   ```bash
+   node local-static-server.js <folder>         # serves <folder> on 127.0.0.1:8081
+   node local-static-server.js <folder> 9001    # custom port (or PORT=9001)
+   npm run serve -- <folder>
+   ```
+
+   Then add the address it prints (for example `http://127.0.0.1:8081`) under
+   **Allowed to save data on your device** the same way, open that address, and
+   click the tracker or report in the folder listing.
+
+An administrator can allow either pattern with the `CookiesAllowedForUrls` policy.
+Keep the same port each time: the stored progress, and the exception, belong to
+that exact address, so another port starts empty. To carry progress between the
+two routes, **⬇ Export** from one and **⬆ Import** into the other.
+
+**Security notes:** it binds to `127.0.0.1` only, serves one folder read-only
+(with a listing), and refuses any path that leaves that folder (`../`, encoded or
+not, and symlinks pointing out). Stop it (Ctrl+C) when you're done.
 
 ---
 

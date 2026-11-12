@@ -105,7 +105,11 @@ const tests = {
   "with storage blocked, import says why instead of failing silently"() {
     const d = open(html, { noStorage: true });
     importFile(d, JSON.stringify({ app: "charlotte-verdicts", host: HOST, v: { [KB(EX)]: "1" } }));
-    assert.match(toast(d), /blocks storage for local files/);
+    // The cause is a cookie block, which serving alone does not get past (pando-0648): the toast
+    // names it, the fix (allow cookies), and the bundled server.
+    assert.match(toast(d), /cookies are blocked for this page/);
+    assert.match(toast(d), /Allow cookies for this report file/);
+    assert.match(toast(d), /local-static-server\.js/);
     d.window.close();
   },
 

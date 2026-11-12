@@ -126,6 +126,15 @@ const tests = {
     d.window.close(); fresh.window.close(); busy.window.close();
   },
 
+  "with storage blocked, import names the cookie block and the server, and writes nothing"() {
+    const d = open(TRACKER, { noStorage: true });
+    importFiles(d, [STATE({ [PAIR(HOME, EX)]: "1" })]);
+    assert.match(toast(d), /cookies are blocked for this page/);
+    assert.match(toast(d), /Allow cookies for this file/);
+    assert.match(toast(d), /local-static-server\.js/);
+    d.window.close();
+  },
+
   async "a saved copy shows its state read-only where storage is blocked, and re-saves one seed"() {
     const d = open(TRACKER);
     fixBox(d, ABOUT, OZ).click();

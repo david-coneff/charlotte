@@ -5,11 +5,13 @@
  * The report and the fix tracker keep their state in the browser's localStorage. Where the
  * browser blocks cookies for a page (a "Block all cookies" setting, or an administrator's
  * DefaultCookiesSetting policy), localStorage throws and Import refuses. That block applies
- * on file:// AND on http://127.0.0.1 alike, so serving the page is not enough by itself:
- * serve it from here, then ALLOW COOKIES for the address this prints (in Chrome: Settings ›
- * Privacy and security › Third-party cookies › "Allowed to use third-party cookies" › Add,
- * or "Sites that can always use cookies"; an administrator can use CookiesAllowedForUrls).
- * Allowing a site pattern for an http address is the route the settings page accepts.
+ * on file:// AND on http://127.0.0.1 alike, so serving the page is not enough by itself.
+ * Two routes, both checked in Chrome 148 with storage blocked:
+ *   - no server: allow cookies for local files — chrome://settings/content/siteData ›
+ *     "Allowed to save data on your device" › Add › file:///*
+ *   - this server: serve the folder, then add the address it prints the same way
+ *     (e.g. http://127.0.0.1:8081) — for when local files may not get an exception.
+ * An administrator can set either through the CookiesAllowedForUrls policy.
  *
  * SECURITY: binds to 127.0.0.1 only — never exposed to your network. It serves the files in
  * ONE folder (and below it) read-only, and refuses any path that leaves that folder. Stop it
@@ -116,7 +118,8 @@ if (require.main === module) {
   start({ root, port }).then(({ root: dir, url }) => {
     console.log(`Serving ${dir}`);
     console.log(`  at ${url}  (127.0.0.1 only; Ctrl+C to stop)`);
-    console.log(`If Import still says storage is blocked, allow cookies for ${url.replace(/\/$/, "")} in the browser.`);
+    console.log(`If Import still says storage is blocked, allow ${url.replace(/\/$/, "")} at chrome://settings/content/siteData`);
+    console.log(`  ("Allowed to save data on your device" › Add).`);
   }, (e) => {
     console.error(e.code === "EADDRINUSE" ? `Port ${port} is in use — pass another, e.g. node local-static-server.js <folder> ${port + 1}` : String(e.message || e));
     process.exit(1);

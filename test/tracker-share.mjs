@@ -127,11 +127,22 @@ const tests = {
   },
 
   "with storage blocked, import names the cookie block and the server, and writes nothing"() {
-    const d = open(TRACKER, { noStorage: true });
+    const d = open(TRACKER, { noStorage: true, url: "file:///home/me/tracker.html" });
     importFiles(d, [STATE({ [PAIR(HOME, EX)]: "1" })]);
     assert.match(toast(d), /cookies are blocked for this page/);
     assert.match(toast(d), /Allow cookies for this file/);
     assert.match(toast(d), /local-static-server\.js/);
+    d.window.close();
+  },
+
+  // A page already served (by local-static-server.js or anything else) is not a file and needs no
+  // server: the toast names its own origin as the thing to allow (charlotte-memory:pando-0946).
+  "with storage blocked on a served page, import names that page's origin, not a file or a server"() {
+    const d = open(TRACKER, { noStorage: true, url: "http://127.0.0.1:8093/tracker.html" });
+    importFiles(d, [STATE({ [PAIR(HOME, EX)]: "1" })]);
+    assert.match(toast(d), /cookies are blocked for this page/);
+    assert.match(toast(d), /Allow cookies for http:\/\/127\.0\.0\.1:8093 \(chrome:\/\/settings\/content\/siteData/);
+    assert.doesNotMatch(toast(d), /this file|serve its folder/);
     d.window.close();
   },
 

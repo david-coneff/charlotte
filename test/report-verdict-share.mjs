@@ -103,13 +103,22 @@ const tests = {
   },
 
   "with storage blocked, import says why instead of failing silently"() {
-    const d = open(html, { noStorage: true });
+    const d = open(html, { noStorage: true, url: "file:///home/me/crawl-report.html" });
     importFile(d, JSON.stringify({ app: "charlotte-verdicts", host: HOST, v: { [KB(EX)]: "1" } }));
     // The cause is a cookie block, which serving alone does not get past (pando-0648): the toast
     // names it, the fix (allow cookies), and the bundled server.
     assert.match(toast(d), /cookies are blocked for this page/);
     assert.match(toast(d), /Allow cookies for this report file/);
     assert.match(toast(d), /local-static-server\.js/);
+    d.window.close();
+  },
+
+  "with storage blocked on a served report, import names that page's origin, not a file or a server"() {
+    const d = open(html, { noStorage: true, url: "http://127.0.0.1:8093/crawl-report.html" });
+    importFile(d, JSON.stringify({ app: "charlotte-verdicts", host: HOST, v: { [KB(EX)]: "1" } }));
+    assert.match(toast(d), /cookies are blocked for this page/);
+    assert.match(toast(d), /Allow cookies for http:\/\/127\.0\.0\.1:8093 \(chrome:\/\/settings\/content\/siteData/);
+    assert.doesNotMatch(toast(d), /this report file|serve its folder/);
     d.window.close();
   },
 

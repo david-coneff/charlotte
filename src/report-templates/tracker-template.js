@@ -342,7 +342,11 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   function toast(msg,ms){var t=document.getElementById('cw-toast');if(!t){t=document.createElement('div');t.id='cw-toast';t.className='toast';document.body.appendChild(t);}t.textContent=msg;t.className='toast show';clearTimeout(toast.h);toast.h=setTimeout(function(){t.className='toast';},ms||2600);}
   // Storage throws when cookies are blocked for the page's origin (a user setting or the
   // DefaultCookiesSetting policy) — on file:// AND on localhost alike, so serving alone is not enough.
-  var NOSTORE='Import needs this browser’s storage, which is blocked here because cookies are blocked for this page. Allow cookies for this file, or serve its folder with node local-static-server.js and allow cookies for the http://127.0.0.1 address it prints (CRAWLER: local-static-server.js).';
+  // Served over http(s) (e.g. by local-static-server.js), the page's own origin is what to allow;
+  // only a file:// page gets the serve-it route (charlotte-memory:pando-0946).
+  function nostoreMsg(){var head='Import needs this browser’s storage, which is blocked here because cookies are blocked for this page. ';var o='';try{o=/^https?:$/.test(location.protocol)?location.origin:'';}catch(e){}
+    return o?head+'Allow cookies for '+o+' (chrome://settings/content/siteData, Allowed to save data on your device, Add), then reload (CRAWLER: local-static-server.js).'
+      :head+'Allow cookies for this file, or serve its folder with node local-static-server.js and allow cookies for the http://127.0.0.1 address it prints (CRAWLER: local-static-server.js).';}
   function dl(blob,name){try{var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},0);return true;}catch(e){return false;}}
   // Save through the File System Access "Save As" PICKER (operator chooses folder + name); falls back to a
   // plain download where the API is unavailable/restricted. Cancelling the picker is silent.
@@ -354,13 +358,13 @@ var DATA = /*CW_DATA_BOUNDS*/"__DATA__"/*CW_DATA_BOUNDS*/;
   // many contributors) can never write stray localStorage keys outside cwfix:<host>:. Returns the
   // count actually applied.
   function applyState(obj){var s=lsObj();if(!s||!obj||!obj.v)return 0;var k,c=0;for(k in obj.v){if(obj.v.hasOwnProperty(k)&&k.indexOf(NS)===0){try{s.setItem(k,obj.v[k]);c++;}catch(e){}}}return c;}
-  function importState(file){if(!file)return;if(!lsObj()){toast(NOSTORE,9000);return;}var r=new FileReader();r.onload=function(){var obj;try{obj=JSON.parse(String(r.result));}catch(e){obj=null;}if(!obj||obj.app!=='charlotte-fix-tracker'||!obj.v){toast('Not a Charlotte fix-tracker state file');return;}if((obj.host||'')!==(DATA.host||'')){toast('That state is for a different site — not applied');return;}var c=countState(obj);applyState(obj);toast('Imported '+c+' entr'+(c===1?'y':'ies')+' — reloading…');setTimeout(function(){try{location.reload();}catch(e){}},700);};r.onerror=function(){toast('Could not read the file');};try{r.readAsText(file);}catch(e){toast('Could not read the file');}}
+  function importState(file){if(!file)return;if(!lsObj()){toast(nostoreMsg(),9000);return;}var r=new FileReader();r.onload=function(){var obj;try{obj=JSON.parse(String(r.result));}catch(e){obj=null;}if(!obj||obj.app!=='charlotte-fix-tracker'||!obj.v){toast('Not a Charlotte fix-tracker state file');return;}if((obj.host||'')!==(DATA.host||'')){toast('That state is for a different site — not applied');return;}var c=countState(obj);applyState(obj);toast('Imported '+c+' entr'+(c===1?'y':'ies')+' — reloading…');setTimeout(function(){try{location.reload();}catch(e){}},700);};r.onerror=function(){toast('Could not read the file');};try{r.readAsText(file);}catch(e){toast('Could not read the file');}}
   // Import one OR MANY state files in a single action and merge them all, then reload once. Lets the
   // operator pull a whole folder of contributors' exports together (the manual counterpart to the
   // SharePoint/Power-Automate merge described in SHAREPOINT-MERGE.md) without importing one at a time.
   function importStateFiles(files){
     if(!files||!files.length)return;
-    if(!lsObj()){toast(NOSTORE,9000);return;}
+    if(!lsObj()){toast(nostoreMsg(),9000);return;}
     var list=[],i;for(i=0;i<files.length;i++)list.push(files[i]);
     var total=list.length,done=0,okFiles=0,okEntries=0,skipBad=0,skipHost=0;
     function finish(){

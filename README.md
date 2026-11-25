@@ -19,6 +19,7 @@ modules in [`src/`](src/) via an esbuild roll-up; the build tool is a dev-time
 | [`crawl-render.js`](CRAWLER/CRAWLER_part_02_crawljs-node-crawler-recommended.md) | Node + Playwright | Two jobs in real Chromium: **re-check** links `crawl.js` flagged dead/blocked, and **`--discover`** a JavaScript-built site (an SPA like Laserfiche WebLink) that `crawl.js` can't navigate, emitting the links it finds back to `crawl.js`. |
 | [`web-crawler.html`](CRAWLER/CRAWLER_part_04_web-crawlerhtml-in-browser-crawler.md) | Browser | You want a live, interactive report in the page, with no Node install. |
 | [`local-cors-proxy.js`](CRAWLER/CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md) | Node | Lets `web-crawler.html` crawl across domains from a `file://` page. |
+| [`local-static-server.js`](CRAWLER/CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost) | Node | Serves a report or fix tracker on localhost, for a browser that blocks storage on local files. |
 
 ## What it looks like
 
@@ -109,9 +110,9 @@ is a pointer to the index.)
 
 ## Requirements
 
-- **`crawl.js`, `local-cors-proxy.js`** — Node ≥ 14, zero npm dependencies to **run**.
+- **`crawl.js`, `local-cors-proxy.js`, `local-static-server.js`** — Node ≥ 14, zero npm dependencies to **run**.
   `crawl.js` ships as a **single self-contained file** (an esbuild roll-up of the modules in
-  [`src/`](src/)); just run it. `local-cors-proxy.js` is a standalone zero-dep file.
+  [`src/`](src/)); just run it. `local-cors-proxy.js` and `local-static-server.js` are standalone zero-dep files.
 
 ## Building from source
 
@@ -124,8 +125,8 @@ npm run build # rolls src/ up into ./crawl.js
 ```
 
 The built `crawl.js` runs with **zero install** (Node built-ins only) — the build tool is
-never needed to *run* it, only to rebuild it after a source change. `crawl-render.js` and
-`local-cors-proxy.js` are standalone single files with no build step.
+never needed to *run* it, only to rebuild it after a source change. `crawl-render.js`,
+`local-cors-proxy.js` and `local-static-server.js` are standalone single files with no build step.
 - **`crawl-render.js`** — Node, plus an optional [Playwright](https://playwright.dev)
   install (`npm install`); without it, run with `--http-fallback` for plain HTTP checks.
 - **`crawl-gui.hta`** — Windows (mshta.exe) with Node on `PATH`.

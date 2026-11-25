@@ -2,6 +2,13 @@
 // NEWWIN — the reused side-docked link-window script appended to the report and tracker.
 // Split from report-templates.js (AD-082). Constraints unchanged: no backtick / ${} / backslash / inner-IIFE.
 const NEWWIN = "<script>(function(){var SAT=null,Q=String.fromCharCode(34);"
+// A copy saved while the notice below was up carries it in its DOM: drop it on load (charlotte-memory:pando-0929).
++ "var oldNote=document.getElementById('cwLinkNote');if(oldNote&&oldNote.parentNode)oldNote.parentNode.removeChild(oldNote);"
+// A short self-removing notice in the report (this script has no toast of its own: the index report carries
+// NEWWIN without the triage script). Removed from the DOM when it hides, so a saved copy does not keep it.
++ "function note(m){try{var d=document.getElementById('cwLinkNote');if(!d){d=document.createElement('div');d.id='cwLinkNote';d.setAttribute('role','status');"
++ "d.style.cssText='position:fixed;right:16px;bottom:16px;max-width:360px;z-index:99999;background:#1b2330;color:#e6e9ef;border:1px solid #3a4658;border-radius:8px;padding:10px 14px;font:13px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 4px 16px rgba(0,0,0,.35)';"
++ "document.body.appendChild(d);}d.textContent=m;clearTimeout(d.cwT);d.cwT=setTimeout(function(){if(d.parentNode)d.parentNode.removeChild(d);},12000);}catch(e){}}"
 + "function esc(s){return String(s).split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;').split(Q).join('&quot;');}"
 // A tiny same-origin interstitial shown in the popup before each link loads, so testing several links
 // that all return the SAME 404 page is visibly distinguishable (you can see a new load was started, and
@@ -32,8 +39,13 @@ const NEWWIN = "<script>(function(){var SAT=null,Q=String.fromCharCode(34);"
 // readable), reuse it BY NAME — window.open(url,'charlotteLink') with NO features targets the
 // existing window instead of spawning a second one, which is what passing a features string would do.
 // Only when the popup is genuinely closed/absent do we open a fresh, sized + docked one.
+// Chrome does NOT honour the by-name reuse once the popup's page has disowned its opener
+// (window.opener=null): navigation, close() and the name lookup all fail, so window.open returns a
+// NEW window (measured in Chrome 148, 2026-11-11, charlotte-memory:pando-0929). No script can reach
+// the old window then. Keep the new one as the link window, and say why a second window appeared.
 + "if(SAT&&!SAT.closed){if(go(SAT,href)){try{SAT.focus();}catch(e){}return SAT;}"
-+ "if(!SAT.closed){var iu=null;try{iu=interURL(href);}catch(e){iu=null;}var rw=window.open(iu||href,'charlotteLink');if(rw){SAT=rw;if(iu)setTimeout(function(){try{URL.revokeObjectURL(iu);}catch(e){}},6000);try{rw.focus();}catch(e){}return rw;}}"
++ "if(!SAT.closed){var iu=null;try{iu=interURL(href);}catch(e){iu=null;}var rw=window.open(iu||href,'charlotteLink');if(rw){var same=(rw===SAT);SAT=rw;if(iu)setTimeout(function(){try{URL.revokeObjectURL(iu);}catch(e){}},6000);try{rw.focus();}catch(e){}"
++ "if(!same)note('The page in the link window cut its connection to this report, so the report can no longer reuse that window. Links now open in a new window; you can close the old one.');return rw;}}"
 + "SAT=null;}"
 + "var nw=window.open('','charlotteLink','popup=yes,scrollbars=yes,resizable=yes,width='+w+',height='+h+',left='+x+',top='+y);"
 + "if(nw){SAT=nw;try{nw.moveTo(x,y);nw.resizeTo(w,h);}catch(e){}go(nw,href);try{nw.focus();}catch(e){}return nw;}"

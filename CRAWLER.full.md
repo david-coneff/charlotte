@@ -12,6 +12,7 @@ run it.
 | [`crawl-gui.hta`](#crawl-guihta--windows-gui) | Windows | You'd rather click than type — a form front-end for `crawl.js`. |
 | [`web-crawler.html`](#web-crawlerhtml--in-browser-crawler) | Browser | You want a live, interactive report in the page, or you host the file on the domain you're mapping. |
 | [`local-cors-proxy.js`](#local-cors-proxyjs--proxy-for-the-html-version) | Node | Only needed to let `web-crawler.html` crawl across domains from `file://`. |
+| [`local-static-server.js`](#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost) | Node | Only needed when the browser blocks storage for a report or fix tracker (Import says so). |
 
 All three apply the same rules:
 
@@ -319,6 +320,59 @@ node crawl-render.js --from-json crawl-report.json --channel chrome \
   rendering) so the tool still runs, clearly labelled as such in its output.
 
 Run `node crawl-render.js --help` for the full option list.
+
+### Mapping a JavaScript-built site (`crawl-render.js --discover`, then `crawl.js --seeds`)
+
+`crawl.js` reads HTML as the server sends it, so a site whose navigation is built by
+JavaScript (a single-page app, a document repository viewer) shows it almost no links.
+`crawl-render.js` has a second job for that: **discover**. It renders the site in real
+Chromium, harvests the links the rendered pages actually carry, and writes them as seeds
+that `crawl.js` then verifies with its normal pipeline:
+
+```
+node crawl-render.js --discover https://site.example/ --seeds site.seeds.txt
+node crawl.js --seeds site.seeds.txt --out report.html
+```
+
+Discover options (`node crawl-render.js --help` has the full list):
+
+- `--seeds FILE` — where the discovered URLs go, one per line: in-scope pages and
+  documents (default `crawl-render.seeds.txt`). A full JSON manifest of pages, documents
+  and links goes to `--out` (default `crawl-render.discover.json` in this mode).
+- `--scope domain|path`, `--path-prefix STR`, `--include-subdomains`, `--max-pages N`
+  (default 200), `--max-depth N` (default 8) — the same confinement as a `crawl.js` crawl.
+- `--settle MS` — an extra wait after load for late XHR-driven rendering (default 0). In
+  discover mode `--wait-until` defaults to `networkidle`.
+- `--no-onclick-scan` — URL-like `onclick`/`data-*` attributes are harvested by default
+  (single-page apps often navigate from JavaScript handlers); this turns that off.
+- `--ignore-case` — de-duplicate URLs case-insensitively, and query strings whose
+  parameters differ only in order, so `/Browse.aspx` and `/browse.aspx` render once. For
+  IIS/ASP.NET sites (Laserfiche WebLink, SharePoint); off by default, because it is wrong
+  on a case-sensitive server.
+- `--laserfiche` — for Laserfiche WebLink: a `DocView.aspx?id=N` viewer page is recorded
+  as a DOCUMENT (its file URL) instead of being rendered, which turns thousands of viewer
+  renders into file URLs `crawl.js` can scan. `--laserfiche-dl P` (implies `--laserfiche`)
+  chooses how a document's bytes are reached: `electronicfile` (default,
+  `ElectronicFile.aspx?docid=N`, the native file, which works where PDF export is blocked),
+  or `openpdf=true` / `openfile=true` as a query parameter on `DocView`.
+- **Limits shared with the GUI:** when `crawl-gui-config.txt` (the GUI's options file) sits
+  beside the script or in the working directory, discover reads the same limits from it
+  (max pages and depth, scope and path prefix, concurrency, delay, timeout, subdomains), so
+  a discover run honours what was set for a GUI crawl; explicit flags still win.
+  `--config FILE` reads another file, `--no-config` ignores it. `--log`, `--stop-file` and
+  `--pause-file` let the GUI monitor, stop and pause the discover phase.
+
+**`crawl.js --seeds FILE`** reads start URLs from a file (one per line; `#` comments and
+blank lines ignored). Unlike several start URLs on the command line, which are crawled as
+separate sites with an index report, a seeds file makes **one** crawl: every seed starts
+the frontier at depth 0, with one shared seen-set and one report. Every seed's host counts
+as internal, not only the first one's, so a sibling host the discover run found (a
+document repository beside the main site) is followed rather than filed as external, the
+same rule discover applies.
+
+**`crawl.js --start-url URL`** names the site explicitly for `--rebuild-from` or
+`--recheck-from` on an older JSON report that did not record its start URL (reports from
+this version on record it).
 
 ### Large crawls: checkpoints, resumable view, and partitioned logs
 
@@ -727,7 +781,9 @@ downloads a **self-contained copy of the tracker with all of that baked in** —
 file and the recipient opens it with your progress already in place. Imports are checked to the
 same site and only apply keys under this tracker's own `cwfix:<host>:` namespace (a dropped file
 can't inject stray storage), and a saved copy still displays where `file://` storage is locked
-down.
+down. Import itself needs that storage: where cookies are blocked for the page, it refuses and
+says so, and [`local-static-server.js`](#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost)
+gives the two ways to allow it.
 
 Two **bulk-export** buttons turn the tracker into a delegation hub, each batch-writing a set of
 self-contained mini-trackers into a **folder you pick once** (File System Access directory picker;
@@ -797,7 +853,9 @@ verdicts** toolbar (above the tabs, on the final report) carries it across:
   timestamp (`charlotte-verdicts-<host>.json`) to send alongside the report; Import loads such
   a file and reloads. Import **merges by link** (each link the file mentions is replaced; links
   it doesn't mention are left alone), so several people's triage can be combined. A verdicts
-  file made for a different site is rejected.
+  file made for a different site is rejected. Where cookies are blocked for the report, Import
+  refuses and says so; see
+  [`local-static-server.js`](#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost).
 
 (The **fix tracker** export above is already a self-contained file, so *it* survives emailing
 too — but it's the referrer-grouped “what to fix” view, not the raw Broken/Working verdicts.)
@@ -1080,6 +1138,41 @@ http://127.0.0.1:8080/?url={url}
   it needs no special browser permission and keeps your traffic on your machine.
 
 You don't need this at all if you run `crawl.js` instead.
+
+### `local-static-server.js` — serve a report or fix tracker on localhost
+
+The report's verdicts and the fix tracker's progress live in the browser's
+`localStorage`. If **⬆ Import** says storage is blocked, the cause is a **cookie
+block** for that page: Chrome's *Don't allow sites to save data on your device*
+setting, or an administrator's `DefaultCookiesSetting` policy. That block applies
+to `file://` **and** to `http://127.0.0.1` alike, so serving the page is not
+enough by itself: the page's address also has to be allowed. Two routes, both
+checked in Chrome 148 with storage blocked:
+
+1. **No server.** Open `chrome://settings/content/siteData`, and under
+   **Allowed to save data on your device** click **Add** and enter `file:///*`.
+   Reload the report or tracker; Import now works from the file itself.
+2. **This server**, for when local files may not get an exception. It is a tiny
+   zero-dependency Node server, like the proxy above:
+
+   ```bash
+   node local-static-server.js <folder>         # serves <folder> on 127.0.0.1:8081
+   node local-static-server.js <folder> 9001    # custom port (or PORT=9001)
+   npm run serve -- <folder>
+   ```
+
+   Then add the address it prints (for example `http://127.0.0.1:8081`) under
+   **Allowed to save data on your device** the same way, open that address, and
+   click the tracker or report in the folder listing.
+
+An administrator can allow either pattern with the `CookiesAllowedForUrls` policy.
+Keep the same port each time: the stored progress, and the exception, belong to
+that exact address, so another port starts empty. To carry progress between the
+two routes, **⬇ Export** from one and **⬆ Import** into the other.
+
+**Security notes:** it binds to `127.0.0.1` only, serves one folder read-only
+(with a listing), and refuses any path that leaves that folder (`../`, encoded or
+not, and symlinks pointing out). Stop it (Ctrl+C) when you're done.
 
 ---
 

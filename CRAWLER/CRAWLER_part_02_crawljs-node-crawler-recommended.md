@@ -4,7 +4,7 @@ docgraph-type: section
 section-id: crawljs-node-crawler-recommended
 section-order: 2
 parent-index: CRAWLER_index.json
-content-hash: sha256:4659a3cfaf93fdf55830552886726b71a1236289636a127295852c6e1aaa59c9
+content-hash: sha256:c7140e5ab755a1a5746a3a70b35b0ac7363448af3007447dfe8d6468ed537973
 ---
 ## `crawl.js` — Node crawler (recommended)
 
@@ -293,6 +293,59 @@ node crawl-render.js --from-json crawl-report.json --channel chrome \
   rendering) so the tool still runs, clearly labelled as such in its output.
 
 Run `node crawl-render.js --help` for the full option list.
+
+### Mapping a JavaScript-built site (`crawl-render.js --discover`, then `crawl.js --seeds`)
+
+`crawl.js` reads HTML as the server sends it, so a site whose navigation is built by
+JavaScript (a single-page app, a document repository viewer) shows it almost no links.
+`crawl-render.js` has a second job for that: **discover**. It renders the site in real
+Chromium, harvests the links the rendered pages actually carry, and writes them as seeds
+that `crawl.js` then verifies with its normal pipeline:
+
+```
+node crawl-render.js --discover https://site.example/ --seeds site.seeds.txt
+node crawl.js --seeds site.seeds.txt --out report.html
+```
+
+Discover options (`node crawl-render.js --help` has the full list):
+
+- `--seeds FILE` — where the discovered URLs go, one per line: in-scope pages and
+  documents (default `crawl-render.seeds.txt`). A full JSON manifest of pages, documents
+  and links goes to `--out` (default `crawl-render.discover.json` in this mode).
+- `--scope domain|path`, `--path-prefix STR`, `--include-subdomains`, `--max-pages N`
+  (default 200), `--max-depth N` (default 8) — the same confinement as a `crawl.js` crawl.
+- `--settle MS` — an extra wait after load for late XHR-driven rendering (default 0). In
+  discover mode `--wait-until` defaults to `networkidle`.
+- `--no-onclick-scan` — URL-like `onclick`/`data-*` attributes are harvested by default
+  (single-page apps often navigate from JavaScript handlers); this turns that off.
+- `--ignore-case` — de-duplicate URLs case-insensitively, and query strings whose
+  parameters differ only in order, so `/Browse.aspx` and `/browse.aspx` render once. For
+  IIS/ASP.NET sites (Laserfiche WebLink, SharePoint); off by default, because it is wrong
+  on a case-sensitive server.
+- `--laserfiche` — for Laserfiche WebLink: a `DocView.aspx?id=N` viewer page is recorded
+  as a DOCUMENT (its file URL) instead of being rendered, which turns thousands of viewer
+  renders into file URLs `crawl.js` can scan. `--laserfiche-dl P` (implies `--laserfiche`)
+  chooses how a document's bytes are reached: `electronicfile` (default,
+  `ElectronicFile.aspx?docid=N`, the native file, which works where PDF export is blocked),
+  or `openpdf=true` / `openfile=true` as a query parameter on `DocView`.
+- **Limits shared with the GUI:** when `crawl-gui-config.txt` (the GUI's options file) sits
+  beside the script or in the working directory, discover reads the same limits from it
+  (max pages and depth, scope and path prefix, concurrency, delay, timeout, subdomains), so
+  a discover run honours what was set for a GUI crawl; explicit flags still win.
+  `--config FILE` reads another file, `--no-config` ignores it. `--log`, `--stop-file` and
+  `--pause-file` let the GUI monitor, stop and pause the discover phase.
+
+**`crawl.js --seeds FILE`** reads start URLs from a file (one per line; `#` comments and
+blank lines ignored). Unlike several start URLs on the command line, which are crawled as
+separate sites with an index report, a seeds file makes **one** crawl: every seed starts
+the frontier at depth 0, with one shared seen-set and one report. Every seed's host counts
+as internal, not only the first one's, so a sibling host the discover run found (a
+document repository beside the main site) is followed rather than filed as external, the
+same rule discover applies.
+
+**`crawl.js --start-url URL`** names the site explicitly for `--rebuild-from` or
+`--recheck-from` on an older JSON report that did not record its start URL (reports from
+this version on record it).
 
 ### Large crawls: checkpoints, resumable view, and partitioned logs
 
@@ -701,7 +754,9 @@ downloads a **self-contained copy of the tracker with all of that baked in** —
 file and the recipient opens it with your progress already in place. Imports are checked to the
 same site and only apply keys under this tracker's own `cwfix:<host>:` namespace (a dropped file
 can't inject stray storage), and a saved copy still displays where `file://` storage is locked
-down.
+down. Import itself needs that storage: where cookies are blocked for the page, it refuses and
+says so, and [`local-static-server.js`](CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost)
+gives the two ways to allow it.
 
 Two **bulk-export** buttons turn the tracker into a delegation hub, each batch-writing a set of
 self-contained mini-trackers into a **folder you pick once** (File System Access directory picker;
@@ -771,7 +826,9 @@ verdicts** toolbar (above the tabs, on the final report) carries it across:
   timestamp (`charlotte-verdicts-<host>.json`) to send alongside the report; Import loads such
   a file and reloads. Import **merges by link** (each link the file mentions is replaced; links
   it doesn't mention are left alone), so several people's triage can be combined. A verdicts
-  file made for a different site is rejected.
+  file made for a different site is rejected. Where cookies are blocked for the report, Import
+  refuses and says so; see
+  [`local-static-server.js`](CRAWLER_part_05_local-cors-proxyjs-proxy-for-the-html-ve.md#local-static-serverjs--serve-a-report-or-fix-tracker-on-localhost).
 
 (The **fix tracker** export above is already a self-contained file, so *it* survives emailing
 too — but it's the referrer-grouped “what to fix” view, not the raw Broken/Working verdicts.)
